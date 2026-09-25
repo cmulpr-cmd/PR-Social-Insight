@@ -97,7 +97,7 @@ const S = {
   ct: 'overview', cf: { cat: '', unreplied: false, q: '' }, cpSort: 'comments', ppSort: 'count', person: null,
   addTab: 'post', editing: null, parsed: [], img: null,
   openPost: null, drawerCat: '', delPost: false, adminEdit: null, confirmDel: null, replyOpen: null, csv: null,
-  fx: { link: '', cat: 'news' }, pimp: null, pdm: 'views', recent: {}, recentPl: null, connForm: null, metaChoose: null, ttAuth: null, confirmDisc: null, prefill: null
+  fx: { link: '', cat: 'news' }, fbLogin: null, pimp: null, pdm: 'views', recent: {}, recentPl: null, connForm: null, metaChoose: null, ttAuth: null, confirmDisc: null, prefill: null
 };
 const root = () => $('#root');
 const me = () => (S.acting ? DB.users.find(u => u.email === S.acting) : ME) || ME;
@@ -1772,6 +1772,57 @@ const CAPS_TXT = {
   ig: { ok: ['ยอดถูกใจ และความคิดเห็นทั้งหมด', 'Reach, Views, Saves, Shares', 'เข้าชมโปรไฟล์ และผู้ติดตามใหม่', 'เวลาดู Reels', 'ผู้ติดตาม + เพศ อายุ ประเทศ เมือง'], no: ['แยกอิโมจิ (Instagram มีแค่ถูกใจ)', 'จังหวัด และภาษา'] },
   tt: { ok: ['ยอดวิว ถูกใจ ความคิดเห็น แชร์', 'ความยาววิดีโอ', 'ยอดผู้ติดตาม'], no: ['รายการความคิดเห็น', 'Reach และเวลาดู (นำเข้า CSV จาก TikTok Studio ได้)'] }
 };
+/* ---------- เข้าสู่ระบบด้วย Facebook (OAuth) ---------- */
+let FBW = null, FBPOLL = null;
+function fbLoginView() {
+  const L = S.fbLogin; if (!L) return '';
+  if (L.phase === 'wait') return `<div class="fb-wait soft"><span class="m-spin"></span><div><b>รอการอนุญาตในหน้าต่าง Facebook…</b><p>เข้าสู่ระบบด้วยบัญชีที่เป็นผู้ดูแลเพจ → กด “ดำเนินการต่อ” → เลือกเพจของหน่วยงาน (และบัญชี Instagram) → กดบันทึก ระบบจะรับข้อมูลและปิดหน้าต่างให้เอง</p>
+    <div class="fb-wait-actions"><button class="btn sm" type="button" data-act="fb-reopen">${ic('ext', 14)} เปิดหน้าต่าง Facebook อีกครั้ง</button><button class="btn sm ghost" type="button" data-act="fb-cancel">ยกเลิก</button></div></div></div>`;
+  if (L.phase === 'choose') return `<div class="fb-choose soft"><b>บัญชีนี้ดูแล ${L.pages.length} เพจ · เลือกเพจของหน่วยงาน</b><div class="fb-pages">${L.pages.map(p => `<label class="fb-page${L.pick === p.id ? ' on' : ''}"><input type="radio" name="fbpage" value="${esc(p.id)}" data-change="fb-pick" ${L.pick === p.id ? 'checked' : ''}>${p.picture ? `<img src="${esc(p.picture)}" alt="" onerror="this.remove()">` : `<span class="fb-pic">${esc((p.name || '?').replace(/^[เแโใไ]/, '').slice(0, 1))}</span>`}<span><b>${esc(p.name)}</b><small>${p.ig ? 'Instagram @' + esc(p.ig) : 'ไม่มี Instagram ที่ผูกไว้'}</small></span></label>`).join('')}</div>
+    <div class="fb-wait-actions"><button class="btn primary" type="button" data-act="fb-pick-go">${ic('check', 15)} เชื่อมต่อเพจนี้</button><button class="btn ghost" type="button" data-act="fb-cancel">ยกเลิก</button></div></div>`;
+  return `<div class="callout warn soft" style="margin-top:12px">${ic('clock', 16)}<div><b>เชื่อมต่อไม่สำเร็จ</b><br>${esc(L.msg)}<div style="margin-top:8px"><button class="btn sm" type="button" data-act="fb-cancel">ปิดข้อความนี้</button></div></div></div>`;
+}
+function renderFbLogin() { const el = $('#fb-login'); if (el) { el.innerHTML = fbLoginView(); stagger(el); } }
+function fbStopPoll() { clearTimeout(FBPOLL); FBPOLL = null; }
+function fbPopup(url) {
+  const w = 620, h = 760, x = Math.max(0, (window.screenX || 0) + (window.outerWidth - w) / 2), y = Math.max(0, (window.screenY || 0) + (window.outerHeight - h) / 2);
+  return window.open(url || '', 'fb_login', `width=${w},height=${h},left=${x},top=${y}`);
+}
+async function fbLoginStart() {
+  const err = $('#fb-err'); err.hidden = true; const ma = (DB.connections || {}).metaApp || {};
+  const appId = $('#mt-app').value.trim(), appSecret = $('#mt-sec').value.trim(), configId = $('#mt-cfg') ? $('#mt-cfg').value.trim() : '', withIg = $('#mt-ig').checked;
+  const bad = !appId && !ma.appId ? 'ใส่ App ID ของ Meta App' : !appSecret && !ma.hasSecret ? 'ใส่ App Secret ของ Meta App' : appId && !/^\d{5,20}$/.test(appId) ? 'App ID ต้องเป็นตัวเลขเท่านั้น' : '';
+  if (bad) { err.textContent = bad; err.hidden = false; return; }
+  // เปิดหน้าต่างทันทีตอนกด (กันเบราว์เซอร์บล็อกป๊อปอัป) แล้วค่อยใส่ลิงก์ Facebook
+  FBW = API.demo ? null : fbPopup('');
+  try { if (FBW) FBW.document.write('<p style="font-family:Tahoma,sans-serif;padding:60px 20px;text-align:center;color:#554f60">กำลังเปิดหน้าเข้าสู่ระบบ Facebook…</p>'); } catch (_) {}
+  try {
+    const r = await busy($('#fb-go'), () => API.metaStart({ appId, appSecret, configId, withIg }));
+    if (!API.demo) { if (FBW && !FBW.closed) FBW.location.href = r.authUrl; else FBW = fbPopup(r.authUrl); if (!FBW) toast('เบราว์เซอร์บล็อกหน้าต่าง กด “เปิดหน้าต่าง Facebook อีกครั้ง”', 'error'); }
+    DB.connections.metaApp = { appId: appId || ma.appId, hasSecret: true, configId };
+    S.fbLogin = { phase: 'wait', since: r.since || 0, url: r.authUrl, t0: Date.now() }; renderFbLogin(); fbPoll();
+  } catch (e) { if (FBW && !FBW.closed) FBW.close(); err.textContent = e.message; err.hidden = false; }
+}
+function fbPoll() {
+  fbStopPoll();
+  FBPOLL = setTimeout(async () => {
+    const L = S.fbLogin; if (!L || L.phase !== 'wait') return;
+    if (Date.now() - L.t0 > 15 * 60e3) { S.fbLogin = { phase: 'error', msg: 'หมดเวลารอการอนุญาต กด “เข้าสู่ระบบด้วย Facebook” อีกครั้ง' }; renderFbLogin(); return; }
+    try {
+      const c = await API.connStatus(); if (!S.fbLogin || S.fbLogin.phase !== 'wait') return;
+      if (c.fb && c.fb.connected && (c.fb.connectedAt || 0) !== (L.since || 0)) return fbDone(c);
+      if (c.metaPending && c.metaPending.length) { if (FBW && !FBW.closed) FBW.close(); S.fbLogin = { phase: 'choose', pages: c.metaPending, pick: c.metaPending[0].id }; renderFbLogin(); return; }
+      if (c.metaError) { if (FBW && !FBW.closed) FBW.close(); S.fbLogin = { phase: 'error', msg: c.metaError }; renderFbLogin(); return; }
+    } catch (e) { console.warn(e); }
+    fbPoll();
+  }, 2500);
+}
+async function fbDone(c) {
+  fbStopPoll(); if (FBW && !FBW.closed) FBW.close();
+  S.fbLogin = null; S.connForm = null; DB.connections = c; renderSide(); renderView('none');
+  toast(`เชื่อมต่อ ${c.fb.name || 'Facebook'}${c.ig && c.ig.connected ? ' และ ' + c.ig.name : ''} แล้ว`);
+  try { mergeFollowers(await API.syncFollowers()); renderView('none'); } catch (_) {}
+}
 VIEWS.connect = function () {
   const cs = DB.connections || {};
   const card = p => {
@@ -1782,35 +1833,47 @@ VIEWS.connect = function () {
       ${c.connected ? `<div class="conn-meta"><div><small>ผู้ติดตามล่าสุด</small><b>${fm ? fk(fm.v) : '—'}</b></div><div><small>ดึงข้อมูลล่าสุด</small><b>${c.lastSync ? ago(c.lastSync) : 'ยังไม่เคย'}</b></div></div>` : ''}
       ${c.error ? `<div class="callout warn" style="font-size:12.5px">${ic('clock', 15)}<div>${esc(c.error)}</div></div>` : ''}
       <ul class="caps">${cap.ok.map(t => `<li class="ok">${ic('check', 13)} ${t}</li>`).join('')}${cap.no.map(t => `<li class="no">${ic('edit', 13)} ${t} — กรอกเอง</li>`).join('')}</ul>
-      <footer>${c.connected ? `<button class="btn sm" data-act="sync-fol">${ic('refresh', 14)} ดึงข้อมูลตอนนี้</button>${S.confirmDisc === p ? `<button class="btn sm danger" data-act="disc-yes" data-v="${p}">ยืนยันยกเลิก</button><button class="btn sm ghost" data-act="disc-no">ไม่ใช่</button>` : `<button class="btn sm ghost" data-act="disc" data-v="${p}">ยกเลิกการเชื่อมต่อ</button>`}`
+      <footer>${c.connected ? `<button class="btn sm" data-act="sync-fol">${ic('refresh', 14)} ดึงข้อมูลตอนนี้</button>${p === 'fb' ? `<button class="btn sm ghost" data-act="conn-form" data-v="meta">${ic('plug', 14)} เปลี่ยนเพจ</button>` : ''}${S.confirmDisc === p ? `<button class="btn sm danger" data-act="disc-yes" data-v="${p}">ยืนยันยกเลิก</button><button class="btn sm ghost" data-act="disc-no">ไม่ใช่</button>` : `<button class="btn sm ghost" data-act="disc" data-v="${p}">ยกเลิกการเชื่อมต่อ</button>`}`
         : `<button class="btn sm primary" data-act="conn-form" data-v="${p === 'tt' ? 'tt' : 'meta'}">${ic('plug', 14)} เชื่อมต่อ</button>`}</footer>
      </article>`;
   };
   const mc = S.metaChoose;
   return `<div class="stack" data-stagger>
-    <div class="callout">${ic('lock', 18)}<div><b>ดึงข้อมูลได้เฉพาะบัญชีของหน่วยงานที่เชื่อมต่อ</b> ผ่าน API ทางการของ Meta และ TikTok โทเคนเก็บไว้ที่ Google Apps Script ไม่แสดงบนหน้าเว็บ ส่วนที่แพลตฟอร์มไม่เปิดให้ ระบบจะใช้ข้อมูลที่กรอกเองหรือนำเข้า CSV และแสดงเวลาอัปเดตล่าสุดทุกจุด</div></div>
+    <div class="callout">${ic('lock', 18)}<div><b>ดึงข้อมูลได้เฉพาะบัญชีของหน่วยงานที่เชื่อมต่อ</b> ผ่าน API ทางการของ Meta และ TikTok สิทธิ์เข้าถึงเก็บไว้ที่ระบบหลังบ้าน ไม่แสดงบนหน้าเว็บ ส่วนที่แพลตฟอร์มไม่เปิดให้ ระบบจะใช้ข้อมูลที่กรอกเองหรือนำเข้า CSV และแสดงเวลาอัปเดตล่าสุดทุกจุด</div></div>
     <div class="grid-3">${PKEYS.map(card).join('')}</div>
     <section class="panel auto-row"><div><h2>อัปเดตอัตโนมัติ</h2><p class="note" style="margin:2px 0 0">ดึงยอดผู้ติดตาม และตัวเลขของโพสต์ 30 วันล่าสุด ทุกชั่วโมง${cs.lastAuto ? ` · ทำงานล่าสุด ${ago(cs.lastAuto)}` : ''}</p></div>
       <label class="switch"><input type="checkbox" id="auto-sync" data-change="autosync" ${cs.autoSync ? 'checked' : ''}><span></span><em>${cs.autoSync ? 'เปิดอยู่' : 'ปิดอยู่'}</em></label></section>
-    <section class="panel" id="meta-form"${S.connForm === 'meta' ? '' : ' hidden'}><div class="panel-head"><div><h2>${ic('plug', 16)} เชื่อมต่อ Facebook และ Instagram</h2><p>ใช้ Meta App ของหน่วยงาน · Instagram ต้องเป็นบัญชี Business/Creator ที่ผูกกับเพจ</p></div></div>
-      <details class="help"><summary>วิธีรับ Access Token (ประมาณ 5 นาที)</summary><ol>
-       <li>ไปที่ developers.facebook.com → My Apps → Create App → ประเภท Business (หรือใช้แอปเดิมของหน่วยงาน)</li>
-       <li>เปิด Tools → Graph API Explorer → เลือกแอป → Get User Access Token</li>
-       <li>ติ๊กสิทธิ์: pages_show_list, pages_read_engagement, pages_read_user_content, read_insights, instagram_basic, instagram_manage_insights, instagram_manage_comments, business_management</li>
-       <li>กด Generate Access Token แล้วคัดลอกมาวางด้านล่าง พร้อม App ID และ App Secret (Settings → Basic) เพื่อให้ระบบแลกเป็นโทเคนถาวร</li></ol></details>
-      <form id="f-meta" class="stack" style="gap:12px" novalidate><div class="fgrid">
-       <div class="field"><label for="mt-app">App ID</label><input class="input" id="mt-app" autocomplete="off" inputmode="numeric"></div>
-       <div class="field"><label for="mt-sec">App Secret</label><input class="input" id="mt-sec" type="password" autocomplete="off"></div>
-       <div class="field wide"><label for="mt-tok">User หรือ Page Access Token</label><input class="input" id="mt-tok" type="password" autocomplete="off"><span class="hint">ระบบใช้โทเคนเพื่อดึงข้อมูลเท่านั้น และเก็บไว้ใน Script Properties ของ Apps Script</span></div>
-       ${mc ? `<div class="field wide"><label for="mt-page">เลือกเพจของหน่วยงาน</label><select class="input" id="mt-page">${mc.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></div>` : ''}
-      </div><span class="err-msg" id="mt-err" hidden></span><div><button class="btn primary" type="submit" id="mt-go">${ic('plug', 15)} ${mc ? 'เชื่อมต่อเพจที่เลือก' : 'ตรวจสอบและเชื่อมต่อ'}</button> <button class="btn ghost" type="button" data-act="conn-form" data-v="">ยกเลิก</button></div></form></section>
+    <section class="panel meta-conn" id="meta-form"${S.connForm === 'meta' ? '' : ' hidden'}><div class="panel-head"><div><h2>${ic('plug', 16)} เชื่อมต่อ Facebook และ Instagram</h2><p>กดเข้าสู่ระบบด้วยบัญชี Facebook ที่เป็นผู้ดูแลเพจ ระบบจะได้สิทธิ์แบบไม่หมดอายุให้เอง ไม่ต้องคัดลอกโทเคน</p></div></div>
+      <ol class="conn-steps"><li><b>1</b><span>ตั้งค่า Meta App<small>ทำครั้งเดียว</small></span></li><li><b>2</b><span>ใส่ App ID + Secret<small>จากหน้า App settings</small></span></li><li><b>3</b><span>เข้าสู่ระบบด้วย Facebook<small>เลือกเพจ แล้วกดอนุญาต</small></span></li></ol>
+      <details class="help"${(cs.metaApp || {}).appId ? '' : ' open'}><summary>ขั้นที่ 1 · ตั้งค่า Meta App ครั้งแรก (ประมาณ 5 นาที)</summary><ol>
+       <li>ไปที่ <b>developers.facebook.com</b> → My Apps → Create App → เลือก use case <b>“Manage everything on your Page”</b> (หรือใช้แอปเดิมของหน่วยงานที่มี Facebook Login)</li>
+       <li>เมนู <b>Facebook Login → Settings</b> วางลิงก์ด้านล่างในช่อง <b>Valid OAuth Redirect URIs</b> แล้วกด Save</li>
+       <li>ถ้าจะดึง Instagram ด้วย: เพิ่ม use case / Product <b>Instagram</b> (แบบ Facebook Login) และบัญชี Instagram ต้องเป็น Business หรือ Creator ที่ผูกกับเพจ</li>
+       <li>แอปที่ยังเป็นโหมด <b>Development</b> ใช้ได้ทันทีโดยไม่ต้องส่ง App Review แต่คนที่กดเข้าสู่ระบบต้องมีบทบาทในแอป (App roles → Admin/Developer/Tester)</li></ol>
+       <div class="code"><span id="meta-redirect">${esc(cs.redirectUri || 'ต้อง Deploy ระบบหลังบ้านก่อน')}</span><button class="btn sm" type="button" data-act="copy-el" data-v="meta-redirect">${ic('copy', 14)} คัดลอก</button></div></details>
+      <form id="f-meta-login" class="stack" style="gap:12px;margin-top:14px" novalidate><div class="fgrid">
+       <div class="field"><label for="mt-app">App ID</label><input class="input" id="mt-app" autocomplete="off" inputmode="numeric" placeholder="เช่น 1234567890123456" value="${esc((cs.metaApp || {}).appId || '')}"></div>
+       <div class="field"><label for="mt-sec">App Secret</label><input class="input" id="mt-sec" type="password" autocomplete="off" placeholder="${(cs.metaApp || {}).hasSecret ? 'บันทึกไว้แล้ว — เว้นว่างได้' : 'กด Show ที่ App settings → Basic'}"></div>
+      </div>
+       <label class="check-row"><input type="checkbox" id="mt-ig" checked> ขอสิทธิ์ Instagram ด้วย <span class="muted">(ถ้าหน้า Facebook ขึ้น “Invalid Scopes” ให้เอาติ๊กออก)</span></label>
+       <details class="help sm"><summary>ตั้งค่าขั้นสูง (Facebook Login for Business)</summary><div class="field" style="margin-top:10px"><label for="mt-cfg">Configuration ID</label><input class="input" id="mt-cfg" autocomplete="off" value="${esc((cs.metaApp || {}).configId || '')}" placeholder="เว้นว่างได้"><span class="hint">ใช้เมื่อแอปเป็นแบบ Business ที่ใช้ Facebook Login for Business เท่านั้น</span></div></details>
+       <span class="err-msg" id="fb-err" hidden></span>
+       <div class="fb-row"><button class="btn fb-btn lg" type="submit" id="fb-go"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg> เข้าสู่ระบบด้วย Facebook</button><button class="btn ghost" type="button" data-act="conn-form" data-v="">ยกเลิก</button></div>
+      </form>
+      <div id="fb-login">${fbLoginView()}</div>
+      <details class="help alt"><summary>วิธีสำรอง: วาง Access Token เอง</summary>
+       <p class="note" style="margin:8px 0 10px">ใช้เมื่อเข้าสู่ระบบด้วยปุ่มด้านบนไม่ได้ · ใน Graph API Explorer ต้องเลือก Meta App ให้ตรงกับ App ID ด้านบน และวางโทเคนทันทีหลังสร้าง (โทเคนแบบสั้นหมดอายุใน 1 ชั่วโมง ระบบจะแลกเป็นแบบถาวรให้)</p>
+       <form id="f-meta" class="stack" style="gap:12px" novalidate><div class="fgrid">
+        <div class="field wide"><label for="mt-tok">User หรือ Page Access Token</label><input class="input" id="mt-tok" type="password" autocomplete="off"></div>
+        ${mc ? `<div class="field wide"><label for="mt-page">เลือกเพจของหน่วยงาน</label><select class="input" id="mt-page">${mc.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></div>` : ''}
+       </div><span class="err-msg" id="mt-err" hidden></span><div><button class="btn" type="submit" id="mt-go">${ic('plug', 15)} ${mc ? 'เชื่อมต่อเพจที่เลือก' : 'ตรวจสอบและเชื่อมต่อ'}</button></div></form></details></section>
     <section class="panel" id="tt-form"${S.connForm === 'tt' ? '' : ' hidden'}><div class="panel-head"><div><h2>${ic('plug', 16)} เชื่อมต่อ TikTok</h2><p>ใช้ TikTok for Developers · Login Kit + scope user.info.basic, user.info.stats, video.list</p></div></div>
       <details class="help"><summary>ขั้นตอนตั้งค่าแอป TikTok</summary><ol>
        <li>ไปที่ developers.tiktok.com → Manage apps → Connect an app</li>
        <li>เพิ่ม Products: Login Kit และ Display API · ขอ scope ตามด้านบน</li>
        <li>ใส่ Redirect URI ด้านล่างในช่อง Login Kit → Redirect URI</li>
        <li>คัดลอก Client Key และ Client Secret มาวาง แล้วกด “ไปหน้าอนุญาตของ TikTok” และเข้าสู่ระบบด้วยบัญชี TikTok ของหน่วยงาน</li></ol></details>
-      <div class="code" style="margin-bottom:12px"><span id="tt-redirect">${esc(cs.redirectUri || 'ต้อง Deploy Apps Script ก่อน')}</span><button class="btn sm" type="button" data-act="copy-el" data-v="tt-redirect">${ic('copy', 14)} คัดลอก</button></div>
+      <div class="code" style="margin-bottom:12px"><span id="tt-redirect">${esc(cs.redirectUri || 'ต้อง Deploy ระบบหลังบ้านก่อน')}</span><button class="btn sm" type="button" data-act="copy-el" data-v="tt-redirect">${ic('copy', 14)} คัดลอก</button></div>
       <form id="f-tt" class="stack" style="gap:12px" novalidate><div class="fgrid">
        <div class="field"><label for="tt-key">Client Key</label><input class="input" id="tt-key" autocomplete="off"></div>
        <div class="field"><label for="tt-sec">Client Secret</label><input class="input" id="tt-sec" type="password" autocomplete="off"></div></div>
@@ -1910,7 +1973,10 @@ document.addEventListener('click', async e => {
     case 'sync-post': { const id = el.dataset.id; await syncPostIds([id], el, 'กำลังดึง'); renderDrawer(false); if (S.page === 'posts') renderPostList(false); break; }
     case 'sync-all': { const ids = filteredPosts().filter(canSync).map(p => p.id); await syncPostIds(ids, el); renderView('soft'); break; }
     case 'sync-fol': { try { const r = await busy(el, () => API.syncFollowers()); mergeFollowers(r); renderSide(); renderView('none'); toast('ดึงยอดผู้ติดตามล่าสุดแล้ว'); } catch (_) {} break; }
-    case 'conn-form': S.connForm = v || null; S.metaChoose = null; S.ttAuth = null; renderView('none'); if (v) setTimeout(() => { const f = $('#' + (v === 'tt' ? 'tt' : 'meta') + '-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); break;
+    case 'fb-reopen': if (S.fbLogin && S.fbLogin.url && !API.demo) { FBW = fbPopup(S.fbLogin.url); } break;
+    case 'fb-cancel': fbStopPoll(); if (FBW && !FBW.closed) FBW.close(); S.fbLogin = null; renderFbLogin(); break;
+    case 'fb-pick-go': { const L = S.fbLogin; if (!L || !L.pick) break; try { const c = await busy(el, () => API.metaPick(L.pick)); await fbDone(c); } catch (e2) { S.fbLogin = { phase: 'error', msg: e2.message }; renderFbLogin(); } break; }
+    case 'conn-form': fbStopPoll(); S.fbLogin = null; S.connForm = v || null; S.metaChoose = null; S.ttAuth = null; renderView('none'); if (v) setTimeout(() => { const f = $('#' + (v === 'tt' ? 'tt' : 'meta') + '-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); break;
     case 'conn-check': { try { DB.connections = await busy(el, () => API.connStatus()); if (conn('tt').connected) { S.connForm = null; S.ttAuth = null; toast('เชื่อมต่อ TikTok แล้ว'); try { mergeFollowers(await API.syncFollowers()); } catch (_) {} } else toast('ยังไม่พบการอนุญาตจาก TikTok ลองอีกครั้งหลังกดยืนยันในหน้า TikTok', 'info'); renderSide(); renderView('none'); } catch (_) {} break; }
     case 'disc': S.confirmDisc = v; renderView('none'); break;
     case 'disc-no': S.confirmDisc = null; renderView('none'); break;
@@ -2000,6 +2066,7 @@ document.addEventListener('change', async e => {
     case 'csv-file': { const fs = Array.from(t.files || []); if (fs.length) readFiles(fs); t.value = ''; break; }
     case 'page-metric': { const f = S.pimp.files.find(x => x.id === t.dataset.id); if (f) f.metric = t.value || null; renderCsv(false); break; }
     case 'page-pl': S.pimp.platform = t.value; renderCsv(false); break;
+    case 'fb-pick': if (S.fbLogin) { S.fbLogin.pick = t.value; $$('.fb-page').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)); } break;
     case 'csv-opt': S.csv[t.dataset.k] = t.value; renderCsv(false); break;
     case 'csv-flag': S.csv[t.dataset.k] = t.checked; renderCsv(false); break;
     case 'csv-map': S.csv.map[t.dataset.f] = t.value === '' ? '' : +t.value; renderCsv(false); break;
@@ -2052,13 +2119,15 @@ document.addEventListener('submit', async e => {
     if (!/^https?:\/\/\S+\.\S+/.test(link) || !detectPl(link)) { const i = $('#fx-link').closest('.fetch-bar'); i.classList.remove('shake'); void i.offsetWidth; i.classList.add('shake'); toast('วางลิงก์โพสต์ Facebook, Instagram หรือ TikTok ที่ขึ้นต้นด้วย https://', 'error'); return; }
     return fxFetch({ link });
   }
+  if (f.id === 'f-meta-login') { fbLoginStart(); return; }
   if (f.id === 'f-meta') {
     const err = $('#mt-err'); err.hidden = true;
     const payload = { appId: $('#mt-app').value.trim(), appSecret: $('#mt-sec').value.trim(), token: $('#mt-tok').value.trim(), pageId: $('#mt-page') ? $('#mt-page').value : undefined };
     if (!payload.token) { err.textContent = 'วาง Access Token จาก Graph API Explorer'; err.hidden = false; return; }
+    if (!payload.appId && !((DB.connections || {}).metaApp || {}).appId) { err.textContent = 'ใส่ App ID และ App Secret ด้านบนด้วย เพื่อให้ระบบแลกเป็นโทเคนแบบไม่หมดอายุ'; err.hidden = false; return; }
     try {
       const r = await busy($('#mt-go'), () => API.connectMeta(payload));
-      if (r.choose) { S.metaChoose = r.choose; const keep = { app: payload.appId, sec: payload.appSecret, tok: payload.token }; renderView('none'); $('#mt-app').value = keep.app; $('#mt-sec').value = keep.sec; $('#mt-tok').value = keep.tok; toast('บัญชีนี้ดูแลหลายเพจ เลือกเพจของหน่วยงาน', 'info'); return; }
+      if (r.choose) { S.metaChoose = r.choose; const keep = { app: payload.appId, sec: payload.appSecret, tok: payload.token }; renderView('none'); $('#mt-app').value = keep.app; $('#mt-sec').value = keep.sec; $('#mt-tok').value = keep.tok; const alt = $('#meta-form details.alt'); if (alt) alt.open = true; toast('บัญชีนี้ดูแลหลายเพจ เลือกเพจของหน่วยงาน', 'info'); return; }
       DB.connections = r; S.connForm = null; S.metaChoose = null; renderSide(); renderView('none');
       toast(`เชื่อมต่อ ${r.fb.name || 'Facebook'}${r.ig.connected ? ' และ ' + r.ig.name : ''} แล้ว`);
       try { mergeFollowers(await API.syncFollowers()); renderView('none'); } catch (_) {}

@@ -896,3 +896,33 @@ body.modal-open{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.modal,.modal-bd,.modal-body.swap,.m-bar span,.m-bar span::after,.fab{animation:none;transition:none}}
 .fab.raised{bottom:96px}
 @media (max-width:640px){.fab.raised{bottom:84px}}
+
+/* ============ เข้าสู่ระบบด้วย Facebook ============ */
+.conn-steps{list-style:none;margin:0 0 14px;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.conn-steps li{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.conn-steps li > b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--accent-soft);color:var(--accent);font-size:13px}
+.conn-steps span{font-size:13px;font-weight:600;line-height:1.35}
+.conn-steps small{display:block;font-weight:400;color:var(--ink-3);font-size:11.5px}
+details.help .code{margin-top:10px}
+details.help.sm{margin-bottom:0;padding:8px 12px}
+details.help.alt{margin:16px 0 0;background:transparent;border:1px dashed var(--line-2)}
+details.help.alt summary{color:var(--ink-2)}
+.check-row{display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap}
+.fb-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn.fb-btn{background:#1877f2;border-color:#1877f2;color:#fff;gap:10px;padding-left:18px;padding-right:20px;box-shadow:0 8px 20px -10px rgba(24,119,242,.8)}
+.btn.fb-btn:hover{background:#166fe0;border-color:#166fe0;transform:translateY(-1px)}
+.fb-wait{display:flex;gap:14px;align-items:flex-start;margin-top:14px;padding:16px;border-radius:14px;background:color-mix(in srgb,#1877f2 8%,var(--surface));border:1px solid color-mix(in srgb,#1877f2 25%,var(--line))}
+.fb-wait .m-spin{margin-top:3px;border-color:color-mix(in srgb,#1877f2 25%,transparent);border-top-color:#1877f2;flex:none}
+.fb-wait b{font-size:14px}
+.fb-wait p{margin:4px 0 0;font-size:13px;color:var(--ink-2);line-height:1.6}
+.fb-wait-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.fb-choose{margin-top:14px;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2)}
+.fb-pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:12px}
+.fb-page{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+.fb-page.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.fb-page input{accent-color:var(--accent)}
+.fb-page img,.fb-pic{width:38px;height:38px;border-radius:50%;flex:none;object-fit:cover}
+.fb-pic{display:grid;place-items:center;background:#1877f2;color:#fff;font-weight:600}
+.fb-page b{display:block;font-size:13.5px}
+.fb-page small{font-size:12px;color:var(--ink-3)}
+@media (max-width:700px){.conn-steps{grid-template-columns:minmax(0,1fr)}}

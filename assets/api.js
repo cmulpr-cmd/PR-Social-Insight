@@ -64,6 +64,8 @@
     syncFollowers() { return this.call('followers.sync'); },
     connStatus() { return this.call('connect.status'); },
     connectMeta(p) { return this.call('connect.meta', p); },
+    metaStart(p) { return this.call('connect.metaStart', p); },
+    metaPick(pageId) { return this.call('connect.metaPick', { pageId }); },
     connectTikTok(p) { return this.call('connect.tiktok', p); },
     disconnect(platform) { return this.call('connect.disconnect', { platform }); },
     setAutoSync(on) { return this.call('connect.autosync', { on }); },
@@ -207,6 +209,19 @@
     },
     async connStatus() { await wait(300); return clone(this._conn()); },
     async connectMeta(p) { await wait(900); need('admin'); if (!p.token || p.token.length < 8) throw new ApiError('api', 'โทเคนไม่ถูกต้องหรือหมดอายุ ลองสร้างใหม่จาก Graph API Explorer'); const c = this._conn(); c.fb = { connected: true, name: 'เพจตัวอย่าง', lastSync: null, error: '' }; c.ig = { connected: true, name: '@example.page', lastSync: null, error: '' }; return clone(c); },
+    async metaStart(p) {
+      await wait(700); need('admin'); const c = this._conn();
+      if (p.appId) c.metaApp = { appId: p.appId, hasSecret: true, configId: p.configId || '' };
+      if (!c.metaApp || !c.metaApp.appId) throw new ApiError('invalid', 'ใส่ App ID และ App Secret ของ Meta App ก่อน');
+      const since = (c.fb && c.fb.connectedAt) || 0; c.metaError = '';
+      // จำลองว่าแอดมินอนุญาตในหน้าต่าง Facebook แล้ว: เพจที่ดูแลมี 2 เพจ ให้เลือก
+      setTimeout(() => { c.metaPending = [{ id: '101', name: 'สำนักหอสมุด มหาวิทยาลัยเชียงใหม่', ig: 'cmulibrary', picture: '' }, { id: '102', name: 'เพจทดสอบของแอดมิน', ig: '', picture: '' }]; }, 3500);
+      return { authUrl: 'about:blank', redirectUri: c.redirectUri, since };
+    },
+    async metaPick(pageId) {
+      await wait(800); need('admin'); const c = this._conn(); const pg = (c.metaPending || []).find(x => x.id === pageId); if (!pg) throw new ApiError('expired', 'รายการเพจหมดอายุ');
+      c.fb = { connected: true, name: pg.name, lastSync: null, error: '', connectedAt: Date.now() }; c.ig = { connected: !!pg.ig, name: pg.ig ? '@' + pg.ig : '', lastSync: null, error: '' }; c.metaPending = null; return clone(c);
+    },
     async connectTikTok(p) { await wait(500); need('admin'); this._conn().tt.hasApp = true; this._ttPending = true; return { authUrl: 'https://www.tiktok.com/v2/auth/authorize/', redirectUri: this._conn().redirectUri }; },
     async disconnect(platform) { await wait(400); need('admin'); const c = this._conn(); c[platform] = { connected: false, name: '', lastSync: null, error: '' }; if (platform === 'fb') c.ig = { connected: false, name: '', lastSync: null, error: '' }; return clone(c); },
     async setAutoSync(on) { await wait(400); need('admin'); const c = this._conn(); c.autoSync = !!on; return clone(c); },

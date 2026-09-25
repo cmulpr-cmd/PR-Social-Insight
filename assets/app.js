@@ -3,6 +3,11 @@
 "use strict";
 const CFG = window.APP_CONFIG || {}, DOMAIN = CFG.DOMAIN || 'cmu.ac.th', API = window.API || {};
 const APP_NAME = CFG.APP_NAME || 'PR Social Insight';
+// โลโก้หน่วยงาน: ใส่ LOGO_URL ใน config.js (เช่น 'assets/logo.png') ถ้าว่างจะแสดงตัวอักษรย่อ
+const brandMark = () => CFG.LOGO_URL
+  ? `<span class="brand-mark logo"><img src="${String(CFG.LOGO_URL).replace(/"/g, '&quot;')}" alt="โลโก้ ${String(APP_NAME).replace(/[<>"]/g, '')}" onerror="this.parentNode.classList.remove('logo');this.parentNode.textContent='${String(CFG.LOGO_TEXT || 'PR').replace(/['"<>\\]/g, '')}'"></span>`
+  : `<span class="brand-mark">${String(CFG.LOGO_TEXT || 'PR').replace(/[<>&]/g, '')}</span>`;
+(function setFavicon() { if (!CFG.LOGO_URL) return; let l = document.querySelector('link[rel="icon"]'); if (!l) { l = document.createElement('link'); l.rel = 'icon'; document.head.appendChild(l); } l.href = CFG.LOGO_URL; })();
 
 /* ================= utilities ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -359,7 +364,7 @@ function showAuth() {
     r.innerHTML = `<div class="auth" id="auth">
       <section class="auth-art" aria-hidden="true">
         <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="grain"></div>
-        <div class="auth-brand"><span class="brand-mark">PR</span><b>${esc(APP_NAME)}</b></div>
+        <div class="auth-brand">${brandMark()}<b>${esc(APP_NAME)}</b></div>
         <div class="auth-copy"><span class="eyebrow">${esc(CFG.ORG_NAME || 'Public Relations')} · Social Analytics</span><h1>ข้อมูลโซเชียลทุกช่องทาง ในที่เดียว</h1><p>Facebook, Instagram และ TikTok — ตัวชี้วัดรายโพสต์ ความคิดเห็นเชิงคุณภาพ และข้อมูลผู้ชม สำหรับวางกลยุทธ์คอนเทนต์</p></div>
         <div class="float-cards"><div class="fc">Reach<b>+48.0%</b>${spark([3, 4, 3.6, 5, 4.8, 6.2, 7], '#e9c77f', 110, 26)}</div><div class="fc">Engagement rate<b>5.71%</b></div><div class="fc">Positive comments<b>33%</b></div></div>
       </section>
@@ -505,7 +510,7 @@ function startApp() {
   renderSide(); renderTop(); renderView('enter');
 }
 function renderSkeleton() {
-  root().innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-mark">PR</span><div><b>${esc(APP_NAME)}</b><small>กำลังโหลด…</small></div></div>${[1, 2, 3, 4, 5].map(() => '<div class="sk" style="height:34px"></div>').join('')}</aside>
+  root().innerHTML = `<div class="app"><aside class="side"><div class="brand">${brandMark()}<div><b>${esc(APP_NAME)}</b><small>กำลังโหลด…</small></div></div>${[1, 2, 3, 4, 5].map(() => '<div class="sk" style="height:34px"></div>').join('')}</aside>
    <main><div class="sk-wrap"><div class="sk" style="height:32px;width:280px"></div><div class="sk" style="height:38px;width:min(640px,100%)"></div><div class="sk" style="height:104px"></div><div class="grid-3"><div class="sk" style="height:150px"></div><div class="sk" style="height:150px"></div><div class="sk" style="height:150px"></div></div><div class="sk" style="height:300px"></div></div></main></div>`;
 }
 function renderSide() {
@@ -514,7 +519,7 @@ function renderSide() {
   const pending = DB.users.filter(x => x.status === 'pending').length;
   const needs = cstats(postsOf(allowedP())).needs.length;
   $('#side').innerHTML = `
-   <div class="brand"><span class="brand-mark">PR</span><div><b>${esc(APP_NAME)}</b><small>${esc(CFG.ORG_NAME || 'Social Analytics')}</small></div></div>
+   <div class="brand">${brandMark()}<div><b>${esc(APP_NAME)}</b><small>${esc(CFG.ORG_NAME || 'Social Analytics')}</small></div></div>
    <nav class="nav" aria-label="เมนูหลัก">${NAV_GROUPS.map(([g, keys]) => { const items = keys.filter(k => can(k)); if (!items.length) return ''; return `<div class="nav-label">${g}</div>` + items.map(k => { const m = PAGES.find(x => x.k === k); const warn = k === 'connect' && PKEYS.some(p => conn(p).error); return `<button data-act="nav" data-v="${k}" ${S.page === k ? 'aria-current="page"' : ''}>${ic(k)}<span>${m.t}</span>${k === 'admin' && pending ? `<span class="count">${pending}</span>` : ''}${k === 'comments' && needs ? `<span class="count" title="คำถาม ร้องเรียน หรือสนใจซื้อ ที่ยังไม่ได้ตอบ">${needs}</span>` : ''}${warn ? '<span class="count" title="การเชื่อมต่อมีปัญหา">!</span>' : ''}</button>`; }).join(''); }).join('')}
    </nav>
    <div class="me">
@@ -573,7 +578,7 @@ function renderView(mode = 'fade') {
 }
 function go(page, tab) {
   if (!can(page)) return;
-  if (page === 'add' && (S.page !== 'add' || tab)) { S.editing = null; S.parsed = []; S.img = null; S.addTab = tab || 'link'; if (tab !== 'post') S.prefill = null; }
+  if (page === 'add' && (S.page !== 'add' || tab)) { S.catTouched = false; S.editing = null; S.parsed = []; S.img = null; S.addTab = tab || 'link'; if (tab !== 'post') S.prefill = null; }
   S.page = page; S.person = null; closeDrawer();
   $$('#side .nav button').forEach(b => b.dataset.v === page ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   renderTop(); renderView('fade'); window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -589,10 +594,13 @@ function folMeta(p) { const a = FIDX[p]; if (!a || !a.length) return null; const
 function srcLabel(src, at, platform) {
   if (!at) return '';
   if (src === 'api') return `<span class="src api" title="${esc(fdt(at))}">${ic('refresh', 11)} ${platform ? 'ดึงจาก ' + PL[platform].name + ' · ' : ''}${ago(at)}</span>`;
+  if (src === 'csv') return `<span class="src man" title="${esc(fdt(at))}">${ic('file', 11)} นำเข้า CSV · ${fdate(at)}</span>`;
   return `<span class="src man" title="${esc(fdt(at))}">${ic('edit', 11)} กรอกเอง · ${fdate(at)}</span>`;
 }
+const hasData = p => DB.posts.some(x => x.platform === p) || (FIDX[p] && FIDX[p].length > 0);
+const shownP = () => { const a = activeP(); const d = a.filter(hasData); return d.length ? d : a; };
 VIEWS.dashboard = function () {
-  const r = range(), ps = activeP(); const cur = postsIn(r.from, r.to), prev = postsIn(r.pf, r.pt);
+  const r = range(), ps = shownP(); const cur = postsIn(r.from, r.to), prev = postsIn(r.pf, r.pt);
   const A_ = agg(cur), B = agg(prev), C = cstats(cur), D = cstats(prev);
   const endMs = Math.min(r.to - 1, Date.now());
   const fNow = sumFol(ps, endMs), fStart = sumFol(ps, r.from - DAY), fPrev = sumFol(ps, r.pf - DAY);
@@ -605,26 +613,28 @@ VIEWS.dashboard = function () {
     eng: per(l => l.reduce((s, x) => s + eng(x.m), 0)), er: per(l => agg(l).er || 0), rep: per(l => n0(cstats(l).replyRate))
   };
   const k = (key, icon, label, en, val, d, sub, series) => `<article class="kcard"><div class="kc-top"><span class="kc-ic">${ic(icon, 16)}</span><span class="k-label">${label}<small>${en}</small></span>${r.hasPrev ? dpill(d) : ''}</div><div class="k-val">${val}</div><div class="kc-foot"><span class="k-sub">${sub || ''}</span>${spark(series, 'var(--accent)', 92, 30)}</div></article>`;
-  const kp = `<section class="kgrid" aria-label="ตัวชี้วัดหลัก" data-stagger>
-    ${k('kpi-fol', 'audience', 'ผู้ติดตามทั้งหมด', 'Followers', cnt(fNow, 'k', null, 'kpi-fol'), delta(gain, gainPrev), gain != null ? `+${fk(gain)} ในช่วงนี้` : 'ยังไม่มีข้อมูลผู้ติดตาม', sp.fol)}
-    ${k('kpi-reach', 'target', 'การเข้าถึง', 'Reach', cnt(A_.reach, 'k', null, 'kpi-reach'), delta(A_.reach, B.reach), `จาก ${A_.n} โพสต์`, sp.reach)}
-    ${k('kpi-imp', 'eye', 'การมองเห็น', 'Views', cnt(A_.impressions, 'k', null, 'kpi-imp'), delta(A_.impressions, B.impressions), r.hasPrev ? 'เทียบช่วงก่อนหน้า' : 'ทั้งหมด', sp.imp)}
-    ${k('kpi-eng', 'heart', 'การมีส่วนร่วม', 'Engagement', cnt(A_.eng, 'k', null, 'kpi-eng'), delta(A_.eng, B.eng), 'ถูกใจ ความคิดเห็น แชร์ บันทึก', sp.eng)}
-    ${k('kpi-er', 'percent', 'อัตราการมีส่วนร่วม', 'Engagement rate', cnt(A_.er, 'pct', 2, 'kpi-er'), delta(A_.er, B.er), 'ต่อการเข้าถึง', sp.er)}
-    ${k('kpi-rep', 'reply', 'อัตราการตอบกลับ', 'Response rate', cnt(C.replyRate, 'pct', 0, 'kpi-rep'), delta(C.replyRate, D.replyRate), C.avgRT != null ? `ตอบเฉลี่ยใน ${fmins(C.avgRT)}` : `${fnum(C.total)} ความคิดเห็น`, sp.rep)}
-   </section>`;
+  const tiles = [
+    fNow != null && k('kpi-fol', 'audience', 'ผู้ติดตามทั้งหมด', 'Followers', cnt(fNow, 'k', null, 'kpi-fol'), delta(gain, gainPrev), gain ? `+${fk(gain)} ในช่วงนี้` : 'ยอดล่าสุด', sp.fol),
+    A_.reach > 0 && k('kpi-reach', 'target', 'การเข้าถึง', 'Reach', cnt(A_.reach, 'k', null, 'kpi-reach'), delta(A_.reach, B.reach), `จาก ${A_.n} โพสต์`, sp.reach),
+    A_.impressions > 0 && k('kpi-imp', 'eye', 'การมองเห็น', 'Views', cnt(A_.impressions, 'k', null, 'kpi-imp'), delta(A_.impressions, B.impressions), r.hasPrev ? 'เทียบช่วงก่อนหน้า' : 'ทั้งหมด', sp.imp),
+    A_.eng > 0 && k('kpi-eng', 'heart', 'การมีส่วนร่วม', 'Engagement', cnt(A_.eng, 'k', null, 'kpi-eng'), delta(A_.eng, B.eng), 'ถูกใจ ความคิดเห็น แชร์ บันทึก', sp.eng),
+    A_.er > 0 && k('kpi-er', 'percent', 'อัตราการมีส่วนร่วม', 'Engagement rate', cnt(A_.er, 'pct', 2, 'kpi-er'), delta(A_.er, B.er), 'ต่อการเข้าถึง', sp.er),
+    C.total > 0 && k('kpi-rep', 'reply', 'อัตราการตอบกลับ', 'Response rate', cnt(C.replyRate, 'pct', 0, 'kpi-rep'), delta(C.replyRate, D.replyRate), C.avgRT != null ? `ตอบเฉลี่ยใน ${fmins(C.avgRT)}` : `${fnum(C.total)} ความคิดเห็น`, sp.rep)
+  ].filter(Boolean);
+  const kp = tiles.length ? `<section class="kgrid n${tiles.length}" aria-label="ตัวชี้วัดหลัก" data-stagger>${tiles.join('')}</section>` : '';
 
   const TM = [['reach', 'Reach'], ['impressions', 'Views'], ['eng', 'Engagement'], ['newFollowers', 'ผู้ติดตามใหม่']];
   const plSeg = ps.map(p => ({ l: PL[p].name, v: agg(cur.filter(x => x.platform === p)).eng, c: PL[p].c }));
-  const row1 = `<div class="grid-main" data-stagger>
+  const multi = ps.length > 1;
+  const row1 = `<div class="${multi ? 'grid-main' : 'stack'}" data-stagger>
     <section class="panel"><div class="panel-head"><div><h2>แนวโน้มตามช่วงเวลา</h2><p>${{ hour: 'รายชั่วโมง', day: 'รายวัน', week: 'รายสัปดาห์', month: 'รายเดือน' }[buckets(r.from, r.to).u]} · แยกตามแพลตฟอร์ม</p></div>
       <div class="seg" role="group" aria-label="ตัวชี้วัดในกราฟ">${TM.map(([k2, t]) => `<button data-act="trend" data-v="${k2}" aria-pressed="${S.trend === k2}">${t}</button>`).join('')}</div></div>
       <div class="chart" id="ch-trend"></div>${ps.length > 1 ? `<div class="legend">${ps.map(p => `<span><i style="background:${PL[p].c}"></i>${PL[p].name}</span>`).join('')}</div>` : ''}</section>
-    <section class="panel"><div class="panel-head"><div><h2>สัดส่วนการมีส่วนร่วม</h2><p>แต่ละแพลตฟอร์มสร้าง Engagement เท่าไร</p></div></div>
-      ${donut(plSeg, { centerHtml: cnt(A_.eng, 'k', null, 'd-eng'), sub: 'การมีส่วนร่วมรวม', emptyText: 'ยังไม่มีโพสต์ในช่วงที่เลือก' })}</section>
+    ${multi ? `<section class="panel"><div class="panel-head"><div><h2>สัดส่วนการมีส่วนร่วม</h2><p>แต่ละแพลตฟอร์มสร้าง Engagement เท่าไร</p></div></div>
+      ${donut(plSeg, { centerHtml: cnt(A_.eng, 'k', null, 'd-eng'), sub: 'การมีส่วนร่วมรวม', emptyText: 'ยังไม่มีโพสต์ในช่วงที่เลือก' })}</section>` : ''}
    </div>`;
 
-  const cards = `<section class="grid-3" data-stagger>${ps.map(p => {
+  const cards = !multi && folAt(ps[0], endMs) == null ? '' : `<section class="${multi ? 'grid-3' : 'grid-3 single'}" data-stagger>${ps.map(p => {
     const a = agg(cur.filter(x => x.platform === p)); const f = folAt(p, endMs); const g = f != null ? f - n0(folAt(p, r.from - DAY)) : null; const fm = folMeta(p);
     const sv = []; const end = Math.min(r.to, TODAY + DAY); const st = Math.max(1, Math.floor((end - r.from) / DAY / 24));
     if (f != null) { for (let t = r.from; t < end; t += st * DAY) sv.push(n0(folAt(p, t))); sv.push(f); }
@@ -636,25 +646,27 @@ VIEWS.dashboard = function () {
   }).join('')}</section>`;
 
   const sentSeg = SENT.map(s => ({ l: s.t + ' · ' + s.th, v: C.by[s.k], c: s.c }));
-  const row2 = `<div class="grid-main" data-stagger>
+  const row2 = `<div class="${C.total ? 'grid-main' : 'stack'}" data-stagger>
     <section class="panel"><div class="panel-head"><div><h2>องค์ประกอบของการมีส่วนร่วม</h2><p>ถูกใจ ความคิดเห็น แชร์ และบันทึก ในแต่ละช่วงเวลา</p></div></div>
       <div class="chart" id="ch-eng"></div><div class="legend">${ENG_PARTS.map(x => `<span><i style="background:${x.c}"></i>${x.t}</span>`).join('')}</div></section>
-    <section class="panel"><div class="panel-head"><div><h2>ความรู้สึกจากความคิดเห็น</h2><p>${fnum(C.total)} ความคิดเห็น จัดหมวดอัตโนมัติ</p></div>${can('comments') ? `<button class="btn sm" data-act="nav" data-v="comments">ดูทั้งหมด</button>` : ''}</div>
-      ${donut(sentSeg, { centerHtml: cnt(C.posRate, 'pct', 0, 'd-pos'), sub: 'เชิงบวก', fmt: fnum, emptyText: 'ยังไม่มีความคิดเห็นในช่วงที่เลือก' })}</section>
+    ${C.total ? `<section class="panel"><div class="panel-head"><div><h2>ความรู้สึกจากความคิดเห็น</h2><p>${fnum(C.total)} ความคิดเห็น จัดหมวดอัตโนมัติ</p></div>${can('comments') ? `<button class="btn sm" data-act="nav" data-v="comments">ดูทั้งหมด</button>` : ''}</div>
+      ${donut(sentSeg, { centerHtml: cnt(C.posRate, 'pct', 0, 'd-pos'), sub: 'เชิงบวก', fmt: fnum })}</section>` : ''}
    </div>`;
 
   const rb = reactionTotals(cur); const rbTot = rb ? REACTIONS.reduce((s, x) => s + rb[x.k], 0) : 0;
   const tc = {}; cur.forEach(p => tc[p.type] = (tc[p.type] || 0) + 1);
   const te = Object.entries(tc).sort((a, b) => b[1] - a[1]); const top5 = te.slice(0, 5); const rest = te.slice(5).reduce((s, x) => s + x[1], 0);
   const typeSeg = top5.map(([t, v], i) => ({ l: t, v, c: TYPE_COLORS[i] })).concat(rest ? [{ l: 'อื่นๆ', v: rest, c: TYPE_COLORS[5] }] : []);
-  const row3 = `<div class="grid-3" data-stagger>
-    <section class="panel"><div class="panel-head"><div><h2>ผู้ติดตามกดความรู้สึกอะไร</h2><p>${rb ? `${fnum(rbTot)} ครั้ง · จากโพสต์ Facebook ที่ดึงผ่าน API` : 'แยกตามอิโมจิ (Facebook)'}</p></div></div>
+  const p3 = [];
+  if (rb && rbTot) p3.push(`<section class="panel"><div class="panel-head"><div><h2>ผู้ติดตามกดความรู้สึกอะไร</h2><p>${rb ? `${fnum(rbTot)} ครั้ง · จากโพสต์ Facebook ที่ดึงผ่าน API` : 'แยกตามอิโมจิ (Facebook)'}</p></div></div>
       ${rb && rbTot ? `<div class="react-row">${REACTIONS.map(x => `<div class="react" title="${x.t} ${fnum(rb[x.k])}"><span class="re">${x.e}</span><b>${cnt(rb[x.k], 'k', null, 'rb-' + x.k)}</b><small>${pct(rb[x.k] / rbTot, 0)}</small></div>`).join('')}</div>
         ${barList(REACTIONS.filter(x => rb[x.k]).map(x => ({ l: x.e + '  ' + x.t, v: rb[x.k], c: x.c, ext: pct(rb[x.k] / rbTot, 0) })), { fmt: fnum })}`
-      : emptyState('ยังไม่มีข้อมูลแยกอิโมจิ', 'ดึงโพสต์ Facebook ผ่านการเชื่อมต่อบัญชี เพื่อดูว่าผู้ติดตามกด ถูกใจ รักเลย ฮ่าฮ่า ว้าว เศร้า หรือโกรธ', can('connect') ? `<button class="btn sm" data-act="nav" data-v="connect">${ic('plug', 14)} เชื่อมต่อบัญชี</button>` : '')}</section>
-    <section class="panel"><div class="panel-head"><div><h2>ประเภทคอนเทนต์</h2><p>สัดส่วนจำนวนโพสต์</p></div></div>${donut(typeSeg, { centerHtml: cnt(cur.length, 'n', null, 'd-posts'), sub: 'โพสต์', fmt: fnum, small: true })}</section>
-    <section class="panel"><div class="panel-head"><div><h2>ช่วงเวลาที่โพสต์แล้วได้ผลดี</h2><p>อัตราการมีส่วนร่วมเฉลี่ย ตามวันและเวลาที่โพสต์</p></div></div>${heatmap(cur)}</section>
-   </div>`;
+      : ''}</section>`);
+  const catSeg = CATS.map(c2 => ({ l: c2.t, v: cur.filter(x => x.cat === c2.k).length, c: c2.c })).sort((a, b) => b.v - a.v);
+  if (cur.length) p3.push(`<section class="panel"><div class="panel-head"><div><h2>ประเภทคอนเทนต์</h2><p>สัดส่วนจำนวนโพสต์</p></div></div>${donut(typeSeg, { centerHtml: cnt(cur.length, 'n', null, 'd-posts'), sub: 'โพสต์', fmt: fnum, small: true })}</section>`);
+  if (cur.length) p3.push(`<section class="panel"><div class="panel-head"><div><h2>หมวดหมู่คอนเทนต์</h2><p>สัดส่วนจำนวนโพสต์แต่ละหมวด</p></div></div>${donut(catSeg, { centerHtml: cnt(CATS.filter(c2 => cur.some(x => x.cat === c2.k)).length, 'n', null, 'd-cats'), sub: 'หมวด', fmt: fnum, small: true })}</section>`);
+  if (cur.length) p3.push(`<section class="panel"><div class="panel-head"><div><h2>ช่วงเวลาที่โพสต์แล้วได้ผลดี</h2><p>อัตราการมีส่วนร่วมเฉลี่ย ตามวันและเวลาที่โพสต์</p></div></div>${heatmap(cur)}</section>`);
+  const row3 = p3.length ? `<div class="${p3.length >= 3 ? 'grid-3' : p3.length === 2 ? 'grid-2' : 'stack'}" data-stagger>${p3.slice(0, 3).join('')}</div>${p3.length > 3 ? `<div class="grid-3" data-stagger>${p3.slice(3).join('')}</div>` : ''}` : '';
 
   const byType = TYPES.map(t => { const l = cur.filter(x => x.type === t); const a = agg(l); return { l: t, v: a.er || 0, sub: `(${l.length})`, n: l.length }; }).filter(x => x.n).sort((a, b) => b.v - a.v);
   const byCat = CATS.map(c => { const l = cur.filter(x => x.cat === c.k); const a = agg(l); return { l: c.t, v: a.reach, ext: 'ER ' + pct(a.er, 1), c: c.c, n: l.length }; }).filter(x => x.n).sort((a, b) => b.v - a.v);
@@ -682,7 +694,7 @@ function onboarding() {
    <ol class="ob-steps">${steps.map((s, i) => `<li class="${s.done ? 'done' : ''}"><span class="ob-n">${s.done ? ic('check', 14) : i + 1}</span><div><b>${s.t}</b><small>${s.d}</small></div>${!s.done && s.act ? `<button class="btn sm primary" data-act="${s.act}">เริ่ม ${ic('arrow', 13)}</button>` : ''}</li>`).join('')}</ol></section>`;
 }
 AFTER.dashboard = function (animate) {
-  const r = range(), ps = activeP(); const B = buckets(r.from, r.to); const k = S.trend;
+  const r = range(), ps = shownP(); const B = buckets(r.from, r.to); const k = S.trend;
   const series = ps.map(p => ({ name: PL[p].name, color: PL[p].c, values: B.b.map(b => {
     if (k === 'newFollowers' && B.u !== 'hour') { const a = folAt(p, Math.min(b.e, TODAY + DAY) - DAY), z = folAt(p, b.s - DAY); return a != null && z != null ? Math.max(0, a - z) : 0; }
     const l = postsIn(b.s, b.e, [p]); return k === 'eng' ? l.reduce((s, x) => s + eng(x.m), 0) : l.reduce((s, x) => s + n0(x.m[k]), 0);
@@ -750,10 +762,13 @@ function renderDrawer(animate) {
   const p = DB.posts.find(x => x.id === S.openPost); const d = $('#drawer'); if (!p) { closeDrawer(); return; }
   const C = cstats([p]); const v = p.v;
   const af = p.apiFields || []; const apiTag = k => af.includes(k) ? '<i class="api-dot" title="ดึงจาก API"></i>' : '';
-  const mg = MROWS.map(([k, t]) => `<div><small>${t}${apiTag(k)}</small><b>${p.m[k] == null ? '—' : fnum(p.m[k])}</b></div>`).join('') +
-    `<div><small>Engagement rate</small><b>${p.m.reach ? pct(eng(p.m) / p.m.reach, 2) : '—'}</b></div>` +
-    [['Video Views', v && fnum(v.videoViews)], ['Average Watch Time', v && fdur(v.avgWatch)], ['Total Watch Time', v && fdur(v.totalWatch)], ['Completion Rate', v && pct(v.completion, 1)]].map(([t, x]) => `<div><small>${t}</small><b class="${x ? '' : 'na'}">${x || 'ไม่ใช่วิดีโอ'}</b></div>`).join('');
-  const base = v && (v.s3 || v.videoViews);
+  const mRows = MROWS.filter(([k]) => p.m[k] != null && p.m[k] !== 0);
+  const vRows = v ? [['Video Views', v.videoViews, fnum], ['Average Watch Time', v.avgWatch, fdur], ['Total Watch Time', v.totalWatch, fdur], ['Completion Rate', v.completion, x => pct(x, 1)]].filter(([, x]) => x != null && x !== 0) : [];
+  const missing = MROWS.filter(([k]) => !(p.m[k] != null && p.m[k] !== 0)).map(([, t]) => t);
+  const mg = mRows.map(([k, t]) => `<div><small>${t}${apiTag(k)}</small><b>${fnum(p.m[k])}</b></div>`).join('') +
+    (p.m.reach ? `<div><small>Engagement rate</small><b>${pct(eng(p.m) / p.m.reach, 2)}</b></div>` : '') +
+    vRows.map(([t, x, f]) => `<div><small>${t}</small><b>${f(x)}</b></div>`).join('');
+  const base = v && Math.max(n0(v.s3), n0(v.videoViews));
   const ret = v && base ? [['3-second views', v.s3], ['5-second views', v.s5], ['10-second views', v.s10], ['ดูถึง 25%', v.p25], ['ดูถึง 50%', v.p50], ['ดูถึง 75%', v.p75], ['ดูจบ 100%', v.p100]].filter(([, x]) => x != null).map(([l, x]) => ({ l, v: x, ext: pct(x / base, 0) })) : null;
   const list = p.comments.filter(c => !S.drawerCat || c.cat === S.drawerCat);
   const canEdit = can('add');
@@ -765,9 +780,9 @@ function renderDrawer(animate) {
       <a class="pd-link" href="${esc(p.link)}" target="_blank" rel="noopener noreferrer">${ic('link', 14)} ${esc(p.link)}</a></div></div>
     <div class="syncbar${p.source === 'api' ? ' api' : ''}"><div>${p.source === 'api' ? `<b>${ic('refresh', 14)} ดึงข้อมูลจาก ${PL[p.platform].name}</b><span>อัปเดตล่าสุด ${p.syncedAt ? fdt(p.syncedAt) + ' น. (' + ago(p.syncedAt) + ')' : '—'}</span>` : `<b>${ic(p.source === 'csv' ? 'file' : 'edit', 14)} ${p.source === 'csv' ? 'นำเข้าจากไฟล์ CSV' : 'กรอกข้อมูลเอง'}</b><span>${conn(p.platform).connected ? 'กดดึงข้อมูลเพื่อให้ระบบอัปเดตตัวเลขและความคิดเห็นจากแพลตฟอร์ม' : PL[p.platform].name + ' ยังไม่ได้เชื่อมต่อ — ตัวเลขชุดนี้มาจากการกรอกเอง'}</span>`}${p.syncError ? `<span class="warn-t">อัปเดตครั้งล่าสุดไม่สำเร็จ: ${esc(p.syncError)}</span>` : ''}</div>
      ${canSync(p) ? `<button class="btn sm primary" data-act="sync-post" data-id="${p.id}">${ic('refresh', 14)} ${p.source === 'api' ? 'อัปเดตข้อมูล' : 'ดึงข้อมูลจากลิงก์'}</button>` : ''}</div>
-    <section><div class="panel-head"><div><h2>ตัวชี้วัดของโพสต์</h2>${af.length ? `<p><i class="api-dot"></i> ดึงจาก API · ช่องที่เหลือมาจากการกรอกเอง</p>` : ''}</div></div><div class="metric-grid">${mg}</div></section>
+    <section><div class="panel-head"><div><h2>ตัวชี้วัดของโพสต์</h2>${af.length ? `<p><i class="api-dot"></i> ดึงจาก API · ช่องที่เหลือมาจากการกรอกเอง</p>` : ''}</div></div><div class="metric-grid">${mg}</div>${missing.length ? `<p class="note" style="margin:8px 0 0">ไม่มีข้อมูล: ${missing.join(', ')}</p>` : ''}</section>
     ${p.reactionsBreakdown ? (() => { const rb = p.reactionsBreakdown, tot = REACTIONS.reduce((s, x) => s + n0(rb[x.k]), 0); return tot ? `<section class="panel"><div class="panel-head"><div><h2>ความรู้สึกที่ผู้ติดตามกด</h2><p>${fnum(tot)} ครั้ง แยกตามอิโมจิ</p></div></div><div class="react-row">${REACTIONS.map(x => `<div class="react"><span class="re">${x.e}</span><b>${fnum(rb[x.k])}</b><small>${x.t} · ${pct(n0(rb[x.k]) / tot, 0)}</small></div>`).join('')}</div></section>` : ''; })() : ''}
-    ${ret ? `<section class="panel"><div class="panel-head"><div><h2>การรับชมวิดีโอ (Retention)</h2><p>สัดส่วนเทียบกับผู้ชม 3 วินาที</p></div></div>${barList(ret, { c: PL[p.platform].c, fmt: fnum })}</section>` : ''}
+    ${ret ? `<section class="panel"><div class="panel-head"><div><h2>การรับชมวิดีโอ (Retention)</h2><p>สัดส่วนเทียบกับยอดรับชมทั้งหมด</p></div></div>${barList(ret, { c: PL[p.platform].c, fmt: fnum })}</section>` : ''}
     <section class="panel"><div class="panel-head"><div><h2>ความคิดเห็นของโพสต์นี้</h2><p>${C.total} ความคิดเห็นหลัก · ตอบกลับ ${pct(C.replyRate, 0)} · บทสนทนาต่อเนื่อง ${pct(C.convoRate, 0)} · ตอบเฉลี่ยใน ${fmins(C.avgRT)}</p></div></div>
      ${stack100(C.by)}
      <div class="filters" style="margin-top:16px"><button class="chip" data-act="dcat" data-v="" aria-pressed="${!S.drawerCat}">ทั้งหมด ${p.comments.length}</button>${SENT.filter(s => C.by[s.k]).map(s => `<button class="chip" data-act="dcat" data-v="${s.k}" aria-pressed="${S.drawerCat === s.k}"><i class="dot" style="background:${s.c}"></i>${s.t} ${C.by[s.k]}</button>`).join('')}</div>
@@ -937,9 +952,9 @@ VIEWS.add = function () {
      <div class="field"><label for="a-plat">แพลตฟอร์ม</label><select class="input" id="a-plat" data-change="aplat">${ap.map(p => `<option value="${p}" ${pl === p ? 'selected' : ''}>${PL[p].name}</option>`).join('')}</select></div>
      <div class="field"><label for="a-date">วันและเวลาที่โพสต์</label><input class="input" type="datetime-local" id="a-date" value="${localDT(e ? e.at : Date.now())}"></div>
      <div class="field"><label for="a-type">ประเภทโพสต์</label><select class="input" id="a-type" data-change="atype">${TYPES.map(t => `<option ${ty === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
-     <div class="field"><label for="a-cat">หมวดหมู่คอนเทนต์</label><select class="input" id="a-cat">${CATS.map(c => `<option value="${c.k}" ${e && e.cat === c.k ? 'selected' : ''}>${c.t}</option>`).join('')}</select></div>
+     <div class="field"><label for="a-cat">หมวดหมู่คอนเทนต์</label><select class="input" id="a-cat">${CATS.map(c => `<option value="${c.k}" ${e && e.cat === c.k ? 'selected' : ''}>${c.t}</option>`).join('')}</select><span class="hint" id="cat-hint">${e ? '' : 'พิมพ์ข้อความโพสต์แล้วระบบจะแนะนำหมวดให้'}</span></div>
      <div class="field wide"><label for="a-link">ลิงก์โพสต์</label><input class="input" type="url" id="a-link" placeholder="https://www.facebook.com/..." value="${esc(e ? e.link : pf ? pf.link : '')}"><span class="err-msg" id="err-link" hidden>ใส่ลิงก์ที่ขึ้นต้นด้วย https:// เช่น ลิงก์ที่คัดลอกจากปุ่มแชร์ของโพสต์</span></div>
-     <div class="field wide"><label for="a-cap">ข้อความโพสต์ / ชื่อโพสต์</label><input class="input" id="a-cap" placeholder="เช่น Open House 2026 เปิดบ้านให้น้อง ม.ปลาย" value="${esc(e ? e.caption : '')}"><span class="err-msg" id="err-cap" hidden>ใส่ชื่อหรือข้อความโพสต์เพื่อใช้ค้นหาภายหลัง</span></div>
+     <div class="field wide"><label for="a-cap">ข้อความโพสต์ / ชื่อโพสต์</label><input class="input" id="a-cap" data-input="acap" placeholder="เช่น Open House 2026 เปิดบ้านให้น้อง ม.ปลาย" value="${esc(e ? e.caption : '')}"><span class="err-msg" id="err-cap" hidden>ใส่ชื่อหรือข้อความโพสต์เพื่อใช้ค้นหาภายหลัง</span></div>
      <div class="field wide"><span class="lbl">ภาพโพสต์</span><label class="upload" for="a-img" id="drop">${img ? `<img src="${esc(img)}" alt="ภาพโพสต์ที่เลือก" referrerpolicy="no-referrer">` : ic('upload', 28)}<div><b>${img ? 'เปลี่ยนภาพ' : 'อัปโหลดภาพหรือภาพหน้าปกวิดีโอ'}</b><div class="note">JPG, PNG หรือ WEBP · ลากไฟล์มาวางหรือคลิกเพื่อเลือก${API.demo ? '' : ' · เก็บไว้ใน Google Drive'}</div></div></label><input type="file" id="a-img" accept="image/*" data-change="aimg" class="sr"></div>
     </div></section>
    <section class="form-sec"><h3><span class="n">2</span>ตัวชี้วัดของโพสต์</h3><p>คัดลอกจาก Meta Business Suite หรือ TikTok Studio · เว้นว่างได้หากแพลตฟอร์มไม่มีข้อมูล</p>
@@ -982,9 +997,34 @@ function audFields(p) {
    <div class="fgrid">${ta('m-country', 'ประเทศ', A_.country, 'ไทย 94.1')}${ta('m-province', 'จังหวัด', A_.province, 'เชียงใหม่ 46')}${ta('m-city', 'เมือง / อำเภอ', A_.city, 'อ.เมืองเชียงใหม่ 28')}${ta('m-lang', 'ภาษา', A_.lang, 'ไทย 91')}</div></section></div>`;
 }
 
+/* จัดหมวดหมู่คอนเทนต์อัตโนมัติจากข้อความโพสต์: ให้คะแนนตามคำสำคัญ (คำในช่วงต้นโพสต์ได้คะแนน ×2) แล้วเลือกหมวดที่คะแนนสูงสุด */
+const CONTENT_RULES = {
+  news: [[/ประกาศ/, 2], [/ปิดให้บริการ|งดให้บริการ|ปิดบริการ|เปิดให้บริการ|เปิดบริการ|ให้บริการตามปกติ|เวลาเปิด|เวลาทำการ|เวลาให้บริการ|เปิด 24 ชั่วโมง|ขยายเวลา/, 2], [/วันหยุด|หยุดทำการ|ชดเชย/, 2], [/ขอแจ้ง|แจ้งผู้ใช้|แจ้งให้ทราบ|โปรดทราบ|เนื่องจาก/, 1], [/ขอแสดงความยินดี|แสดงความยินดี|ได้รับการแต่งตั้ง|ดำรงตำแหน่ง|ได้รับรางวัล|ถ้วยรางวัล|เหรียญรางวัล/, 3], [/วันคล้ายวัน|ทรงพระเจริญ|น้อมรำลึก|เฉลิมพระเกียรติ|พระราชสมภพ|ประสูติ|ไว้อาลัย/, 3], [/ค่าปรับ|คืนหนังสือ|ค้างส่ง|ค้างชำระ|เสนอชื่อสำเร็จการศึกษา/, 2], [/ต้อนรับ|เยี่ยมชม|ศึกษาดูงาน|ตรวจประเมิน|ISO|ลงนาม|MOU|ความร่วมมือ/i, 2], [/รับสมัคร(งาน|บุคคล|พนักงาน)|ตำแหน่งว่าง|คุณสมบัติ(ผู้สมัคร)?/, 2], [/ชำรุด|ซ่อม|ปรับปรุง(พื้นที่|อาคาร)|ไฟฟ้าดับ|ระบบขัดข้อง|งดใช้/, 2], [/ติดต่อสอบถาม|ช่องทางการติดต่อ/, 1]],
+  event: [[/กิจกรรม/, 2], [/ขอเชิญ|เชิญชวน|ร่วมงาน|เข้าร่วม|ร่วมกิจกรรม|แวะมา|เช็คอิน|check.?in/i, 2], [/อบรม|training|workshop|เวิร์กช็อป|สัมมนา|บรรยาย|webinar|zoom|เสวนา|talk/i, 3], [/on tour|open house|freshmen|book fair|สัปดาห์หนังสือ|งานวัน|เทศกาล|นิทรรศการ|exhibition|ปีใหม่เมือง|สงกรานต์|ลอยกระทง/i, 3], [/ลงทะเบียน|สมัครเข้าร่วม/, 2], [/แข่งขัน|ประกวด|กีฬา/, 2], [/บริจาค|จิตอาสา|ทำบุญ|พิธี|สืบสานประเพณี/, 2]],
+  edu: [[/วิธี(การ)?|ขั้นตอน|คู่มือ|how to|tips?\b|เคล็ดลับ/i, 3], [/สืบค้น|ฐานข้อมูล|database|e-?books?|e-?journal|OPAC|ค้นหาหนังสือ/i, 2], [/วิจัย|research|อ้างอิง|citation|endnote|zotero|mendeley|ตีพิมพ์|วารสาร|วิทยานิพนธ์|thesis|turnitin|originality|plagiarism|AI for/i, 2], [/จองห้อง|จองที่นั่ง|booking|นัดหมาย|ใช้งานระบบ|แนะนำการใช้|การใช้ห้องสมุด|เข้าใช้งาน|รับสิทธิ์/i, 2]],
+  knowledge: [[/รู้หรือไม่|รู้ไหม|ความรู้|เกร็ด|สาระ|fact/i, 3], [/แนะนำหนังสือ|หนังสือแนะนำ|หนังสือใหม่|new books?|book review|รีวิวหนังสือ|น่าอ่าน|อ่านอะไรดี|ยืมสูงสุด|ยอดนิยม|หนังสือ(เยาวชน|นวนิยาย|การ์ตูน)/i, 3], [/ประวัติ|ที่มาของ|ความเป็นมา|จดหมายเหตุ|archive|สูตรอาหาร|สูตรการทำ/i, 2]],
+  promo: [[/บริการใหม่|ฟรี|ไม่มีค่าใช้จ่าย/, 2], [/ส่วนลด|ลดราคา|จำหน่าย|พรีออเดอร์|ของที่ระลึก|สั่งซื้อ/, 3], [/ส่งหนังสือ|document delivery|นำส่ง|บริการส่ง|ไปส่ง|ไปรษณีย์/i, 3]],
+  engage: [[/แบบสอบถาม|แบบประเมิน|ความพึงพอใจ|survey|poll|โหวต/i, 4], [/คอมเมนต์|แสดงความคิดเห็น|ตอบคำถาม|ร่วมตอบ|ทายกัน|ทายซิ|quiz|ลุ้นรับ|ชิงรางวัล|ของรางวัล|แท็กเพื่อน|แชร์โพสต์/i, 3], [/บอกได้|ใครเคย|คุณชอบ|ชอบแบบไหน/, 1]],
+  bts: [[/เบื้องหลัง|behind the scenes?|ทีมงาน|ชีวิตบรรณารักษ์|หนึ่งวันของ/i, 3], [/presented by/i, 2]],
+  ugc: [[/รีโพสต์|repost|ขอบคุณภาพ|ภาพโดย|photo by|เครดิตภาพ|credit ?:|จากผู้ใช้บริการ|#มุมโปรด/i, 3]],
+  ent: [[/555|😂|🤣|🤭|🥱|🥶|มีม|meme|\bPOV\b/i, 1], [/เดี๊ยน|งับ|ค่าาา|คร้าบ|จ้าาา|ค๊า|บร้า|ไอริน|แม่เคาะ|โอ้ยย|ฮือ|ขำ|แกร|ตัวแม่|ฉ่ำ|เบย|เด้อ|เน้อ|จ้ะ|หนู|เพี้ยน|ทำไมม/, 1], [/อากาศ|ร้อน|หนาว|ฝนตก|ผ้าห่ม|องศา|หน้าฝน|แฉะ/, 1]]
+};
+const CONTENT_PRIORITY = ['news', 'event', 'edu', 'engage', 'promo', 'knowledge', 'bts', 'ugc', 'ent'];
+function autoCategory(text) {
+  const s = String(text || ''); if (!s.trim()) return 'news';
+  const head = s.slice(0, 200);
+  let best = null, bestScore = 0;
+  CONTENT_PRIORITY.forEach(k => {
+    let score = 0;
+    CONTENT_RULES[k].forEach(([re, w]) => { if (re.test(head)) score += w * 2; else if (re.test(s)) score += w; });
+    if (score > bestScore) { best = k; bestScore = score; }
+  });
+  return best || (s.length < 180 ? 'ent' : 'news');
+}
+
 /* ================= CSV import ================= */
 const CSV_FIELDS = [
-  ['link', 'ลิงก์โพสต์', true], ['at', 'วันและเวลาที่โพสต์', true], ['caption', 'ข้อความ / ชื่อโพสต์'], ['type', 'ประเภทโพสต์'],
+  ['link', 'ลิงก์โพสต์', true], ['at', 'วันและเวลาที่โพสต์', true], ['caption', 'ข้อความโพสต์ (Description)'], ['title', 'ชื่อโพสต์ (Title)'], ['type', 'ประเภทโพสต์'],
   ['reach', 'Reach'], ['impressions', 'Impressions / Views'], ['reactions', 'Likes / Reactions'], ['comments', 'Comments'], ['shares', 'Shares'], ['saves', 'Saves'],
   ['clicks', 'Clicks'], ['profileVisits', 'Profile Visits'], ['newFollowers', 'New Followers'], ['linkClicks', 'Link Clicks'],
   ['videoViews', 'Video Views'], ['s3', '3-second views'], ['avgWatch', 'Average Watch Time'], ['totalWatch', 'Total Watch Time'], ['completion', 'Completion Rate'], ['duration', 'ความยาววิดีโอ']
@@ -992,15 +1032,16 @@ const CSV_FIELDS = [
 const CSV_GUESS = [
   ['linkClicks', [/link ?clicks?|คลิกลิงก์|คลิกที่ลิงก์/]],
   ['s3', [/3[- ]?sec|3 วินาที/]],
-  ['avgWatch', [/average (watch|view|play)|average seconds viewed|avg\.? ?(watch|view)|เวลา(ในการ)?(ดู|รับชม)เฉลี่ย|ดูเฉลี่ย/]],
-  ['totalWatch', [/total (watch|view|play) ?time|^seconds viewed|total seconds|เวลา(ในการ)?(ดู|รับชม)(ทั้งหมด|รวม)|^watch time/]],
+  ['avgWatch', [/average (watch|view|play)|^average seconds viewed$|avg\.? ?(watch|view)|^จำนวนวินาทีที่รับชมโดยเฉลี่ย$|เวลา(ในการ)?(ดู|รับชม)เฉลี่ย|ดูเฉลี่ย/]],
+  ['totalWatch', [/total (watch|view|play) ?time|^seconds viewed$|total seconds|^จำนวนวินาทีที่รับชม$|เวลา(ในการ)?(ดู|รับชม)(ทั้งหมด|รวม)|^watch time/]],
   ['completion', [/complet|ดูจบ|finish|full video|watched full/]],
-  ['duration', [/duration|ความยาว|^length/]],
+  ['duration', [/duration|ความยาว|^length|^ระยะเวลา/]],
   ['videoViews', [/video views?|การดูวิดีโอ|ยอดดูวิดีโอ|video plays?/]],
   ['link', [/permalink|post link|video link|^link$|^url$|ลิงก์โพสต์|ลิงก์วิดีโอ|^ลิงก์$/, /link|url|ลิงก์/], /click|คลิก/],
-  ['at', [/publish(ed)? ?(time|date)|เวลาเผยแพร่|วันที่เผยแพร่|วันที่โพสต์|เวลาโพสต์|post(ed)? ?(time|date|on)|create(d| time)/, /^date|^วันที่|time$/]],
-  ['caption', [/description|caption|message|ข้อความ|คำอธิบาย|คำบรรยาย/, /^title|ชื่อโพสต์|ชื่อวิดีโอ|video title/]],
-  ['type', [/post type|content type|media type|ประเภท|^type$/]],
+  ['at', [/publish(ed)? ?(time|date)|เวลา(ที่)?เผยแพร่|วันที่เผยแพร่|วันที่โพสต์|เวลาโพสต์|post(ed)? ?(time|date|on)|create(d| time)/, /^date|^วันที่|time$/]],
+  ['caption', [/^description$|caption|message|^คำอธิบาย$|^คำบรรยาย$|^ข้อความโพสต์$/]],
+  ['title', [/^title$|^ชื่อ$|^ชื่อโพสต์$|video title|^ชื่อวิดีโอ$/]],
+  ['type', [/post type|content type|media type|^ประเภทโพสต์$/, /^type$|^ประเภท$/]],
   ['reach', [/reach|การเข้าถึง|เข้าถึง/]],
   ['impressions', [/impression|การแสดงผล|ยอดดู|ยอดวิว|(^|total |post )views?$|^views|การดู$/]],
   ['reactions', [/reaction|likes?$|ถูกใจ|รีแอค|ความรู้สึก|^likes/]],
@@ -1011,11 +1052,11 @@ const CSV_GUESS = [
   ['profileVisits', [/profile (visit|view)|เยี่ยมชมโปรไฟล์|เข้าชมโปรไฟล์/]],
   ['newFollowers', [/new follow|follows$|followers gained|ผู้ติดตามใหม่|การติดตาม/]]
 ];
-function csvGuess(headers) {
+function csvGuess(headers, nz) {
   const map = {}, used = new Set(); const H = headers.map(h => String(h).trim().toLowerCase());
   CSV_GUESS.forEach(([f, res, not]) => {
     for (const re of res) {
-      const i = H.findIndex((h, j) => !used.has(j) && re.test(h) && !(not && not.test(h)) && !(f !== 'caption' && / and |และ/.test(h)));
+      const i = H.findIndex((h, j) => !used.has(j) && (!nz || nz.has(j)) && re.test(h) && !(not && not.test(h)) && !(f !== 'caption' && / and |และ/.test(h)));
       if (i >= 0) { map[f] = i; used.add(i); break; }
     }
   });
@@ -1060,8 +1101,10 @@ function parseDateStr(v, fmt) {
   }
   const t = Date.parse(v); return isFinite(t) ? t : null;
 }
-function mapType(v, platform) {
-  const s = String(v || '').toLowerCase().trim(); if (!s) return null;
+function mapType(v, platform, link) {
+  const s = String(v || '').toLowerCase().trim();
+  if (/\/reel(s)?\//i.test(link || '')) return 'Reel';
+  if (!s) return null;
   const exact = TYPES.find(t => t.toLowerCase() === s); if (exact) return exact;
   if (/reel/.test(s)) return 'Reel'; if (/live|ถ่ายทอดสด|ไลฟ์/.test(s)) return 'Live'; if (/stor|สตอรี่/.test(s)) return 'Story';
   if (/album|carousel|อัลบั้ม|หลายภาพ/.test(s)) return 'Album'; if (/link|ลิงก์/.test(s)) return 'Link Post';
@@ -1073,21 +1116,25 @@ const detectPl = l => /facebook\.com|fb\.watch|fb\.com/i.test(l) ? 'fb' : /insta
 function csvBuild() {
   const c = S.csv; const ap = allowedP();
   const idx = f => (c.map[f] == null || c.map[f] === '' ? -1 : +c.map[f]); const get = (r, f) => { const i = idx(f); return i < 0 ? '' : (r[i] == null ? '' : r[i]); };
+  const z = v => (c.skipZero && v === 0 ? null : v);
   return c.rows.map(r => {
     const link = String(get(r, 'link')).trim();
     const platform = c.platform === 'auto' ? (detectPl(link) || c.fallback) : c.platform;
     const at = parseDateStr(get(r, 'at'), c.dateFmt);
-    const mapped = mapType(get(r, 'type'), platform);
+    const mapped = mapType(get(r, 'type'), platform, link);
     const type = mapped || c.defType || (PTYPES[platform] || PTYPES.fb)[0];
-    const m = {}; ['reach', 'impressions', 'reactions', 'comments', 'shares', 'saves', 'clicks', 'profileVisits', 'newFollowers', 'linkClicks'].forEach(k => m[k] = idx(k) < 0 ? null : toNum(get(r, k)));
+    const m = {}; ['reach', 'impressions', 'reactions', 'comments', 'shares', 'saves', 'clicks', 'profileVisits', 'newFollowers', 'linkClicks'].forEach(k => m[k] = idx(k) < 0 ? null : z(toNum(get(r, k))));
     let v = null;
     if (VIDEO.has(type)) {
-      const vv = { videoViews: toNum(get(r, 'videoViews')), s3: toNum(get(r, 's3')), avgWatch: toSec(get(r, 'avgWatch')), totalWatch: toSec(get(r, 'totalWatch')), duration: toSec(get(r, 'duration')), completion: toPct(get(r, 'completion')) };
-      if (vv.s3 == null) vv.s3 = vv.videoViews; if (vv.videoViews == null) vv.videoViews = vv.s3;
+      const vv = { videoViews: z(toNum(get(r, 'videoViews'))), s3: z(toNum(get(r, 's3'))), avgWatch: z(toSec(get(r, 'avgWatch'))), totalWatch: z(toSec(get(r, 'totalWatch'))), duration: z(toSec(get(r, 'duration'))), completion: z(toPct(get(r, 'completion'))) };
+      if (vv.videoViews == null) vv.videoViews = m.impressions != null ? m.impressions : vv.s3; if (vv.s3 == null) vv.s3 = vv.videoViews;
+      if (c.retention) { const curve = c.retention.map(i => toNum(r[i])).filter(x => x != null && x > 0); if (curve.length > 4 && vv.videoViews) { const n = curve.length - 1, at = f => Math.round(curve[Math.round(n * f)] * vv.videoViews); vv.p25 = at(.25); vv.p50 = at(.5); vv.p75 = at(.75); vv.p100 = at(1); if (vv.completion == null) vv.completion = curve[n]; } }
       if (Object.values(vv).some(x => x != null)) v = vv;
     }
     const err = !/^https?:\/\/\S+\.\S+/.test(link) ? 'ไม่มีลิงก์โพสต์' : !at ? 'อ่านวันที่ไม่ได้' : !ap.includes(platform) ? 'ไม่มีสิทธิ์แพลตฟอร์มนี้' : null;
-    return { err, post: { platform, at, type, typeFromFile: !!mapped, cat: c.defCat, caption: String(get(r, 'caption')).trim().slice(0, 400), link, m, v } };
+    const caption = (String(get(r, 'caption')).trim() || String(get(r, 'title')).trim()).slice(0, 2000);
+    const cat = c.defCat === 'auto' ? autoCategory(caption) : c.defCat;
+    return { err, post: { platform, at, type, typeFromFile: !!mapped, cat, recat: !!c.recat, caption, link, m, v } };
   });
 }
 function csvView() {
@@ -1102,26 +1149,34 @@ function csvView() {
   if (c.result) {
     const r = c.result;
     return `<section class="panel result-card soft"><div class="badge-ic ok">${ic('check', 30)}</div><h2>นำเข้าเรียบร้อย</h2><p class="muted">${esc(c.name)}</p>
+     ${r.aud ? `<p class="note" style="margin:0">${ic('audience', 13)} บันทึกเพศ อายุ และประเทศของผู้ชมวิดีโอเป็นข้อมูลผู้ติดตาม ${PL[r.aud].name} แล้ว</p>` : ''}
      <div class="stat-list" style="grid-template-columns:repeat(3,minmax(0,1fr));width:100%;max-width:520px"><div class="stat"><small>เพิ่มใหม่</small><b>${fnum(r.added)}</b></div><div class="stat"><small>อัปเดตตัวเลข</small><b>${fnum(r.updated)}</b></div><div class="stat"><small>ข้าม</small><b>${fnum(r.skipped)}</b></div></div>
      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn" data-act="csv-reset">นำเข้าไฟล์อื่น</button><button class="btn primary" data-act="csv-done">ดูในคลังโพสต์ ${ic('arrow', 14)}</button></div></section>`;
   }
   const built = csvBuild(); const ok = built.filter(b => !b.err); const bad = built.length - ok.length;
-  const opts = sel => `<option value="">— ไม่ใช้ —</option>` + c.headers.map((h, i) => `<option value="${i}" ${String(sel) === String(i) ? 'selected' : ''}>${esc(h)}</option>`).join('');
+  const opts = sel => `<option value="">— ไม่ใช้ —</option>` + c.headers.map((h, i) => c.nz.has(i) ? `<option value="${i}" ${String(sel) === String(i) ? 'selected' : ''}>${esc(h)}</option>` : '').join('');
+  const catCount = {}; ok.forEach(b => catCount[b.post.cat] = (catCount[b.post.cat] || 0) + 1);
   const ap = allowedP();
   return `<div class="stack">
-   <section class="form-sec"><h3><span class="n">1</span>ไฟล์และค่าเริ่มต้น</h3><p>${ic('file', 13)} <b>${esc(c.name)}</b> · ${fnum(c.rows.length)} แถว · ${c.headers.length} คอลัมน์ <button class="linkbtn sm" data-act="csv-reset" type="button">เปลี่ยนไฟล์</button></p>
+   <section class="form-sec"><h3><span class="n">1</span>ไฟล์และค่าเริ่มต้น</h3><p>${ic('file', 13)} <b>${esc(c.name)}</b> · ${fnum(c.rows.length)} แถว · มีข้อมูล ${c.nz.size} จาก ${c.headers.length} คอลัมน์ (ซ่อนคอลัมน์ที่ว่างหรือเป็น 0 ทั้งหมด)${c.retention ? ' · พบกราฟการรับชมวิดีโอ' : ''} <button class="linkbtn sm" data-act="csv-reset" type="button">เปลี่ยนไฟล์</button></p>
     <div class="fgrid">
      <div class="field"><label for="csv-pl">แพลตฟอร์ม</label><select class="input" id="csv-pl" data-change="csv-opt" data-k="platform"><option value="auto" ${c.platform === 'auto' ? 'selected' : ''}>ตรวจจากลิงก์อัตโนมัติ</option>${ap.map(p => `<option value="${p}" ${c.platform === p ? 'selected' : ''}>${PL[p].name}</option>`).join('')}</select></div>
      ${c.platform === 'auto' ? `<div class="field"><label for="csv-fb">ถ้าตรวจไม่ได้ ใช้</label><select class="input" id="csv-fb" data-change="csv-opt" data-k="fallback">${ap.map(p => `<option value="${p}" ${c.fallback === p ? 'selected' : ''}>${PL[p].name}</option>`).join('')}</select></div>` : ''}
      <div class="field"><label for="csv-df">รูปแบบวันที่</label><select class="input" id="csv-df" data-change="csv-opt" data-k="dateFmt"><option value="mdy" ${c.dateFmt === 'mdy' ? 'selected' : ''}>เดือน/วัน/ปี (Meta, TikTok)</option><option value="dmy" ${c.dateFmt === 'dmy' ? 'selected' : ''}>วัน/เดือน/ปี</option></select></div>
      <div class="field"><label for="csv-dt">ประเภทโพสต์ (ถ้าไฟล์ไม่ระบุ)</label><select class="input" id="csv-dt" data-change="csv-opt" data-k="defType"><option value="">ตามแพลตฟอร์ม</option>${TYPES.map(t => `<option ${c.defType === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
-     <div class="field"><label for="csv-dc">หมวดหมู่คอนเทนต์</label><select class="input" id="csv-dc" data-change="csv-opt" data-k="defCat">${CATS.map(x => `<option value="${x.k}" ${c.defCat === x.k ? 'selected' : ''}>${x.t}</option>`).join('')}</select><span class="hint">ใช้กับโพสต์ใหม่ แก้รายโพสต์ภายหลังได้</span></div>
+     <div class="field"><label for="csv-dc">หมวดหมู่คอนเทนต์</label><select class="input" id="csv-dc" data-change="csv-opt" data-k="defCat"><option value="auto" ${c.defCat === 'auto' ? 'selected' : ''}>จัดหมวดอัตโนมัติจากข้อความ (แนะนำ)</option>${CATS.map(x => `<option value="${x.k}" ${c.defCat === x.k ? 'selected' : ''}>ทุกโพสต์เป็น: ${x.t}</option>`).join('')}</select><span class="hint">แก้หมวดรายโพสต์ภายหลังได้</span></div>
+    </div>
+    <div class="perm-grid" style="margin-top:12px">
+     <label><input type="checkbox" data-change="csv-flag" data-k="skipZero" ${c.skipZero ? 'checked' : ''}> ไม่นำค่าที่เป็น 0 เข้าระบบ (แสดงเป็น “ไม่มีข้อมูล”)</label>
+     <label><input type="checkbox" data-change="csv-flag" data-k="recat" ${c.recat ? 'checked' : ''}> จัดหมวดโพสต์ที่มีในระบบแล้วใหม่ด้วย</label>
+     ${c.demo.length ? `<label><input type="checkbox" data-change="csv-flag" data-k="audFromVideo" ${c.audFromVideo ? 'checked' : ''}> บันทึกเพศ อายุ และประเทศของผู้ชมวิดีโอเป็นข้อมูลผู้ติดตาม</label>` : ''}
     </div></section>
    <section class="form-sec"><h3><span class="n">2</span>จับคู่คอลัมน์</h3><p>ระบบจับคู่ให้อัตโนมัติ ${Object.keys(c.map).length} ช่อง · ช่องที่มีดาวจำเป็นต้องมี</p>
     <div class="map-grid">${CSV_FIELDS.map(([f, l, req]) => `<div class="field"><label for="mp-${f}">${l}${req ? ' <span style="color:var(--bad)">*</span>' : ''}</label><select class="input${c.map[f] != null && c.map[f] !== '' ? ' mapped' : ''}" id="mp-${f}" data-change="csv-map" data-f="${f}">${opts(c.map[f])}</select></div>`).join('')}</div></section>
    <section class="form-sec"><h3><span class="n">3</span>ตรวจก่อนนำเข้า</h3><p><span class="status active">พร้อมนำเข้า ${fnum(ok.length)} แถว</span>${bad ? ` · <span class="status suspended">ข้าม ${fnum(bad)} แถว</span>` : ''}</p>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>แพลตฟอร์ม</th><th>วันที่</th><th>ประเภท</th><th>โพสต์</th><th class="r">Reach</th><th class="r">Views</th><th class="r">Reactions</th><th class="r">Comments</th><th class="r">Shares</th></tr></thead><tbody>
-    ${built.slice(0, 8).map(b => `<tr class="${b.err ? 'row-bad' : ''}"><td>${b.err ? `<span class="status suspended" title="${esc(b.err)}">${esc(b.err)}</span>` : `<span class="status active">พร้อม</span>`}</td><td>${PL[b.post.platform] ? platChip(b.post.platform) : '—'}</td><td style="white-space:nowrap">${b.post.at ? fdt(b.post.at) : '—'}</td><td>${esc(b.post.type)}</td><td style="max-width:260px;white-space:normal">${esc(b.post.caption || b.post.link || '—')}</td><td class="r num">${fk(b.post.m.reach)}</td><td class="r num">${fk(b.post.m.impressions)}</td><td class="r num">${fk(b.post.m.reactions)}</td><td class="r num">${fk(b.post.m.comments)}</td><td class="r num">${fk(b.post.m.shares)}</td></tr>`).join('')}
+    <div class="filters" style="margin-bottom:12px">${CATS.filter(x => catCount[x.k]).sort((x, y) => catCount[y.k] - catCount[x.k]).map(x => `${catChip(x.k).replace('</span>', ` · ${catCount[x.k]}</span>`)}`).join('')}</div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>แพลตฟอร์ม</th><th>วันที่</th><th>ประเภท</th><th>หมวดหมู่</th><th>โพสต์</th><th class="r">Reach</th><th class="r">Views</th><th class="r">Reactions</th><th class="r">Comments</th><th class="r">Shares</th></tr></thead><tbody>
+    ${built.slice(0, 8).map(b => `<tr class="${b.err ? 'row-bad' : ''}"><td>${b.err ? `<span class="status suspended" title="${esc(b.err)}">${esc(b.err)}</span>` : `<span class="status active">พร้อม</span>`}</td><td>${PL[b.post.platform] ? platChip(b.post.platform) : '—'}</td><td style="white-space:nowrap">${b.post.at ? fdt(b.post.at) : '—'}</td><td>${esc(b.post.type)}</td><td>${catChip(b.post.cat)}</td><td style="max-width:260px;white-space:normal"><span class="clamp2">${esc(b.post.caption || b.post.link || '—')}</span></td><td class="r num">${fk(b.post.m.reach)}</td><td class="r num">${fk(b.post.m.impressions)}</td><td class="r num">${fk(b.post.m.reactions)}</td><td class="r num">${fk(b.post.m.comments)}</td><td class="r num">${fk(b.post.m.shares)}</td></tr>`).join('')}
     </tbody></table></div>${built.length > 8 ? `<p class="note" style="margin:8px 0 0">แสดง 8 แถวแรกจาก ${fnum(built.length)} แถว</p>` : ''}
     <div id="csv-prog" hidden style="margin-top:14px"><div class="progress"><span style="width:0%"></span></div><p class="note" id="csv-prog-t" style="margin:6px 0 0"></p></div>
    </section>
@@ -1137,9 +1192,26 @@ async function readCsvFile(f) {
     let hi = 0; for (let i = 0; i < Math.min(5, rows.length); i++) { if (rows[i].filter(x => String(x).trim()).length >= Math.max(3, rows[0].length * .6)) { hi = i; break; } }
     const headers = rows[hi].map(h => String(h).trim()); const body = rows.slice(hi + 1).filter(r => r.length > 1);
     const ap = allowedP();
-    S.csv = { name: f.name, headers, rows: body, map: csvGuess(headers), platform: 'auto', fallback: ap[0], dateFmt: 'mdy', defType: '', defCat: 'news', result: null };
+    const nz = new Set(); headers.forEach((h, j) => { if (body.some(r => { const v = String(r[j] == null ? '' : r[j]).trim(); return v !== '' && v !== '0' && v !== '0.0' && !/^n\/?a$/i.test(v); })) nz.add(j); });
+    const retention = headers.map((h, j) => [h, j]).filter(([h, j]) => nz.has(j) && /(เปอร์เซ็นต์การรับชมทั้งหมดในช่วงเวลา|percentage of total views at interval|retention.*interval)\s*(\d+)/i.test(h)).sort((a, b) => +a[0].match(/(\d+)\s*$/)[1] - +b[0].match(/(\d+)\s*$/)[1]).map(x => x[1]);
+    const demo = headers.map((h, j) => [h, j]).filter(([h, j]) => nz.has(j) && /\((F|M|U), ?(\d{2}-\d{2}|\d{2}\+)\)|\(([^()]+) \(([A-Z]{2})\)\)\s*$/.test(h));
+    S.csv = { name: f.name, headers, rows: body, nz, map: csvGuess(headers, nz), platform: 'auto', fallback: ap[0], dateFmt: 'mdy', defType: '', defCat: 'auto', skipZero: true, recat: false, retention: retention.length > 4 ? retention : null, demo, audFromVideo: demo.length > 0, result: null };
     renderCsv(true); toast(`อ่านไฟล์แล้ว ${fnum(body.length)} แถว`, 'info');
   } catch (e) { toast('อ่านไฟล์ไม่สำเร็จ: ' + e.message, 'error'); }
+}
+const COUNTRY_TH = { TH: 'ไทย', LA: 'ลาว', MM: 'เมียนมา', KH: 'กัมพูชา', VN: 'เวียดนาม', MY: 'มาเลเซีย', SG: 'สิงคโปร์', CN: 'จีน', JP: 'ญี่ปุ่น', KR: 'เกาหลีใต้', US: 'สหรัฐอเมริกา', GB: 'สหราชอาณาจักร', IN: 'อินเดีย', ID: 'อินโดนีเซีย', PH: 'ฟิลิปปินส์', TW: 'ไต้หวัน', HK: 'ฮ่องกง', AU: 'ออสเตรเลีย', DE: 'เยอรมนี', FR: 'ฝรั่งเศส' };
+function csvAudience() {
+  const c = S.csv; const g = {}, a = {}, co = {};
+  c.demo.forEach(([h, j]) => {
+    const sum = c.rows.reduce((s, r) => s + n0(toNum(r[j])), 0); if (!sum) return;
+    let m = h.match(/\((F|M|U), ?(\d{2}-\d{2}|\d{2}\+)\)/);
+    if (m) { const gk = { F: 'หญิง', M: 'ชาย', U: 'ไม่ระบุ' }[m[1]]; g[gk] = (g[gk] || 0) + sum; let ak = m[2].replace('-', '–'); if (/^(55|65)/.test(ak)) ak = '55+'; if (/^13/.test(ak)) ak = '13–17'; a[ak] = (a[ak] || 0) + sum; return; }
+    m = h.match(/\(([^()]+) \(([A-Z]{2})\)\)\s*$/); if (m) { const k = COUNTRY_TH[m[2]] || m[1]; co[k] = (co[k] || 0) + sum; }
+  });
+  const norm = o => { const t = Object.values(o).reduce((s, x) => s + x, 0); if (!t) return null; const e = Object.entries(o).sort((x, y) => y[1] - x[1]); const out = {}; e.forEach(([k, v], i) => { if (i < 6) out[k] = v / t; else out['อื่นๆ'] = (out['อื่นๆ'] || 0) + v / t; }); return out; };
+  const pl = c.platform === 'auto' ? (csvBuild().map(b => b.post.platform).find(Boolean) || c.fallback) : c.platform;
+  const res = { platform: pl, asOf: Date.now(), source: 'csv', gender: norm(g), age: norm(a), country: norm(co) };
+  return res.gender || res.age || res.country ? res : null;
 }
 async function runImport(btn) {
   const ok = csvBuild().filter(b => !b.err).map(b => b.post); if (!ok.length) return;
@@ -1156,6 +1228,7 @@ async function runImport(btn) {
       bar.style.width = Math.round(Math.min(i + chunk.length, ok.length) / ok.length * 100) + '%';
     }
     total.skipped += csvBuild().filter(b => b.err).length;
+    if (S.csv.audFromVideo && S.csv.demo.length) { const aud = csvAudience(); if (aud) { txt.textContent = 'กำลังบันทึกข้อมูลผู้ชมจากวิดีโอ…'; try { const r = await API.saveAudience(aud); DB.audience[aud.platform] = r.audience; total.aud = aud.platform; } catch (e) { console.warn(e); } } }
     S.csv.result = total; localLog(`นำเข้า CSV เพิ่ม ${total.added} อัปเดต ${total.updated}`);
     renderSide(); renderCsv(true); toast(`นำเข้าแล้ว เพิ่ม ${total.added} · อัปเดต ${total.updated}`);
   } catch (e) { handleErr(e); btn.classList.remove('loading'); btn.disabled = false; txt.textContent = 'หยุดนำเข้า — แถวที่บันทึกไปแล้วยังอยู่ในชีต ลองกดนำเข้าอีกครั้งได้ (ลิงก์ซ้ำจะอัปเดต ไม่เพิ่มซ้ำ)'; }
@@ -1165,7 +1238,7 @@ async function runImport(btn) {
 function showSetup() {
   root().innerHTML = `<div class="auth" id="auth">
     <section class="auth-art" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="grain"></div>
-      <div class="auth-brand"><span class="brand-mark">PR</span><b>${esc(APP_NAME)}</b></div>
+      <div class="auth-brand">${brandMark()}<b>${esc(APP_NAME)}</b></div>
       <div class="auth-copy"><span class="eyebrow">ตั้งค่าครั้งแรก</span><h1>เชื่อมต่อ Google Sheet เพื่อเริ่มใช้งาน</h1><p>ข้อมูลโพสต์ ความคิดเห็น ผู้ชม และสิทธิ์ผู้ใช้ทั้งหมดจะถูกบันทึกลง Google Sheet ของหน่วยงาน</p></div>
       <div class="float-cards"><div class="fc">Google Sheet<b>ฐานข้อมูล</b></div><div class="fc">Apps Script<b>ตรวจสิทธิ์</b></div><div class="fc">GitHub Pages<b>หน้าเว็บ</b></div></div>
     </section>
@@ -1239,7 +1312,7 @@ function fxResult() {
      <span>${ic('comments', 14)} ${pv.commentCount == null ? 'TikTok ไม่เปิดให้ดึงรายการความคิดเห็น — เพิ่มเองได้หลังบันทึก' : `ดึงความคิดเห็นได้ <b>${fnum(pv.commentCount)}</b> รายการ · เพจตอบแล้ว ${fnum(pv.repliedCount)}`}</span>
      ${miss.length ? `<span>${ic('edit', 14)} แพลตฟอร์มไม่ให้ข้อมูล: ${miss.join(', ')} — กรอกเพิ่มเองได้หลังบันทึก</span>` : ''}
     </div>
-    <div class="fx-foot"><div class="field"><label for="fx-cat">หมวดหมู่คอนเทนต์</label><select class="input" id="fx-cat">${CATS.map(c => `<option value="${c.k}" ${f.cat === c.k ? 'selected' : ''}>${c.t}</option>`).join('')}</select></div>
+    <div class="fx-foot"><div class="field"><label for="fx-cat">หมวดหมู่คอนเทนต์ <span class="muted">(ระบบแนะนำจากข้อความ)</span></label><select class="input" id="fx-cat">${CATS.map(c => `<option value="${c.k}" ${f.cat === c.k ? 'selected' : ''}>${c.t}</option>`).join('')}</select></div>
      ${f.existingId ? `<span class="note">${ic('check', 13)} โพสต์นี้มีในระบบแล้ว การบันทึกจะอัปเดตตัวเลขและความคิดเห็นล่าสุด (หมวดหมู่เดิมไม่เปลี่ยน)</span>` : '<span></span>'}
      <button class="btn primary lg" data-act="fx-save">${ic('check', 16)} ${f.existingId ? 'อัปเดตข้อมูลในระบบ' : 'บันทึกลงระบบ'}</button></div>
    </section>`;
@@ -1268,7 +1341,7 @@ async function fxFetch(req) {
   renderFx(); const btn = $('#fx-go'); if (btn) { btn.classList.add('loading'); btn.disabled = true; }
   try {
     const r = await API.fetchPost(Object.assign({}, req, { save: false }));
-    S.fx = Object.assign(S.fx, { loading: false, preview: r.preview, existingId: r.existingId, error: null });
+    S.fx = Object.assign(S.fx, { loading: false, preview: r.preview, existingId: r.existingId, error: null, cat: autoCategory(r.preview && r.preview.caption) });
     if (r.preview && r.preview.link) S.fx.link = r.preview.link;
   } catch (e) {
     if (e.code === 'unauthorized') return handleErr(e);
@@ -1519,6 +1592,7 @@ document.addEventListener('click', async e => {
   }
 });
 document.addEventListener('change', async e => {
+  if (e.target.id === 'a-cat') S.catTouched = true;
   const t = e.target, k = t.dataset.change; if (!k) return;
   switch (k) {
     case 'from': S.f.from = t.value; refilter(); break;
@@ -1539,6 +1613,7 @@ document.addEventListener('change', async e => {
     case 'aimg': { const f = t.files && t.files[0]; if (f) readImage(f); break; }
     case 'csv-file': { const f = t.files && t.files[0]; if (f) readCsvFile(f); t.value = ''; break; }
     case 'csv-opt': S.csv[t.dataset.k] = t.value; renderCsv(false); break;
+    case 'csv-flag': S.csv[t.dataset.k] = t.checked; renderCsv(false); break;
     case 'csv-map': S.csv.map[t.dataset.f] = t.value === '' ? '' : +t.value; renderCsv(false); break;
     case 'pcat-row': S.parsed[+t.dataset.i].cat = t.value; t.style.borderColor = SE[t.value].c; break;
     case 'prep': S.parsed[+t.dataset.i].replied = t.checked; break;
@@ -1574,6 +1649,7 @@ document.addEventListener('input', e => {
   const t = e.target, k = t.dataset.input; if (!k) return;
   if (k === 'pq') { S.pf.q = t.value; clearTimeout(qt); qt = setTimeout(() => renderPostList(false), 120); }
   if (k === 'cq') { S.cf.q = t.value; clearTimeout(qt); qt = setTimeout(renderFeed, 150); }
+  if (k === 'acap' && !S.editing && !S.catTouched) { const c = autoCategory(t.value); const sel = $('#a-cat'); if (sel && t.value.trim().length > 8) { sel.value = c; const h = $('#cat-hint'); if (h) h.textContent = 'ระบบแนะนำหมวด “' + CAT[c].t + '” จากข้อความ เปลี่ยนเองได้'; } }
   if (k === 'fx-link') { S.fx.link = t.value; const pl = $('#fx-pl'); if (pl) pl.innerHTML = fxPlIcon(t.value); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.openPost) closeDrawer(); });

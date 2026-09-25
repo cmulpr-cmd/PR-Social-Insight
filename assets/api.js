@@ -62,6 +62,7 @@
     disconnect(platform) { return this.call('connect.disconnect', { platform }); },
     setAutoSync(on) { return this.call('connect.autosync', { on }); },
     saveAudience(p) { return this.call('audience.save', p); },
+    importPage(platform, rows) { return this.call('page.import', { platform, rows }); },
     addUser(email, role) { return this.call('users.add', { email, role }); },
     saveUser(u) { return this.call('users.save', u); },
     deleteUser(email) { return this.call('users.delete', { email }); },
@@ -124,7 +125,7 @@
       const u = need();
       const posts = db().posts.filter(p => u.platforms.includes(p.platform));
       const aud = {}; u.platforms.forEach(p => { if (db().audience[p]) aud[p] = db().audience[p]; });
-      const out = { user: u, posts, audience: aud, followers: db().followers.filter(f => u.platforms.includes(f.platform)), connections: this._conn() };
+      const out = { user: u, posts, audience: aud, followers: db().followers.filter(f => u.platforms.includes(f.platform)), daily: (db().daily || []).filter(d => u.platforms.includes(d.platform)), connections: this._conn() };
       if (u.menus.includes('admin')) { out.users = db().users; out.logs = db().logs; out.sheetUrl = ''; }
       return clone(out);
     },
@@ -215,13 +216,20 @@
       await wait(500); const u = need('add');
       const prev = db().audience[p.platform] || {};
       const a = { ...prev, platform: p.platform, asOf: p.asOf };
-      ['gender', 'age', 'country', 'province', 'city', 'lang'].forEach(k => { if (p[k] && Object.keys(p[k]).length) a[k] = p[k]; });
-      if (p.newAud != null) a.newAud = p.newAud; if (p.followersShare != null) a.followers = p.followersShare;
+      ['gender', 'age', 'country', 'province', 'city', 'lang', 'ageGender'].forEach(k => { if (p[k] && Object.keys(p[k]).length) a[k] = p[k]; });
+      if (p.newAud != null) a.newAud = p.newAud; if (p.followersShare != null) a.followers = p.followersShare; a.source = p.source || 'manual';
       db().audience[p.platform] = a;
       let follower = null;
-      if (p.followers > 0) { follower = { date: p.asOf, platform: p.platform, followers: p.followers }; db().followers.push(follower); }
+      if (p.followers > 0) { follower = { date: p.asOf, platform: p.platform, followers: p.followers, source: p.source === 'csv' ? 'csv' : 'manual' }; db().followers.push(follower); }
       log(u.email, 'บันทึกข้อมูลผู้ชม');
       return clone({ audience: a, follower });
+    },
+    async importPage(platform, rows) {
+      await wait(600); const u = need('add'); if (!u.platforms.includes(platform)) throw new ApiError('forbidden', 'คุณไม่มีสิทธิ์บันทึกข้อมูลแพลตฟอร์มนี้');
+      const d = db(); d.daily = d.daily || []; let added = 0, updated = 0;
+      rows.forEach(r => { let x = d.daily.find(y => y.platform === platform && y.date === r.date); if (!x) { x = { date: r.date, platform, source: 'csv' }; d.daily.push(x); added++; } else updated++; Object.keys(r).forEach(k => { if (k !== 'date' && r[k] != null && r[k] !== 0) x[k] = r[k]; }); });
+      d.daily.sort((a, b) => a.date < b.date ? -1 : 1); log(u.email, 'นำเข้าข้อมูลเพจรายวัน ' + rows.length + ' วัน');
+      return clone({ added, updated, daily: d.daily.filter(x => x.platform === platform) });
     },
     async addUser(email, role) {
       await wait(450); const a = need('admin'); email = checkEmail(email);

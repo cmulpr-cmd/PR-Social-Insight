@@ -507,7 +507,7 @@ async function runChecks(code) {
    APP SHELL
    ===================================================================== */
 function startApp() {
-  root().innerHTML = `<div class="app"><aside class="side" id="side"></aside><main><div class="topbar" id="topbar"></div><div id="view" class="view"></div></main></div>`;
+  root().innerHTML = `<div class="app"><aside class="side" id="side"></aside><main><div class="topbar" id="topbar"></div><div id="view" class="view"></div></main><div id="fab-slot"></div></div>`;
   renderSide(); renderTop(); renderView('enter');
 }
 function renderSkeleton() {
@@ -519,22 +519,24 @@ function renderSide() {
   if (!can(S.page)) S.page = (PAGES.find(m => can(m.k)) || MENUS[0]).k;
   const pending = DB.users.filter(x => x.status === 'pending').length;
   const needs = cstats(postsOf(allowedP())).needs.length;
+  setTimeout(renderFab);
   $('#side').innerHTML = `
    <div class="brand">${brandMark()}<div><b>${esc(APP_NAME)}</b><small>${esc(CFG.ORG_NAME || 'Social Analytics')}</small></div></div>
    <nav class="nav" aria-label="เมนูหลัก">${NAV_GROUPS.map(([g, keys]) => { const items = keys.filter(k => can(k)); if (!items.length) return ''; return `<div class="nav-label">${g}</div>` + items.map(k => { const m = PAGES.find(x => x.k === k); const warn = k === 'connect' && PKEYS.some(p => conn(p).error); return `<button data-act="nav" data-v="${k}" ${S.page === k ? 'aria-current="page"' : ''}>${ic(k)}<span>${m.t}</span>${k === 'admin' && pending ? `<span class="count">${pending}</span>` : ''}${k === 'comments' && needs ? `<span class="count" title="คำถาม ร้องเรียน หรือสนใจซื้อ ที่ยังไม่ได้ตอบ">${needs}</span>` : ''}${warn ? '<span class="count" title="การเชื่อมต่อมีปัญหา">!</span>' : ''}</button>`; }).join(''); }).join('')}
    </nav>
    <div class="me">
-    <span class="mode-pill" title="${API.demo ? 'ยังไม่ได้ตั้งค่า API_URL ใน config.js' : 'บันทึกข้อมูลลง Google Sheet'}">${ic(API.demo ? 'spark' : 'sheet', 12)} ${API.demo ? 'โหมดสาธิต' : 'เชื่อมต่อ Google Sheet'}</span>
+    <span class="mode-pill" title="${API.demo ? 'ยังไม่ได้ตั้งค่า API_URL ใน config.js' : 'บันทึกข้อมูลลงฐานข้อมูลของหน่วยงาน'}">${ic(API.demo ? 'spark' : 'sheet', 12)} ${API.demo ? 'โหมดสาธิต' : 'เชื่อมต่อฐานเก็บข้อมูลแล้ว'}</span>
     <div class="me-row"><span class="avatar">${initials(ME.name)}</span><div><b>${esc(ME.name)}</b><span>${esc(ME.email)} · ${esc(ME.role)}</span></div></div>
     <div class="me-actions"><button class="btn sm ghost" data-act="theme" aria-label="สลับธีมสว่าง/มืด">${ic(isDark() ? 'sun' : 'moon', 15)} ${isDark() ? 'ธีมสว่าง' : 'ธีมมืด'}</button><button class="btn sm ghost" data-act="logout">${ic('out', 15)} ออกจากระบบ</button></div>
    </div>`;
 }
+function renderFab() { const f = $('#fab-slot'); if (f) f.innerHTML = can('add') ? `<button class="fab${S.page === 'add' ? ' raised' : ''}" data-act="dupscan" title="ตรวจหาข้อมูลซ้ำในฐานข้อมูล">${ic('search', 17)}<span>ตรวจข้อมูลซ้ำ</span></button>` : ''; }
 function renderTop() {
   const u = me();
   $('#topbar').innerHTML = `
    ${S.acting ? `<div class="impersonate">${ic('eye', 16)} กำลังดูตัวอย่างมุมมองของ <b>${esc(u.email)}</b> (${esc(u.role)}) — เมนูและแพลตฟอร์มแสดงตามสิทธิ์ของผู้ใช้นี้<button class="btn sm" data-act="stop-acting">กลับเป็นมุมมองของฉัน</button></div>` : ''}
    <div class="title-row"><div><span class="eyebrow-sm">${ic(S.page, 13)} ${esc((PAGES.find(m => m.k === S.page) || {}).sub || '')}</span><h1>${pageTitle()}</h1><p>${pageSub()}</p></div>
-    <div class="filters">${['dashboard', 'posts', 'comments', 'audience'].includes(S.page) ? `<button class="btn ghost upd" data-act="refresh" title="ดึงยอดผู้ติดตามล่าสุดและโหลดข้อมูลจาก Sheet">${ic('refresh', 15)} <span>อัปเดตล่าสุด ${DB.loadedAt ? new Date(DB.loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span></button>` : ''}${S.page === 'posts' && can('add') ? `${PKEYS.some(p => conn(p).connected) ? `<button class="btn" data-act="sync-all">${ic('refresh', 16)} อัปเดตจากแพลตฟอร์ม</button>` : ''}<button class="btn primary" data-act="go-link">${ic('add', 16)} เพิ่มคอนเทนต์</button>` : ''}</div></div>
+    <div class="filters">${['dashboard', 'posts', 'comments', 'audience'].includes(S.page) ? `<button class="btn ghost upd" data-act="refresh" title="ดึงยอดผู้ติดตามล่าสุดและโหลดข้อมูลล่าสุดจากฐานข้อมูล">${ic('refresh', 15)} <span>อัปเดตล่าสุด ${DB.loadedAt ? new Date(DB.loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span></button>` : ''}${S.page === 'posts' && can('add') ? `${PKEYS.some(p => conn(p).connected) ? `<button class="btn" data-act="sync-all">${ic('refresh', 16)} อัปเดตจากแพลตฟอร์ม</button>` : ''}<button class="btn primary" data-act="go-link">${ic('add', 16)} เพิ่มคอนเทนต์</button>` : ''}</div></div>
    ${['dashboard', 'posts', 'comments', 'audience'].includes(S.page) ? filtersBar() : ''}`;
 }
 function greet() { const h = new Date().getHours(); return h < 12 ? 'สวัสดีตอนเช้า' : h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น'; }
@@ -582,7 +584,7 @@ function go(page, tab) {
   if (page === 'add' && (S.page !== 'add' || tab)) { S.catTouched = false; S.editing = null; S.parsed = []; S.img = null; S.addTab = tab || 'link'; if (tab !== 'post') S.prefill = null; }
   S.page = page; S.person = null; closeDrawer();
   $$('#side .nav button').forEach(b => b.dataset.v === page ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
-  renderTop(); renderView('fade'); window.scrollTo({ top: 0, behavior: 'smooth' });
+  renderTop(); renderView('fade'); renderFab(); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function refilter() { renderTop(); renderView('soft'); }
 
@@ -730,7 +732,7 @@ function onboarding() {
   if (!can('add')) return '';
   const anyConn = PKEYS.some(p => ((DB.connections || {})[p] || {}).connected);
   const steps = [
-    { t: 'เชื่อมต่อ Google Sheet', d: API.demo ? 'โหมดสาธิต' : 'บันทึกข้อมูลลงชีตอัตโนมัติ', done: true },
+    { t: 'เชื่อมต่อฐานเก็บข้อมูล', d: API.demo ? 'โหมดสาธิต' : 'บันทึกลงฐานข้อมูลอัตโนมัติ', done: true },
     { t: 'เชื่อมต่อบัญชีโซเชียล', d: 'เพื่อดึงยอดและความคิดเห็นอัตโนมัติ', done: anyConn, act: can('connect') ? 'go-connect' : null },
     { t: 'บันทึกยอดผู้ติดตาม', d: 'ดึงอัตโนมัติหรือกรอกเอง', done: DB.followers.length > 0, act: 'go-aud' },
     { t: 'เพิ่มคอนเทนต์แรก', d: 'วางลิงก์ นำเข้า CSV หรือกรอกเอง', done: DB.posts.length > 0, act: 'go-link' }
@@ -1208,7 +1210,7 @@ function csvView() {
       <span class="dz-ic">${ic('file', 28)}</span><b>ลากไฟล์ CSV มาวาง หรือคลิกเพื่อเลือก (เลือกหลายไฟล์พร้อมกันได้)</b>
       <span class="note">ระบบแยกชนิดไฟล์ให้เอง: ไฟล์รายโพสต์ (คอนเทนต์) · ไฟล์ข้อมูลเพจรายวัน เช่น ยอดดู ผู้ชม การโต้ตอบ การคลิกลิงก์ การเข้าชม การติดตาม · ไฟล์กลุ่มเป้าหมาย (อายุ เพศ ประเทศ เมือง)</span></label>
       <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" class="sr" data-change="csv-file" multiple>
-      <div class="grid-3">${[['1', 'Export ไฟล์', 'Meta Business Suite → ข้อมูลเชิงลึก → กดปุ่ม “ส่งออก” ที่แต่ละกราฟ หรือ เนื้อหา → ส่งออกข้อมูล'], ['2', 'ตรวจการจับคู่คอลัมน์', 'ระบบจับคู่หัวคอลัมน์ภาษาไทย/อังกฤษให้อัตโนมัติ แก้ได้ก่อนนำเข้า'], ['3', 'นำเข้าลง Google Sheet', 'ลิงก์ที่มีอยู่แล้วจะอัปเดตตัวเลข ไม่สร้างโพสต์ซ้ำ']].map(([n, t, d]) => `<div class="howto"><span class="ob-n">${n}</span><div><b>${t}</b><p>${d}</p></div></div>`).join('')}</div></div>`;
+      <div class="grid-3">${[['1', 'Export ไฟล์', 'Meta Business Suite → ข้อมูลเชิงลึก → กดปุ่ม “ส่งออก” ที่แต่ละกราฟ หรือ เนื้อหา → ส่งออกข้อมูล'], ['2', 'ตรวจการจับคู่คอลัมน์', 'ระบบจับคู่หัวคอลัมน์ภาษาไทย/อังกฤษให้อัตโนมัติ แก้ได้ก่อนนำเข้า'], ['3', 'บันทึกลงฐานข้อมูล', 'ลิงก์ที่มีอยู่แล้วจะอัปเดตตัวเลข ไม่สร้างโพสต์ซ้ำ']].map(([n, t, d]) => `<div class="howto"><span class="ob-n">${n}</span><div><b>${t}</b><p>${d}</p></div></div>`).join('')}</div></div>`;
   }
   if (c.result) {
     const r = c.result;
@@ -1242,7 +1244,6 @@ function csvView() {
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>แพลตฟอร์ม</th><th>วันที่</th><th>ประเภท</th><th>หมวดหมู่</th><th>โพสต์</th><th class="r">Reach</th><th class="r">Views</th><th class="r">Reactions</th><th class="r">Comments</th><th class="r">Shares</th></tr></thead><tbody>
     ${built.slice(0, 8).map(b => `<tr class="${b.err ? 'row-bad' : ''}"><td>${b.err ? `<span class="status suspended" title="${esc(b.err)}">${esc(b.err)}</span>` : `<span class="status active">พร้อม</span>`}</td><td>${PL[b.post.platform] ? platChip(b.post.platform) : '—'}</td><td style="white-space:nowrap">${b.post.at ? fdt(b.post.at) : '—'}</td><td>${esc(b.post.type)}</td><td>${catChip(b.post.cat)}</td><td style="max-width:260px;white-space:normal"><span class="clamp2">${esc(b.post.caption || b.post.link || '—')}</span></td><td class="r num">${fk(b.post.m.reach)}</td><td class="r num">${fk(b.post.m.impressions)}</td><td class="r num">${fk(b.post.m.reactions)}</td><td class="r num">${fk(b.post.m.comments)}</td><td class="r num">${fk(b.post.m.shares)}</td></tr>`).join('')}
     </tbody></table></div>${built.length > 8 ? `<p class="note" style="margin:8px 0 0">แสดง 8 แถวแรกจาก ${fnum(built.length)} แถว</p>` : ''}
-    <div id="csv-prog" hidden style="margin-top:14px"><div class="progress"><span style="width:0%"></span></div><p class="note" id="csv-prog-t" style="margin:6px 0 0"></p></div>
    </section>
    <div class="form-actions"><button class="btn" type="button" data-act="csv-reset">ยกเลิก</button><button class="btn primary lg" type="button" data-act="csv-import" ${ok.length ? '' : 'disabled'}>${ic('upload', 16)} นำเข้า ${fnum(ok.length)} โพสต์</button></div>
   </div>`;
@@ -1253,18 +1254,27 @@ const readCsvFile = f => readFiles([f]);
 /** อ่านหลายไฟล์พร้อมกัน แล้วแยกชนิดให้อัตโนมัติ: รายโพสต์ / ข้อมูลเพจรายวัน / กลุ่มเป้าหมาย */
 async function readFiles(files) {
   const postFiles = []; const P = S.pimp && !S.pimp.result ? S.pimp : { files: [], platform: allowedP()[0], followers: '', result: null };
-  let pageN = 0;
+  let pageN = 0; const seen = new Set(), dupNames = [];
   for (const f of files) {
     if (!/\.(csv|txt|tsv)$/i.test(f.name) && !/csv|text/.test(f.type)) { toast(`ข้าม ${f.name} — ต้องเป็นไฟล์ .csv (Excel ให้บันทึกเป็น CSV UTF-8 ก่อน)`, 'error'); continue; }
-    let rows;
-    try { rows = parseCSV(decodeFile(await f.arrayBuffer())); } catch (e) { toast(`อ่าน ${f.name} ไม่สำเร็จ: ${e.message}`, 'error'); continue; }
+    let rows, hash;
+    try { const buf = await f.arrayBuffer(); hash = await fileHash(buf); rows = parseCSV(decodeFile(buf)); } catch (e) { toast(`อ่าน ${f.name} ไม่สำเร็จ: ${e.message}`, 'error'); continue; }
+    if (seen.has(hash) || P.files.some(x => x.hash === hash) || (S.csv && S.csv.hash === hash && !S.csv.result)) { dupNames.push(f.name); continue; }
+    seen.add(hash);
     const pf = parsePageFile(f.name, rows);
-    if (pf && pf.length) { pf.forEach(x => { P.files = P.files.filter(y => y.id !== x.id); P.files.push(x); }); pageN += pf.length; }
-    else postFiles.push({ name: f.name, rows });
+    if (pf && pf.length) { pf.forEach(x => { x.hash = hash; P.files = P.files.filter(y => y.id !== x.id); P.files.push(x); }); pageN += pf.length; }
+    else postFiles.push({ name: f.name, rows, hash });
   }
   if (P.files.length) { P.files.sort((a, b) => (a.kind === 'aud') - (b.kind === 'aud') || PAGE_M.findIndex(m => m.k === a.metric) - PAGE_M.findIndex(m => m.k === b.metric)); S.pimp = P; }
-  if (postFiles.length) { loadPostRows(postFiles[0].name, postFiles[0].rows, !pageN); if (postFiles.length > 1) toast(`ไฟล์รายโพสต์นำเข้าได้ทีละไฟล์ — ใช้ ${postFiles[0].name} ก่อน`, 'info'); }
+  if (postFiles.length) { loadPostRows(postFiles[0].name, postFiles[0].rows, !pageN); if (S.csv) S.csv.hash = postFiles[0].hash; if (postFiles.length > 1) toast(`ไฟล์รายโพสต์นำเข้าได้ทีละไฟล์ — ใช้ ${postFiles[0].name} ก่อน`, 'info'); }
   if (pageN) { renderCsv(true); toast(`อ่านข้อมูลเพจแล้ว ${pageN} ไฟล์`, 'info'); }
+  if (dupNames.length) toast(`ข้ามไฟล์ซ้ำ ${dupNames.length} ไฟล์ (เนื้อหาเหมือนไฟล์ที่เลือกไว้แล้ว): ${dupNames.slice(0, 3).join(', ')}`, 'error');
+}
+/** ลายนิ้วมือของไฟล์ (SHA-256) ใช้ตรวจว่าไฟล์เดิมถูกเลือกซ้ำหรือเคยนำเข้าแล้ว */
+async function fileHash(buf) {
+  try { if (window.crypto && crypto.subtle) { const h = await crypto.subtle.digest('SHA-256', buf); return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join(''); } } catch (_) {}
+  const b = new Uint8Array(buf); let h1 = 0x811c9dc5, h2 = 0x01000193; for (let i = 0; i < b.length; i++) { h1 = Math.imul(h1 ^ b[i], 16777619); h2 = Math.imul(h2 + b[i], 2654435761); }
+  return 'f' + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16) + b.length.toString(16);
 }
 function loadPostRows(name, rows, announce) {
   try {
@@ -1297,8 +1307,9 @@ function parsePageFile(name, rows) {
   if (cols.some(x => /^primary$/i.test(x.h))) cols = cols.filter(x => /^primary$/i.test(x.h));
   const out = cols.map(({ h, j }) => {
     const label = !h || /^primary$/i.test(h) ? title : (title ? title + ' · ' + h : h);
-    const pts = body.map(r => ({ date: iso(parseDateStr(r[0], 'mdy')), v: toNum(r[j]) })).filter(x => x.v != null);
-    return { kind: 'daily', id: name + '#' + j, name, title: label || name, metric: guessPageMetric(label) || guessPageMetric(h), platform: plOfText(label), pts };
+    const all = body.map(r => ({ date: iso(parseDateStr(r[0], 'mdy')), v: toNum(r[j]) })).filter(x => x.v != null);
+    const byD = new Map(); all.forEach(x => byD.set(x.date, x)); const pts = [...byD.values()].sort((a, b) => a.date < b.date ? -1 : 1);
+    return { kind: 'daily', dupDates: all.length - pts.length, id: name + '#' + j, name, title: label || name, metric: guessPageMetric(label) || guessPageMetric(h), platform: plOfText(label), pts };
   }).filter(x => x.pts.length);
   return out.length ? out : null;
 }
@@ -1368,33 +1379,7 @@ function pageView() {
     ${noPl ? `<div class="fgrid" style="margin-bottom:12px"><div class="field"><label for="pg-pl">แพลตฟอร์มของไฟล์ที่ไม่ระบุ</label><select class="input" id="pg-pl" data-change="page-pl">${ap.map(p => `<option value="${p}" ${P.platform === p ? 'selected' : ''}>${PL[p].name}</option>`).join('')}</select></div></div>` : ''}
     ${dup.size ? `<div class="callout warn" style="margin-bottom:12px">${ic('clock', 16)}<div>มีไฟล์ตัวชี้วัดเดียวกันซ้ำ (${[...dup].map(k => PM[k].t).join(', ')}) — ระบบจะใช้ค่าจากไฟล์ที่อยู่หลังสุด</div></div>` : ''}
     <div class="pf-grid" data-stagger>${daily.map(dCard).join('')}${aud ? aCard(aud) : ''}</div>
-    <div id="pg-prog" hidden style="margin-top:14px"><div class="progress"><span style="width:0%"></span></div><p class="note" id="pg-prog-t" style="margin:6px 0 0"></p></div>
     <div class="form-actions"><button class="btn" type="button" data-act="page-reset">ยกเลิก</button><button class="btn primary lg" type="button" data-act="page-import" ${nDays || aud ? '' : 'disabled'}>${ic('upload', 16)} นำเข้าข้อมูลเพจ${nDays ? ` ${fnum(nDays)} วัน` : ''}${aud ? `${nDays ? ' +' : ''} กลุ่มเป้าหมาย` : ''}</button></div></section>`;
-}
-async function runPageImport(btn) {
-  const P = S.pimp; const { byPl } = pageRows(P); const aud = P.files.find(f => f.kind === 'aud');
-  const prog = $('#pg-prog'), bar = $('#pg-prog .progress span'), txt = $('#pg-prog-t');
-  prog.hidden = false; btn.classList.add('loading'); btn.disabled = true;
-  const res = { added: 0, updated: 0, metrics: [...new Set(P.files.filter(f => f.kind === 'daily' && f.metric).map(f => f.metric))], aud: null };
-  const jobs = Object.entries(byPl).flatMap(([pl, l]) => { const c = []; for (let i = 0; i < l.length; i += 800) c.push([pl, l.slice(i, i + 800)]); return c; });
-  const steps = jobs.length + (aud ? 1 : 0); let done = 0;
-  try {
-    for (const [pl, rows] of jobs) {
-      txt.textContent = `กำลังบันทึกข้อมูลรายวัน ${PL[pl].name} ลง ${API.demo ? 'ระบบ' : 'Google Sheet'}…`;
-      const r = await API.importPage(pl, rows); res.added += r.added; res.updated += r.updated;
-      DB.daily = DB.daily.filter(d => d.platform !== pl).concat((r.daily || []).map(withT));
-      bar.style.width = Math.round(++done / steps * 100) + '%';
-    }
-    if (aud) {
-      txt.textContent = 'กำลังบันทึกข้อมูลกลุ่มเป้าหมาย…'; const pl = aud.platform || P.platform;
-      const body = { platform: pl, asOf: Date.now(), source: 'csv' }; ['gender', 'age', 'ageGender', 'country', 'city', 'province'].forEach(k => { if (aud[k]) body[k] = aud[k]; });
-      if (Number(P.followers) > 0) body.followers = Number(P.followers);
-      const r = await API.saveAudience(body); DB.audience[pl] = r.audience; if (r.follower) { DB.followers.push(r.follower); buildFIdx(); } res.aud = pl;
-      bar.style.width = '100%';
-    }
-    P.result = res; localLog(`นำเข้าข้อมูลเพจ ${res.added + res.updated} วัน`);
-    renderCsv(true); toast('นำเข้าข้อมูลเพจเรียบร้อย');
-  } catch (e) { handleErr(e); btn.classList.remove('loading'); btn.disabled = false; txt.textContent = 'หยุดนำเข้า — ส่วนที่บันทึกไปแล้วยังอยู่ในชีต กดนำเข้าอีกครั้งได้ (วันเดิมจะอัปเดต ไม่เพิ่มซ้ำ)'; }
 }
 const COUNTRY_TH = { TH: 'ไทย', LA: 'ลาว', MM: 'เมียนมา', KH: 'กัมพูชา', VN: 'เวียดนาม', MY: 'มาเลเซีย', SG: 'สิงคโปร์', CN: 'จีน', JP: 'ญี่ปุ่น', KR: 'เกาหลีใต้', US: 'สหรัฐอเมริกา', GB: 'สหราชอาณาจักร', IN: 'อินเดีย', ID: 'อินโดนีเซีย', PH: 'ฟิลิปปินส์', TW: 'ไต้หวัน', HK: 'ฮ่องกง', AU: 'ออสเตรเลีย', DE: 'เยอรมนี', FR: 'ฝรั่งเศส' };
 function csvAudience() {
@@ -1410,25 +1395,216 @@ function csvAudience() {
   const res = { platform: pl, asOf: Date.now(), source: 'csv', gender: norm(g), age: norm(a), country: norm(co) };
   return res.gender || res.age || res.country ? res : null;
 }
-async function runImport(btn) {
-  const ok = csvBuild().filter(b => !b.err).map(b => b.post); if (!ok.length) return;
-  const prog = $('#csv-prog'), bar = $('#csv-prog .progress span'), txt = $('#csv-prog-t');
-  prog.hidden = false; btn.classList.add('loading'); btn.disabled = true;
-  const total = { added: 0, updated: 0, skipped: 0 };
+
+/* ================= หน้าต่างป๊อปอัป + ขั้นตอนนำเข้า ================= */
+const MODAL = { locked: false };
+function modalOpen(html, o = {}) {
+  let m = $('#modal'); if (!m) { m = document.createElement('div'); m.id = 'modal'; document.body.appendChild(m); }
+  m.className = 'modal-wrap'; m.innerHTML = `<div class="modal-bd" data-act="modal-close"></div><div class="modal${o.wide ? ' wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-body" id="modal-body">${html}</div></div>`;
+  modalLock(!!o.locked); document.body.classList.add('modal-open'); void m.offsetWidth; m.classList.add('on');
+  setTimeout(() => { const f = $('#modal .modal [data-focus]') || $('#modal .modal button'); if (f) f.focus(); }, 60);
+}
+function modalSet(html) { const b = $('#modal-body'); if (!b) return; b.innerHTML = html; b.classList.remove('swap'); void b.offsetWidth; b.classList.add('swap'); }
+function modalLock(v) { MODAL.locked = v; const m = $('#modal'); if (m) m.classList.toggle('locked', v); }
+function modalClose(force) { if (MODAL.locked && !force) { const m = $('#modal .modal'); if (m) { m.classList.remove('nudge'); void m.offsetWidth; m.classList.add('nudge'); } return; } modalLock(false); const m = $('#modal'); if (!m) return; m.classList.remove('on'); document.body.classList.remove('modal-open'); setTimeout(() => { if (!m.classList.contains('on')) m.innerHTML = ''; }, 320); }
+const mHead = (icon, title, sub, tone = '') => `<div class="m-head"><span class="m-ic ${tone}">${icon}</span><div><h2 id="modal-title">${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div></div>`;
+const spinner = '<span class="m-spin" aria-hidden="true"></span>';
+function progView(title, sub, steps) {
+  return `${mHead(spinner, title, sub, 'busy')}
+   <div class="m-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ip"><div class="m-pct"><b id="ip-n">0</b><span>%</span></div><div class="m-bar"><span id="ip-bar"></span></div><p class="m-step" id="ip-step">กำลังเริ่ม…</p></div>
+   ${steps ? `<ol class="m-steps" id="ip-steps">${steps.map((t, i) => `<li data-i="${i}"><i></i><span>${t}</span></li>`).join('')}</ol>` : ''}
+   <p class="m-lock">${ic('lock', 13)} กรุณาอย่าปิดหรือรีเฟรชหน้านี้ ระบบกำลังทำงาน</p>`;
+}
+/** แถบเปอร์เซ็นต์ที่ขยับนุ่มๆ ระหว่างรอฐานข้อมูลตอบ (ไม่หยุดนิ่งจนดูเหมือนค้าง) */
+function progress() {
+  let shown = 0, floor = 0, ceil = 0, raf = 0, alive = true;
+  const paint = () => { const n = $('#ip-n'), b = $('#ip-bar'), w = $('#ip'); if (n) n.textContent = Math.floor(shown); if (b) b.style.width = shown.toFixed(2) + '%'; if (w) w.setAttribute('aria-valuenow', Math.floor(shown)); };
+  const tick = () => { if (!alive) return; if (shown < floor) shown = Math.min(floor, shown + Math.max(.6, (floor - shown) * .18)); else if (shown < ceil) shown += Math.max(.015, (ceil - shown) * .006); paint(); raf = requestAnimationFrame(tick); };
+  tick();
+  return {
+    at(p, next) { floor = Math.max(floor, Math.min(100, p)); ceil = Math.max(floor, Math.min(99.4, next == null ? p : p + (next - p) * .92)); },
+    text(t) { const e = $('#ip-step'); if (e) e.textContent = t; },
+    step(i, state) { const l = $(`#ip-steps li[data-i="${i}"]`); if (l) { l.className = state; } },
+    done() { floor = ceil = 100; shown = 100; paint(); alive = false; cancelAnimationFrame(raf); },
+    stop() { alive = false; cancelAnimationFrame(raf); }
+  };
+}
+const normLink = l => { l = String(l || '').trim(); if (!/story_fbid|fbid=|[?&]v=/.test(l)) l = l.split(/[?#]/)[0]; return l.replace(/^https?:\/\/(www\.|m\.|web\.)?/i, '').replace(/\/+$/, '').toLowerCase(); };
+const sameNum = (a, b) => a == null || (b != null && Math.abs(Number(a) - Number(b)) < 1e-9);
+const IMP = { kind: null, plan: null, done: 0, res: null };
+async function withRetry(fn, label, pr) {
+  for (let a = 0; ; a++) {
+    try { return await fn(); }
+    catch (e) { if (a >= 2 || !['network', 'timeout', 'bad_response', 'server'].includes(e.code)) throw e; pr.text(`${label} — การเชื่อมต่อสะดุด กำลังลองใหม่ (${a + 1}/2)…`); await wait(1500 * (a + 1)); }
+  }
+}
+/** ขั้นที่ 1: ตรวจข้อมูลก่อนนำเข้า (ซ้ำในไฟล์ / ซ้ำกับฐานข้อมูล / เคยนำเข้าไฟล์นี้แล้ว) */
+async function startImport(kind) {
+  IMP.kind = kind; IMP.plan = null; IMP.done = 0; IMP.res = null;
+  const steps = ['อ่านและตรวจความถูกต้องของไฟล์', 'ดึงข้อมูลล่าสุดจากฐานข้อมูล', 'ตรวจประวัติการนำเข้าไฟล์', 'เปรียบเทียบหาข้อมูลซ้ำ'];
+  modalOpen(progView('กำลังตรวจสอบข้อมูล', 'ตรวจอย่างละเอียดก่อนบันทึก เพื่อไม่ให้มีข้อมูลซ้ำในฐานข้อมูล', steps), { locked: true });
+  const pr = progress();
   try {
-    for (let i = 0; i < ok.length; i += 100) {
-      const chunk = ok.slice(i, i + 100);
-      txt.textContent = `กำลังบันทึกลง ${API.demo ? 'ระบบ' : 'Google Sheet'} ${fnum(Math.min(i + chunk.length, ok.length))} / ${fnum(ok.length)}`;
-      const r = await API.importPosts(chunk);
-      total.added += r.added; total.updated += r.updated; total.skipped += r.skipped;
-      (r.posts || []).forEach(p => { const ex = DB.posts.find(x => x.id === p.id); if (ex) Object.assign(ex, p, { comments: ex.comments }); else DB.posts.push(Object.assign(p, { comments: p.comments || [] })); });
-      bar.style.width = Math.round(Math.min(i + chunk.length, ok.length) / ok.length * 100) + '%';
+    pr.step(0, 'run'); pr.at(2, 20); pr.text('กำลังอ่านไฟล์…'); await wait(350);
+    const files = kind === 'page' ? S.pimp.files : [{ name: S.csv.name, hash: S.csv.hash, kind: 'posts' }];
+    pr.step(0, 'ok'); pr.step(1, 'run'); pr.at(20, 60); pr.text('กำลังดึงข้อมูลล่าสุดจากฐานข้อมูล (อาจมีคนอื่นเพิ่มข้อมูลไว้แล้ว)…');
+    const fresh = await withRetry(() => API.bootstrap(), 'ดึงข้อมูลล่าสุด', pr); load(fresh);
+    pr.step(1, 'ok'); pr.step(2, 'run'); pr.at(60, 82); pr.text('กำลังตรวจว่าไฟล์เหล่านี้เคยนำเข้าแล้วหรือยัง…');
+    const hashes = [...new Set(files.map(f => f.hash).filter(Boolean))];
+    let hist = []; try { hist = (await API.importCheck(hashes)).found || []; } catch (e) { console.warn(e); }
+    pr.step(2, 'ok'); pr.step(3, 'run'); pr.at(82, 98); pr.text('กำลังเปรียบเทียบทีละรายการกับข้อมูลในฐานข้อมูล…'); await wait(300);
+    IMP.plan = kind === 'page' ? planPage(hist) : planPosts(hist);
+    pr.step(3, 'ok'); pr.done(); await wait(350);
+    modalLock(false); modalSet(reportView());
+  } catch (e) { pr.stop(); modalLock(false); modalSet(errorView(e, false)); }
+}
+function audIsSame(pl, a) {
+  const cur = DB.audience[pl] || {}; const r2 = o => JSON.stringify(o ? Object.fromEntries(Object.entries(o).sort().map(([k, v]) => [k, typeof v === 'number' ? Math.round(v * 1000) : v])) : null);
+  return ['gender', 'age', 'country', 'city', 'province'].every(k => !a[k] || r2(a[k]) === r2(cur[k]));
+}
+function planPage(hist) {
+  const P = S.pimp; const { byPl, dup } = pageRows(P); const jobs = []; const st = { add: 0, upd: 0, same: 0, withinDup: 0 };
+  P.files.forEach(f => st.withinDup += f.dupDates || 0);
+  Object.entries(byPl).forEach(([pl, rows]) => {
+    const ex = {}; DB.daily.filter(d => d.platform === pl).forEach(d => ex[d.date] = d);
+    const send = []; rows.forEach(r => { const e = ex[r.date]; if (!e) { st.add++; send.push(r); return; } if (Object.keys(r).some(k => k !== 'date' && !sameNum(r[k], e[k]))) { st.upd++; send.push(r); } else st.same++; });
+    for (let i = 0; i < send.length; i += 90) jobs.push({ type: 'daily', pl, rows: send.slice(i, i + 90) });
+  });
+  const aud = P.files.find(f => f.kind === 'aud'); let audJob = null, audSame = false;
+  if (aud) {
+    const pl = aud.platform || P.platform; const body = { platform: pl, asOf: Date.now(), source: 'csv' };
+    ['gender', 'age', 'ageGender', 'country', 'city', 'province'].forEach(k => { if (aud[k]) body[k] = aud[k]; });
+    const fol = Number(P.followers) > 0 ? Number(P.followers) : null; if (fol) body.followers = fol;
+    audSame = audIsSame(pl, aud) && (!fol || fol === folAt(pl, Date.now()));
+    if (!audSame) audJob = { type: 'aud', pl, body };
+  }
+  if (audJob) jobs.push(audJob);
+  const warns = [];
+  const hmap = Object.fromEntries(hist.map(h => [h.hash, h]));
+  [...new Map(P.files.map(f => [f.hash, f])).values()].forEach(f => { const h = hmap[f.hash]; if (h) warns.push(`<b>${esc(f.name)}</b> เคยนำเข้าแล้วเมื่อ ${fdt(h.at)} โดย ${esc(h.email)}`); });
+  if (dup.size) warns.push(`มีไฟล์ตัวชี้วัดเดียวกันมากกว่า 1 ไฟล์ (${[...dup].map(k => PM[k].t).join(', ')}) — ใช้ค่าจากไฟล์หลังสุด`);
+  if (st.withinDup) warns.push(`พบวันที่ซ้ำกันภายในไฟล์ ${st.withinDup} แถว — ใช้แถวล่าสุดของวันนั้น`);
+  const noMetric = P.files.filter(f => f.kind === 'daily' && !f.metric); if (noMetric.length) warns.push(`${noMetric.length} ไฟล์ยังไม่ได้เลือกตัวชี้วัด จะไม่ถูกนำเข้า`);
+  return { kind: 'page', jobs, st, aud: !!aud, audSame, warns, rows: jobs.reduce((s, j) => s + (j.rows ? j.rows.length : 0), 0), hasAud: !!audJob, total: jobs.length ? jobs.reduce((s, j) => s + (j.rows ? j.rows.length : 0), 0) || 1 : 0, unit: 'วัน' };
+}
+function planPosts(hist) {
+  const built = csvBuild(); const bad = built.filter(b => b.err).length; const ok = built.filter(b => !b.err).map(b => b.post);
+  const byLink = new Map(); ok.forEach(p => byLink.set(p.platform + '|' + normLink(p.link), p)); const withinDup = ok.length - byLink.size;
+  const ex = new Map(); DB.posts.forEach(p => ex.set(p.platform + '|' + normLink(p.link), p));
+  const st = { add: 0, upd: 0, same: 0, withinDup, bad }; const send = [];
+  byLink.forEach((p, k) => {
+    const e = ex.get(k); if (!e) { st.add++; send.push(p); return; }
+    const mDiff = Object.keys(p.m || {}).some(x => !sameNum(p.m[x], e.m && e.m[x]));
+    const vDiff = p.v && Object.keys(p.v).some(x => !sameNum(p.v[x], e.v && e.v[x]));
+    const other = (p.recat && p.cat !== e.cat) || (p.caption && !e.caption) || (p.at && Math.abs(p.at - e.at) > 6e4);
+    if (mDiff || vDiff || other) { st.upd++; send.push(p); } else st.same++;
+  });
+  const jobs = []; for (let i = 0; i < send.length; i += 40) jobs.push({ type: 'posts', rows: send.slice(i, i + 40) });
+  const c = S.csv; if (c.audFromVideo && c.demo.length) { const aud = csvAudience(); if (aud && !audIsSame(aud.platform, aud)) jobs.push({ type: 'aud', pl: aud.platform, body: aud }); }
+  const warns = []; const h = hist.find(x => x.hash === c.hash); if (h) warns.push(`<b>${esc(c.name)}</b> เคยนำเข้าแล้วเมื่อ ${fdt(h.at)} โดย ${esc(h.email)}`);
+  if (withinDup) warns.push(`พบลิงก์โพสต์ซ้ำกันภายในไฟล์ ${withinDup} แถว — ใช้แถวล่าสุด`);
+  if (bad) warns.push(`${bad} แถวข้อมูลไม่ครบ (ไม่มีลิงก์ / วันที่ / ไม่มีสิทธิ์แพลตฟอร์ม) จะถูกข้าม`);
+  const rows = jobs.reduce((s, j) => s + (j.rows ? j.rows.length : 0), 0); return { kind: 'posts', jobs, st, warns, rows, hasAud: jobs.some(j => j.type === 'aud'), total: rows || (jobs.length ? 1 : 0), unit: 'โพสต์' };
+}
+function reportView() {
+  const P = IMP.plan, st = P.st; const n = P.total;
+  const box = (cls, v, t, d) => `<div class="m-stat ${cls}"><b>${fnum(v)}</b><span>${t}</span><small>${d}</small></div>`;
+  return `${mHead(ic(n ? 'check' : 'sheet', 22), n ? 'ตรวจสอบเสร็จแล้ว พร้อมนำเข้า' : 'ไม่มีข้อมูลใหม่ให้นำเข้า', n ? 'ระบบจะบันทึกเฉพาะข้อมูลใหม่และข้อมูลที่ตัวเลขเปลี่ยน ข้อมูลที่เหมือนเดิมจะข้ามให้อัตโนมัติ' : 'ข้อมูลทั้งหมดในไฟล์นี้มีอยู่ในฐานข้อมูลแล้ว และตัวเลขตรงกันทุกค่า', n ? 'ok' : 'info')}
+   <div class="m-stats">${box('add', st.add, 'ข้อมูลใหม่', 'เพิ่มเข้าฐานข้อมูล')}${box('upd', st.upd, 'อัปเดต', 'มีอยู่แล้ว ตัวเลขเปลี่ยน')}${box('same', st.same, 'ซ้ำ · ข้าม', 'เหมือนในฐานข้อมูลทุกค่า')}</div>
+   ${P.kind === 'page' && P.aud ? `<p class="m-note">${ic('audience', 14)} กลุ่มเป้าหมาย: ${P.audSame ? 'เหมือนข้อมูลล่าสุดในฐานข้อมูล · ข้าม' : 'จะบันทึกเป็นข้อมูลล่าสุด'}</p>` : ''}
+   ${P.warns.length ? `<div class="m-warn">${ic('clock', 16)}<ul>${P.warns.map(w => `<li>${w}</li>`).join('')}</ul></div>` : `<p class="m-note ok">${ic('check', 14)} ไม่พบไฟล์ซ้ำหรือแถวซ้ำภายในไฟล์</p>`}
+   <div class="m-actions"><button class="btn" data-act="modal-close">${n ? 'ยกเลิก' : 'ปิด'}</button>${n ? `<button class="btn primary lg" data-act="imp-go" data-focus>${ic('upload', 16)} บันทึก${P.rows ? ` ${fnum(P.rows)} ${P.unit}` : ''}${P.hasAud ? (P.rows ? ' + กลุ่มเป้าหมาย' : 'ข้อมูลกลุ่มเป้าหมาย') : ''}</button>` : ''}</div>`;
+}
+/** ขั้นที่ 2: บันทึกลงฐานข้อมูลทีละชุด พร้อมเปอร์เซ็นต์ — ปิดหน้าต่างไม่ได้จนกว่าจะเสร็จ */
+async function runImportPlan(resume) {
+  const P = IMP.plan; if (!P) return;
+  if (!resume) { IMP.done = 0; IMP.res = { added: 0, updated: 0, skipped: P.st.same, aud: null }; }
+  const R = IMP.res;
+  const weight = j => j.type === 'aud' ? 3 : j.rows.length; const total = P.jobs.reduce((s, j) => s + weight(j), 0) || 1;
+  modalSet(progView('กำลังบันทึกลงฐานข้อมูล', `${P.rows ? fnum(P.rows) + ' ' + P.unit : 'ข้อมูลกลุ่มเป้าหมาย'} · แบ่งส่งเป็น ${P.jobs.length} ชุดเพื่อความเสถียร`)); modalLock(true);
+  const pr = progress(); let doneW = P.jobs.slice(0, IMP.done).reduce((s, j) => s + weight(j), 0); let rowsDone = P.jobs.slice(0, IMP.done).reduce((s, j) => s + (j.rows ? j.rows.length : 0), 0);
+  pr.at(doneW / total * 100);
+  try {
+    for (let i = IMP.done; i < P.jobs.length; i++) {
+      const j = P.jobs[i]; const from = doneW / total * 100, to = (doneW + weight(j)) / total * 100; pr.at(from, to);
+      if (j.type === 'daily') {
+        pr.text(`บันทึกข้อมูลรายวัน ${PL[j.pl].name} · ${fnum(rowsDone + j.rows.length)} / ${fnum(P.rows)} วัน (ชุดที่ ${i + 1}/${P.jobs.length})`);
+        const r = await withRetry(() => API.importPage(j.pl, j.rows), 'บันทึกข้อมูลรายวัน', pr); R.added += r.added; R.updated += r.updated;
+        DB.daily = DB.daily.filter(d => d.platform !== j.pl).concat((r.daily || []).map(withT));
+      } else if (j.type === 'posts') {
+        pr.text(`บันทึกโพสต์ ${fnum(rowsDone + j.rows.length)} / ${fnum(P.rows)} (ชุดที่ ${i + 1}/${P.jobs.length})`);
+        const r = await withRetry(() => API.importPosts(j.rows), 'บันทึกโพสต์', pr); R.added += r.added; R.updated += r.updated; R.skipped += r.skipped;
+        (r.posts || []).forEach(p => { const ex = DB.posts.find(x => x.id === p.id); if (ex) Object.assign(ex, p, { comments: ex.comments }); else DB.posts.push(Object.assign(p, { comments: p.comments || [] })); });
+      } else {
+        pr.text('บันทึกข้อมูลกลุ่มเป้าหมาย…');
+        const r = await withRetry(() => API.saveAudience(j.body), 'บันทึกกลุ่มเป้าหมาย', pr); DB.audience[j.pl] = r.audience; if (r.follower) { DB.followers.push(r.follower); buildFIdx(); } R.aud = j.pl;
+      }
+      doneW += weight(j); rowsDone += j.rows ? j.rows.length : 0; IMP.done = i + 1; pr.at(doneW / total * 100, doneW / total * 100);
     }
-    total.skipped += csvBuild().filter(b => b.err).length;
-    if (S.csv.audFromVideo && S.csv.demo.length) { const aud = csvAudience(); if (aud) { txt.textContent = 'กำลังบันทึกข้อมูลผู้ชมจากวิดีโอ…'; try { const r = await API.saveAudience(aud); DB.audience[aud.platform] = r.audience; total.aud = aud.platform; } catch (e) { console.warn(e); } } }
-    S.csv.result = total; localLog(`นำเข้า CSV เพิ่ม ${total.added} อัปเดต ${total.updated}`);
-    renderSide(); renderCsv(true); toast(`นำเข้าแล้ว เพิ่ม ${total.added} · อัปเดต ${total.updated}`);
-  } catch (e) { handleErr(e); btn.classList.remove('loading'); btn.disabled = false; txt.textContent = 'หยุดนำเข้า — แถวที่บันทึกไปแล้วยังอยู่ในชีต ลองกดนำเข้าอีกครั้งได้ (ลิงก์ซ้ำจะอัปเดต ไม่เพิ่มซ้ำ)'; }
+    pr.text('บันทึกประวัติการนำเข้า…');
+    const files = IMP.kind === 'page' ? [...new Map(S.pimp.files.map(f => [f.hash, f])).values()].map(f => ({ name: f.name, hash: f.hash, kind: f.kind === 'aud' ? 'audience' : 'daily:' + (f.metric || '?'), rows: f.pts ? f.pts.length : 1 }))
+      : [{ name: S.csv.name, hash: S.csv.hash, kind: 'posts', rows: S.csv.rows.length }];
+    files.forEach(f => { f.added = R.added; f.updated = R.updated; f.skipped = R.skipped; });
+    try { await API.importLog(files); } catch (e) { console.warn(e); }
+    pr.done(); await wait(450);
+    if (IMP.kind === 'page') { S.pimp.result = { added: R.added, updated: R.updated, metrics: [...new Set(S.pimp.files.filter(f => f.kind === 'daily' && f.metric).map(f => f.metric))], aud: R.aud }; localLog(`นำเข้าข้อมูลเพจ ${R.added + R.updated} วัน`); }
+    else { S.csv.result = { added: R.added, updated: R.updated, skipped: R.skipped + P.st.bad, aud: R.aud }; localLog(`นำเข้า CSV เพิ่ม ${R.added} อัปเดต ${R.updated}`); }
+    modalLock(false); modalSet(doneView()); renderSide(); renderCsv(false);
+  } catch (e) { pr.stop(); modalLock(false); modalSet(errorView(e, true)); }
+}
+function doneView() {
+  const R = IMP.res, P = IMP.plan;
+  return `${mHead(ic('check', 24), 'บันทึกลงฐานข้อมูลเรียบร้อย', 'ข้อมูลพร้อมแสดงในภาพรวมแล้ว', 'ok')}
+   <div class="m-done"><svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+   <div class="m-stats">${[['add', R.added, 'เพิ่มใหม่'], ['upd', R.updated, 'อัปเดต'], ['same', R.skipped, 'ข้าม (ซ้ำ)']].map(([c, v, t]) => `<div class="m-stat ${c}"><b>${fnum(v)}</b><span>${t}</span></div>`).join('')}</div>
+   ${R.aud ? `<p class="m-note ok">${ic('audience', 14)} บันทึกข้อมูลกลุ่มเป้าหมาย ${PL[R.aud].name} แล้ว</p>` : ''}
+   <div class="m-actions"><button class="btn" data-act="modal-close">ปิด</button><button class="btn primary" data-act="imp-view" data-focus>${P.kind === 'page' ? 'ดูภาพรวมเพจ' : 'ดูในคลังโพสต์'} ${ic('arrow', 14)}</button></div>`;
+}
+function errorView(e, canResume) {
+  const P = IMP.plan; const left = P ? P.jobs.length - IMP.done : 0;
+  return `${mHead(ic('x', 22), canResume ? 'บันทึกไม่สำเร็จบางส่วน' : 'ตรวจสอบไม่สำเร็จ', esc(e && e.message || 'เกิดข้อผิดพลาด'), 'bad')}
+   ${canResume ? `<p class="m-note">${ic('check', 14)} บันทึกไปแล้ว ${IMP.done} จาก ${P.jobs.length} ชุด ข้อมูลส่วนนั้นอยู่ในฐานข้อมูลแล้ว กด “ลองต่อ” เพื่อบันทึกอีก ${left} ชุดที่เหลือ (ไม่เกิดข้อมูลซ้ำ)</p>` : ''}
+   <div class="m-actions"><button class="btn" data-act="modal-close">ปิด</button>${canResume ? `<button class="btn primary" data-act="imp-retry" data-focus>${ic('refresh', 15)} ลองต่อ</button>` : `<button class="btn primary" data-act="${IMP.kind === 'page' ? 'page-import' : 'csv-import'}" data-focus>${ic('refresh', 15)} ลองใหม่</button>`}</div>`;
+}
+
+/* ---------- ปุ่มตรวจข้อมูลซ้ำในฐานข้อมูล ---------- */
+let DUP = null;
+const DUP_CATS = [['posts', 'โพสต์ (ลิงก์เดียวกัน)', 'posts'], ['daily', 'ข้อมูลเพจรายวัน (วันเดียวกัน)', 'sheet'], ['comments', 'ความคิดเห็น (ข้อความเดียวกันในโพสต์เดียวกัน)', 'comments'], ['followers', 'ยอดผู้ติดตาม (บันทึกซ้ำในวันเดียวกัน)', 'audience'], ['users', 'ผู้ใช้ (อีเมลซ้ำ)', 'admin']];
+async function runDupScan() {
+  modalOpen(progView('กำลังตรวจหาข้อมูลซ้ำ', 'ตรวจทุกแท็บในฐานข้อมูล: โพสต์ ข้อมูลรายวัน ความคิดเห็น ผู้ติดตาม และผู้ใช้', DUP_CATS.map(c => c[1])), { locked: true });
+  const pr = progress(); pr.at(3, 88); pr.text('กำลังอ่านข้อมูลทั้งหมดจากฐานข้อมูล…');
+  let k = 0; const tk = setInterval(() => { if (k < DUP_CATS.length - 1) { pr.step(k, 'ok'); k++; pr.step(k, 'run'); } }, 700); pr.step(0, 'run');
+  try {
+    DUP = await withRetry(() => API.dupScan(), 'ตรวจข้อมูลซ้ำ', pr); clearInterval(tk); DUP_CATS.forEach((c, i) => pr.step(i, 'ok')); pr.done(); await wait(400);
+    modalLock(false); modalSet(dupView());
+  } catch (e) { clearInterval(tk); pr.stop(); modalLock(false); modalSet(`${mHead(ic('x', 22), 'ตรวจไม่สำเร็จ', esc(e.message), 'bad')}<div class="m-actions"><button class="btn" data-act="modal-close">ปิด</button><button class="btn primary" data-act="dupscan">ลองใหม่</button></div>`); }
+}
+function dupView() {
+  const d = DUP; const extra = DUP_CATS.reduce((s, [k]) => s + n0(d[k] && d[k].extra), 0); const fixable = ['posts', 'daily', 'comments', 'followers'].reduce((s, k) => s + n0(d[k] && d[k].extra), 0);
+  const admin = can('admin');
+  return `${mHead(ic(extra ? 'search' : 'check', 22), extra ? `พบข้อมูลซ้ำ ${fnum(extra)} รายการ` : 'ไม่พบข้อมูลซ้ำ', `ตรวจเมื่อ ${fdt(d.scannedAt)}`, extra ? 'warn' : 'ok')}
+   <div class="dup-list">${DUP_CATS.map(([k, t, icon]) => { const x = d[k] || { groups: 0, extra: 0, sample: [] }; return `<div class="dup-row${x.extra ? ' has' : ''}"><span class="dup-ic">${ic(icon, 15)}</span><div class="dup-t"><b>${t}</b>${x.extra ? `<small>${x.groups} กลุ่ม · เกินมา ${fnum(x.extra)} แถว</small><ul>${x.sample.map(s2 => `<li>${s2.platform && PL[s2.platform] ? `<i class="dot" style="background:${PL[s2.platform].c}"></i>` : ''}${esc(/^\d{4}-\d{2}-\d{2}$/.test(s2.label) ? fdate(parseISO(s2.label)) : s2.label)} <span class="muted">×${s2.n}</span></li>`).join('')}</ul>` : '<small>ไม่พบรายการซ้ำ</small>'}</div><span class="dup-n">${x.extra ? fnum(x.extra) : ic('check', 16)}</span></div>`; }).join('')}</div>
+   ${fixable ? (admin ? `<p class="m-note">${ic('spark', 14)} การรวมรายการซ้ำจะเก็บแถวที่อัปเดตล่าสุด เติมช่องที่ว่างจากแถวอื่น ย้ายความคิดเห็นมาไว้ที่โพสต์ที่เก็บไว้ แล้วลบแถวที่เกิน</p>` : `<p class="m-note">${ic('lock', 14)} แจ้งผู้ดูแลระบบ (Super Admin) ให้กดรวมรายการซ้ำ</p>`) : ''}
+   ${d.users && d.users.extra ? `<p class="m-note">${ic('admin', 14)} อีเมลผู้ใช้ซ้ำต้องแก้ที่เมนู “ทีมและสิทธิ์” (ระบบไม่ลบให้อัตโนมัติ)</p>` : ''}
+   <div class="m-actions"><button class="btn" data-act="modal-close">ปิด</button><button class="btn" data-act="dupscan">${ic('refresh', 15)} ตรวจอีกครั้ง</button>${fixable && admin ? `<button class="btn primary" data-act="dedupe-ask" data-focus>รวมรายการซ้ำ ${fnum(fixable)} แถว</button>` : ''}</div>`;
+}
+function dedupeAsk() {
+  const fixable = ['posts', 'daily', 'comments', 'followers'].reduce((s, k) => s + n0(DUP[k] && DUP[k].extra), 0);
+  modalSet(`${mHead(ic('x', 22), 'ยืนยันการรวมรายการซ้ำ', `จะลบแถวที่เกิน ${fnum(fixable)} แถวออกจากฐานข้อมูล หลังรวมข้อมูลเข้าแถวที่เก็บไว้แล้ว`, 'warn')}
+   <p class="m-note">${ic('lock', 14)} ระหว่างรวมข้อมูลจะปิดหน้าต่างไม่ได้ ใช้เวลาประมาณ 10–60 วินาทีตามขนาดข้อมูล</p>
+   <div class="m-actions"><button class="btn" data-act="dupscan">ย้อนกลับ</button><button class="btn danger" data-act="dedupe-go" data-focus>ยืนยัน รวมรายการซ้ำ</button></div>`);
+}
+async function runDedupe() {
+  modalSet(progView('กำลังรวมรายการซ้ำ', 'เก็บแถวล่าสุด เติมข้อมูลที่ขาด แล้วลบแถวที่เกิน', ['รวมโพสต์และย้ายความคิดเห็น', 'รวมความคิดเห็น', 'รวมข้อมูลเพจรายวัน', 'รวมยอดผู้ติดตาม', 'โหลดข้อมูลใหม่']));
+  modalLock(true); const pr = progress(); pr.at(2, 85); pr.step(0, 'run'); pr.text('กำลังรวมข้อมูลในฐานข้อมูล…');
+  let k = 0; const tk = setInterval(() => { if (k < 3) { pr.step(k, 'ok'); k++; pr.step(k, 'run'); } }, 900);
+  try {
+    const r = await API.dedupe(); clearInterval(tk); [0, 1, 2, 3].forEach(i => pr.step(i, 'ok')); pr.step(4, 'run'); pr.at(88, 99); pr.text('กำลังโหลดข้อมูลใหม่…');
+    load(await API.bootstrap()); pr.step(4, 'ok'); pr.done(); await wait(400);
+    modalLock(false);
+    modalSet(`${mHead(ic('check', 24), 'รวมรายการซ้ำเรียบร้อย', 'ข้อมูลในฐานข้อมูลไม่ซ้ำแล้ว', 'ok')}<div class="m-stats">${[['upd', r.posts, 'โพสต์'], ['upd', r.daily, 'ข้อมูลรายวัน'], ['upd', r.comments, 'ความคิดเห็น'], ['upd', r.followers, 'ผู้ติดตาม']].map(([c, v, t]) => `<div class="m-stat ${c}"><b>${fnum(v)}</b><span>${t}</span><small>แถวที่รวมแล้ว</small></div>`).join('')}</div><div class="m-actions"><button class="btn primary" data-act="modal-close" data-focus>เสร็จแล้ว</button></div>`);
+    renderSide(); renderTop(); renderView('soft');
+  } catch (e) { clearInterval(tk); pr.stop(); modalLock(false); modalSet(`${mHead(ic('x', 22), 'รวมรายการซ้ำไม่สำเร็จ', esc(e.message), 'bad')}<div class="m-actions"><button class="btn" data-act="modal-close">ปิด</button><button class="btn primary" data-act="dupscan">ตรวจใหม่</button></div>`); }
 }
 
 /* ================= setup (ยังไม่ได้ตั้งค่า API_URL) ================= */
@@ -1436,13 +1612,13 @@ function showSetup() {
   root().innerHTML = `<div class="auth" id="auth">
     <section class="auth-art" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="grain"></div>
       <div class="auth-brand">${brandMark()}<b>${esc(APP_NAME)}</b></div>
-      <div class="auth-copy"><span class="eyebrow">ตั้งค่าครั้งแรก</span><h1>เชื่อมต่อ Google Sheet เพื่อเริ่มใช้งาน</h1><p>ข้อมูลโพสต์ ความคิดเห็น ผู้ชม และสิทธิ์ผู้ใช้ทั้งหมดจะถูกบันทึกลง Google Sheet ของหน่วยงาน</p></div>
-      <div class="float-cards"><div class="fc">Google Sheet<b>ฐานข้อมูล</b></div><div class="fc">Apps Script<b>ตรวจสิทธิ์</b></div><div class="fc">GitHub Pages<b>หน้าเว็บ</b></div></div>
+      <div class="auth-copy"><span class="eyebrow">ตั้งค่าครั้งแรก</span><h1>เชื่อมต่อฐานเก็บข้อมูลเพื่อเริ่มใช้งาน</h1><p>ข้อมูลโพสต์ ความคิดเห็น ผู้ชม และสิทธิ์ผู้ใช้ทั้งหมดจะถูกบันทึกลงฐานข้อมูลของหน่วยงาน</p></div>
+      <div class="float-cards"><div class="fc">ฐานเก็บข้อมูล<b>บันทึกทุกอย่าง</b></div><div class="fc">ระบบหลังบ้าน<b>ตรวจสิทธิ์</b></div><div class="fc">หน้าเว็บ<b>ใช้ได้ทุกที่</b></div></div>
     </section>
     <section class="auth-panel"><div class="auth-card">
       <div class="step enter"><span class="eyebrow-sm">${ic('plug', 13)} ยังไม่ได้เชื่อมต่อ</span><h2>ตั้งค่าการเชื่อมต่อ</h2>
-       <p class="lead">ไฟล์ <span class="mono">config.js</span> ยังไม่มี URL ของ Google Apps Script ทำตามขั้นตอนใน README.md แล้ววาง URL เพื่อทดสอบที่นี่</p>
-       <ol class="setup-steps"><li><b>สร้าง Google Sheet</b> แล้วเปิด ส่วนขยาย → Apps Script วางโค้ด Code.gs</li><li><b>Run ฟังก์ชัน setup</b> และอนุญาตสิทธิ์</li><li><b>Deploy → Web app</b> · Execute as: Me · Access: Anyone</li><li><b>วาง URL</b> ที่ลงท้ายด้วย /exec ด้านล่าง</li></ol>
+       <p class="lead">ไฟล์ <span class="mono">config.js</span> ยังไม่มี URL ของระบบหลังบ้าน ทำตามขั้นตอนใน README.md แล้ววาง URL เพื่อทดสอบที่นี่</p>
+       <ol class="setup-steps"><li><b>สร้างฐานข้อมูล</b> ตามคู่มือ แล้ววางโค้ด Code.gs</li><li><b>Run ฟังก์ชัน setup</b> และอนุญาตสิทธิ์</li><li><b>Deploy → Web app</b> · Execute as: Me · Access: Anyone</li><li><b>วาง URL</b> ที่ลงท้ายด้วย /exec ด้านล่าง</li></ol>
        <form id="f-setup" class="stack" style="gap:12px" novalidate><div class="field"><label for="su-url">Web App URL</label><input class="input" id="su-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false"></div>
         <span class="err-msg" id="su-err" hidden></span><button class="btn primary lg" type="submit" id="su-go">${ic('plug', 16)} ทดสอบการเชื่อมต่อ</button></form>
        <div id="su-ok"></div></div>
@@ -1649,7 +1825,7 @@ VIEWS.admin = function () {
   const actives = DB.users.filter(u => u.status !== 'pending'), pend = DB.users.filter(u => u.status === 'pending');
   return `<div class="stack" data-stagger>
    <div class="grid-2">
-    <section class="panel"><div class="panel-head"><div><h2>นโยบายการเข้าใช้งาน</h2><p>บังคับใช้ที่เซิร์ฟเวอร์ทุกครั้งที่เข้าสู่ระบบและเรียกข้อมูล</p></div>${DB.sheetUrl ? `<a class="btn sm" href="${esc(DB.sheetUrl)}" target="_blank" rel="noopener noreferrer">${ic('sheet', 14)} เปิด Google Sheet</a>` : ''}</div>
+    <section class="panel"><div class="panel-head"><div><h2>นโยบายการเข้าใช้งาน</h2><p>บังคับใช้ที่เซิร์ฟเวอร์ทุกครั้งที่เข้าสู่ระบบและเรียกข้อมูล</p></div>${DB.sheetUrl ? `<a class="btn sm" href="${esc(DB.sheetUrl)}" target="_blank" rel="noopener noreferrer">${ic('sheet', 14)} เปิดฐานข้อมูล</a>` : ''}</div>
      <div class="stack" style="gap:10px;font-size:13.5px">
       <div style="display:flex;justify-content:space-between;gap:10px"><span>โดเมนอีเมลที่อนุญาต</span><b class="mono">@${esc(DOMAIN)}</b></div>
       <div style="display:flex;justify-content:space-between;gap:10px"><span>ยืนยันตัวตน</span><span>รหัส OTP 6 หลักทางอีเมล (หมดอายุ 10 นาที)</span></div>
@@ -1668,7 +1844,7 @@ VIEWS.admin = function () {
     ${pend.map(u => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--line)"><span class="avatar">${initials(u.name)}</span><div style="min-width:0;flex:1"><b>${esc(u.email)}</b><div class="note">${u.requested ? 'ขอสิทธิ์เมื่อ ' + fdt(u.requested) : 'รอการอนุมัติ'}</div></div>
      <select class="input" style="width:auto" id="ap-${esc(u.email)}" aria-label="บทบาท">${Object.keys(ROLES).map(r => `<option ${r === 'Viewer' ? 'selected' : ''}>${r}</option>`).join('')}</select>
      <button class="btn primary sm" data-act="approve" data-v="${esc(u.email)}">อนุมัติ</button><button class="btn sm danger" data-act="reject" data-v="${esc(u.email)}">ปฏิเสธ</button></div>`).join('')}</section>` : ''}
-   <section><div class="panel-head"><div><h2>ผู้ใช้ทั้งหมด (${actives.length})</h2><p>คลิก “กำหนดสิทธิ์” เพื่อเลือกเมนูและแพลตฟอร์มที่แต่ละอีเมลเข้าถึงได้ · บันทึกลงชีตทันที</p></div></div>
+   <section><div class="panel-head"><div><h2>ผู้ใช้ทั้งหมด (${actives.length})</h2><p>คลิก “กำหนดสิทธิ์” เพื่อเลือกเมนูและแพลตฟอร์มที่แต่ละอีเมลเข้าถึงได้ · บันทึกลงฐานข้อมูลทันที</p></div></div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ผู้ใช้</th><th>บทบาท</th><th>เมนูที่เข้าถึงได้</th><th>แพลตฟอร์ม</th><th>สถานะ</th><th>ใช้งานล่าสุด</th><th></th></tr></thead><tbody>
     ${actives.map(u => { const self = u.email === ME.email; return `<tr><td><div class="me-row"><span class="avatar">${initials(u.name)}</span><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></td><td style="white-space:nowrap">${esc(u.role)}</td>
      <td><div class="perm-chips">${u.menus.length === MENUS.length ? '<span class="chip">ทุกเมนู</span>' : MENUS.filter(m => u.menus.includes(m.k)).map(m => `<span class="chip">${m.t}</span>`).join('')}</div></td>
@@ -1683,7 +1859,7 @@ VIEWS.admin = function () {
        ${S.confirmDel === u.email ? `<button class="btn sm danger" data-act="del-user-yes" data-v="${esc(u.email)}">ยืนยันลบ ${esc(u.email)}</button><button class="btn sm" data-act="del-user-no">ยกเลิก</button>` : `<button class="btn sm danger" data-act="del-user" data-v="${esc(u.email)}">ลบผู้ใช้</button>`}</div>`}
      </div></td></tr>` : ''}`; }).join('')}
     </tbody></table></div></section>
-   <section class="panel"><div class="panel-head"><div><h2>ประวัติการใช้งาน</h2><p>บันทึกการเข้าสู่ระบบ การเพิ่มข้อมูล และการเปลี่ยนสิทธิ์ (เก็บในชีต Logs)</p></div></div>
+   <section class="panel"><div class="panel-head"><div><h2>ประวัติการใช้งาน</h2><p>บันทึกการเข้าสู่ระบบ การเพิ่มข้อมูล และการเปลี่ยนสิทธิ์ (เก็บในฐานข้อมูล)</p></div></div>
     <div class="log">${DB.logs.slice(0, 15).map(l => `<div><time>${fdt(l.at)}</time><span><b>${esc(l.who)}</b> · ${esc(l.what)}</span></div>`).join('') || '<span class="note">ยังไม่มีประวัติ</span>'}</div></section>
   </div>`;
 };
@@ -1717,7 +1893,14 @@ document.addEventListener('click', async e => {
     case 'page-reset': S.pimp = null; renderCsv(true); break;
     case 'page-done': S.pimp = null; S.csv = null; S.f.period = 'custom'; { const ts = DB.daily.map(d => d._t); if (ts.length) { S.f.from = iso(Math.min(...ts)); S.f.to = iso(Math.max(...ts)); } } go('dashboard'); break;
     case 'page-rm': S.pimp.files = S.pimp.files.filter(f => f.id !== el.dataset.id); if (!S.pimp.files.length) S.pimp = null; renderCsv(false); break;
-    case 'page-import': runPageImport(el); break;
+    case 'page-import': startImport('page'); break;
+    case 'modal-close': modalClose(); break;
+    case 'imp-go': runImportPlan(); break;
+    case 'imp-retry': runImportPlan(true); break;
+    case 'imp-view': modalClose(true); if (IMP.kind === 'page') { S.pimp = null; S.csv = S.csv && S.csv.result ? null : S.csv; S.f.period = 'custom'; const ts = DB.daily.map(d => d._t); if (ts.length) { S.f.from = iso(Math.min(...ts)); S.f.to = iso(Math.max(...ts)); } go('dashboard'); } else { S.csv = null; S.f.period = 'all'; S.pf.sort = 'new'; go('posts'); } break;
+    case 'dupscan': runDupScan(); break;
+    case 'dedupe-ask': dedupeAsk(); break;
+    case 'dedupe-go': runDedupe(); break;
     case 'go-link': go('add', 'link'); break;
     case 'go-connect': go('connect'); break;
     case 'recent': { S.recentPl = v; $$('[data-act="recent"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); const l = $('#recent-list'); if (l) l.innerHTML = recentView(); loadRecent(v, !!el.dataset.force); break; }
@@ -1738,7 +1921,7 @@ document.addEventListener('click', async e => {
     case 'reply-cancel': { const id = S.replyOpen; S.replyOpen = null; if (id) rerenderCmt(id); break; }
     case 'csv-reset': S.csv = null; if (S.pimp && S.pimp.result) S.pimp = null; renderCsv(true); break;
     case 'csv-done': S.csv = null; S.f.period = 'all'; S.pf.sort = 'new'; go('posts'); break;
-    case 'csv-import': runImport(el); break;
+    case 'csv-import': startImport('posts'); break;
     case 'copy-code': { const t = $('#su-code').textContent; try { await navigator.clipboard.writeText(t); toast('คัดลอกแล้ว'); } catch (_) { const r = document.createRange(); r.selectNodeContents($('#su-code')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('เลือกข้อความแล้ว กด Ctrl+C เพื่อคัดลอก', 'info'); } break; }
     case 'fp': S.f.platform = v; refilter(); break;
     case 'per': S.f.period = v; refilter(); break;
@@ -1858,7 +2041,8 @@ document.addEventListener('input', e => {
   if (k === 'acap' && !S.editing && !S.catTouched) { const c = autoCategory(t.value); const sel = $('#a-cat'); if (sel && t.value.trim().length > 8) { sel.value = c; const h = $('#cat-hint'); if (h) h.textContent = 'ระบบแนะนำหมวด “' + CAT[c].t + '” จากข้อความ เปลี่ยนเองได้'; } }
   if (k === 'fx-link') { S.fx.link = t.value; const pl = $('#fx-pl'); if (pl) pl.innerHTML = fxPlIcon(t.value); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.openPost) closeDrawer(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#modal.on')) { e.preventDefault(); modalClose(); return; } if (S.openPost) closeDrawer(); } });
+window.addEventListener('beforeunload', e => { if (MODAL.locked) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target;
   if (f.id === 'f-email') return submitEmail($('#au-email').value);
@@ -1946,7 +2130,7 @@ document.addEventListener('submit', async e => {
       localLog(`${was ? 'แก้ไข' : 'เพิ่ม'}โพสต์ ${PL[platform].name} · ${type}`);
       if (saved.at < range().from) S.f.period = 'all';
       S.pf = Object.assign(S.pf, { q: '', type: '', cat: '', sort: 'new' });
-      go('posts'); setTimeout(() => openPost(saved.id), 350); toast(was ? 'บันทึกการแก้ไขลงชีตแล้ว' : (API.demo ? 'บันทึกโพสต์แล้ว (โหมดสาธิต)' : 'บันทึกโพสต์ลง Google Sheet แล้ว'));
+      go('posts'); setTimeout(() => openPost(saved.id), 350); toast(was ? 'บันทึกการแก้ไขลงฐานข้อมูลแล้ว' : (API.demo ? 'บันทึกโพสต์แล้ว (โหมดสาธิต)' : 'บันทึกโพสต์ลงฐานข้อมูลแล้ว'));
     } catch (_) {}
   }
 });

@@ -1,4 +1,4 @@
-/* ตัวเชื่อมต่อข้อมูล: Google Apps Script (Sheets) หรือโหมดสาธิต */
+/* ตัวเชื่อมต่อข้อมูล: ระบบหลังบ้าน (Google Apps Script) หรือโหมดสาธิต */
 (function () {
   "use strict";
   const CFG = window.APP_CONFIG || {};
@@ -20,19 +20,25 @@
     hasToken: () => !!store.get(TOKEN_KEY),
     async call(action, payload) {
       let res;
+      // จำกัดเวลารอ 5 นาที (ระบบหลังบ้านทำงานได้ไม่เกิน 6 นาทีต่อคำขอ) เพื่อไม่ให้หน้าเว็บค้างไม่รู้จบ
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const tm = ctl ? setTimeout(() => ctl.abort(), 300000) : null;
       try {
         res = await fetch(CFG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ไม่ต้อง preflight (CORS)
           body: JSON.stringify({ action, token: store.get(TOKEN_KEY), payload: payload || {} }),
-          redirect: 'follow'
+          redirect: 'follow', signal: ctl ? ctl.signal : undefined
         });
       } catch (e) {
+        if (tm) clearTimeout(tm);
+        if (e && e.name === 'AbortError') throw new ApiError('timeout', 'ฐานข้อมูลตอบกลับช้าเกินไป ลองอีกครั้ง (ข้อมูลที่บันทึกไปแล้วไม่หาย)');
         throw new ApiError('network', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง');
       }
+      if (tm) clearTimeout(tm);
       let j;
       try { j = await res.json(); }
-      catch (e) { throw new ApiError('bad_response', 'เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง ตรวจสอบว่า Deploy Apps Script เป็น Web App และตั้งสิทธิ์ “Anyone”'); }
+      catch (e) { throw new ApiError('bad_response', 'ฐานข้อมูลตอบกลับไม่ถูกต้อง แจ้งผู้ดูแลระบบให้ตรวจการ Deploy ระบบหลังบ้าน (Web App, Anyone)'); }
       if (!j.ok) {
         if (j.code === 'unauthorized') store.del(TOKEN_KEY);
         throw new ApiError(j.code, j.error);
@@ -63,6 +69,10 @@
     setAutoSync(on) { return this.call('connect.autosync', { on }); },
     saveAudience(p) { return this.call('audience.save', p); },
     importPage(platform, rows) { return this.call('page.import', { platform, rows }); },
+    importCheck(hashes) { return this.call('import.check', { hashes }); },
+    importLog(files) { return this.call('import.log', { files }); },
+    dupScan() { return this.call('data.dupscan'); },
+    dedupe() { return this.call('data.dedupe'); },
     addUser(email, role) { return this.call('users.add', { email, role }); },
     saveUser(u) { return this.call('users.save', u); },
     deleteUser(email) { return this.call('users.delete', { email }); },
@@ -230,6 +240,23 @@
       rows.forEach(r => { let x = d.daily.find(y => y.platform === platform && y.date === r.date); if (!x) { x = { date: r.date, platform, source: 'csv' }; d.daily.push(x); added++; } else updated++; Object.keys(r).forEach(k => { if (k !== 'date' && r[k] != null && r[k] !== 0) x[k] = r[k]; }); });
       d.daily.sort((a, b) => a.date < b.date ? -1 : 1); log(u.email, 'นำเข้าข้อมูลเพจรายวัน ' + rows.length + ' วัน');
       return clone({ added, updated, daily: d.daily.filter(x => x.platform === platform) });
+    },
+    async importCheck(hashes) { await wait(500); need('add'); const h = db().imports || []; const found = {}; h.forEach(x => { if (hashes.includes(x.hash) && (!found[x.hash] || found[x.hash].at < x.at)) found[x.hash] = x; }); return clone({ found: Object.values(found) }); },
+    async importLog(files) { await wait(200); const u = need('add'); const d = db(); d.imports = (d.imports || []).concat(files.map(f => Object.assign({ at: Date.now(), email: u.email, fileName: f.name }, f))); return { ok: true }; },
+    async dupScan() {
+      await wait(1400); need('add'); const d = db(); const key = l => String(l || '').split(/[?#]/)[0].replace(/^https?:\/\/(www\.|m\.)?/i, '').replace(/\/+$/, '').toLowerCase();
+      const grp = (list, f) => { const g = {}; list.forEach(x => { const k = f(x); if (k) (g[k] = g[k] || []).push(x); }); return Object.values(g).filter(x => x.length > 1); };
+      const P = grp(d.posts, p => p.platform + '|' + key(p.link)), D = grp(d.daily || [], x => x.platform + '|' + x.date), C = grp(d.posts.flatMap(p => p.comments.map(c => Object.assign({ pid: p.id }, c))), c => c.pid + '|' + c.author + '|' + c.text);
+      const sum = (g, lab) => ({ groups: g.length, extra: g.reduce((s, x) => s + x.length - 1, 0), sample: g.slice(0, 5).map(x => ({ n: x.length, label: lab(x[0]), platform: x[0].platform })) });
+      return clone({ scannedAt: Date.now(), posts: sum(P, p => String(p.caption).slice(0, 90)), daily: sum(D, x => x.date), comments: sum(C, c => c.author + ': ' + c.text), followers: sum([], x => ''), users: sum([], x => '') });
+    },
+    async dedupe() {
+      await wait(1600); const u = need('admin'); const d = db(); const key = l => String(l || '').split(/[?#]/)[0].replace(/^https?:\/\/(www\.|m\.)?/i, '').replace(/\/+$/, '').toLowerCase();
+      const seen = {}; let posts = 0, comments = 0, daily = 0;
+      d.posts = d.posts.filter(p => { const k = p.platform + '|' + key(p.link); if (seen[k]) { seen[k].comments.push(...p.comments); posts++; return false; } seen[k] = p; return true; });
+      d.posts.forEach(p => { const s2 = {}; p.comments = p.comments.filter(c => { const k = c.author + '|' + c.text; if (s2[k]) { comments++; return false; } s2[k] = 1; return true; }); });
+      const sd = {}; d.daily = (d.daily || []).filter(x => { const k = x.platform + '|' + x.date; if (sd[k]) { Object.assign(sd[k], x); daily++; return false; } sd[k] = x; return true; });
+      log(u.email, 'รวมรายการซ้ำในฐานข้อมูล'); return { posts, daily, comments, followers: 0 };
     },
     async addUser(email, role) {
       await wait(450); const a = need('admin'); email = checkEmail(email);

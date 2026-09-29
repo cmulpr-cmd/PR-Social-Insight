@@ -205,6 +205,8 @@ function smoothPath(pts) {
 function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))); const f = x / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
 function lineChart(el, cfg, animate) {
   const W = Math.max(260, el.clientWidth), H = cfg.h || 250, m = { t: 14, r: 14, b: 28, l: 48 };
+  const shape = 'L' + cfg.labels.length + '/' + cfg.series.length + '/' + W, mo = TWEEN && el._shape === shape && !!el.querySelector('svg');
+  if (mo) animate = false; else if (TWEEN) animate = 'soft';
   const iw = W - m.l - m.r, ih = H - m.t - m.b, n = cfg.labels.length;
   const mx = Math.max(1, ...cfg.series.flatMap(s => s.values)); const step = niceStep(mx / 4); const top = Math.ceil(mx / step) * step;
   const x = i => m.l + (n <= 1 ? iw / 2 : i * iw / (n - 1)), y = v => m.t + ih - v / top * ih;
@@ -223,8 +225,9 @@ function lineChart(el, cfg, animate) {
   g += `<line class="xh" x1="0" x2="0" y1="${m.t}" y2="${m.t + ih}" style="stroke:var(--ink-3);stroke-width:1;opacity:0;transition:opacity .15s"/>`;
   g += cfg.series.map((s, k) => `<circle class="hd hd${k}" r="4.5" cx="-10" cy="-10" style="fill:${s.color};stroke:var(--surface);stroke-width:2;opacity:0;transition:opacity .15s"/>`).join('');
   g += `<rect class="hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" style="fill:transparent"/>`;
-  el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(cfg.aria || 'กราฟแนวโน้ม')}"><defs>${defs}</defs>${g}</svg><div class="tip"></div>`;
-  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), xh = svg.querySelector('.xh'), hit = svg.querySelector('.hit');
+  const html = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(cfg.aria || 'กราฟแนวโน้ม')}"><defs>${defs}</defs>${g}</svg><div class="tip"></div>`;
+  if (mo) { morph(el, html); el.classList.remove('mx-tw'); void el.offsetWidth; el.classList.add('mx-tw'); } else el.innerHTML = html; el._shape = shape;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), xh = svg.querySelector('.xh'); let hit = svg.querySelector('.hit'); if (mo) { const h2 = hit.cloneNode(true); hit.replaceWith(h2); hit = h2; }
   const move = ev => {
     const r = svg.getBoundingClientRect(); let i = n <= 1 ? 0 : Math.round((ev.clientX - r.left - m.l) / iw * (n - 1)); i = Math.max(0, Math.min(n - 1, i));
     xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.style.opacity = 1;
@@ -241,6 +244,7 @@ function mountChart(id, cfg, animate) {
   const el = document.getElementById(id); if (!el) return;
   const old = charts.find(c => c.el === el), sig = JSON.stringify(cfg);
   if (SILENT) { if (old && old.sig === sig && el.firstChild) return; animate = false; }
+  else if (TWEEN && old && old.sig === sig && el.firstChild) return;
   charts = charts.filter(c => c.el !== el); charts.push({ el, cfg, sig }); drawChart(el, cfg, animate);
 }
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => charts.forEach(c => { if (document.body.contains(c.el)) drawChart(c.el, c.cfg, false); }), 150); });
@@ -294,6 +298,8 @@ function donutReset(d) { if (d._orig) { const c = $('.donut-c', d); c.innerHTML 
 document.addEventListener('pointerover', donutHover);
 function vbarChart(el, cfg, animate) {
   const W = Math.max(260, el.clientWidth), H = cfg.h || 250, m = { t: 14, r: 10, b: 28, l: 48 };
+  const shape = 'B' + cfg.labels.length + '/' + cfg.series.length + '/' + W, mo = TWEEN && el._shape === shape && !!el.querySelector('svg');
+  if (mo) animate = false; else if (TWEEN) animate = 'soft';
   const iw = W - m.l - m.r, ih = H - m.t - m.b, n = cfg.labels.length;
   const totals = cfg.labels.map((_, i) => cfg.series.reduce((s, x) => s + n0(x.values[i]), 0));
   const mx = Math.max(1, ...totals); const step = niceStep(mx / 4); const top = Math.ceil(mx / step) * step;
@@ -310,8 +316,9 @@ function vbarChart(el, cfg, animate) {
   });
   g += `<rect class="vhl" x="0" y="${m.t}" width="${cw}" height="${ih}" style="fill:var(--ink);opacity:0;transition:opacity .15s"/>`;
   g += `<rect class="hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" style="fill:transparent"/>`;
-  el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(cfg.aria || 'กราฟแท่ง')}">${g}</svg><div class="tip"></div>`;
-  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), hl = svg.querySelector('.vhl'), hit = svg.querySelector('.hit');
+  const html = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(cfg.aria || 'กราฟแท่ง')}">${g}</svg><div class="tip"></div>`;
+  if (mo) { morph(el, html); el.classList.remove('mx-tw'); void el.offsetWidth; el.classList.add('mx-tw'); } else el.innerHTML = html; el._shape = shape;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), hl = svg.querySelector('.vhl'); let hit = svg.querySelector('.hit'); if (mo) { const h2 = hit.cloneNode(true); hit.replaceWith(h2); hit = h2; }
   const move = ev => {
     const r = svg.getBoundingClientRect(); let i = Math.floor((ev.clientX - r.left - m.l) / cw); i = Math.max(0, Math.min(n - 1, i));
     hl.setAttribute('x', m.l + i * cw); hl.style.opacity = .05;
@@ -1017,11 +1024,42 @@ document.addEventListener('mousedown', e => { if (DP.open && !e.target.closest('
 document.addEventListener('mouseover', e => { if (!DP.open || DP.a == null || DP.b != null) return; const d = e.target.closest && e.target.closest('#dp .dp-day'); if (!d || d.disabled) return; const t = +d.dataset.v; if (t !== DP.hover) { DP.hover = t; const c = $('#dp-cal'); if (c) c.innerHTML = dpCal(); } });
 window.addEventListener('scroll', () => { if (DP.open) dpPlace(); }, { passive: true });
 /* ---------- วาดหน้าใหม่แบบเงียบ: เทียบ DOM เดิมกับของใหม่ แล้วแก้เฉพาะจุดที่ต่าง (ไม่กระพริบ ไม่เลื่อนหน้า ไม่เล่นแอนิเมชัน) ---------- */
-let SILENT = false;
-function paint(el, html) { if (!el) return; if (SILENT && el.childNodes.length) morph(el, html); else el.innerHTML = html; }
+let SILENT = false, TWEEN = false;
+function paint(el, html) { if (!el) return; if ((SILENT || TWEEN) && el.childNodes.length) morph(el, html); else el.innerHTML = html; }
+/* ---------- ตัวเลขวิ่งจากค่าเดิม → ค่าใหม่ (ขึ้นหรือลง) เมื่อเปลี่ยนช่วงเวลา/แพลตฟอร์ม ---------- */
+const TW = { q: [], raf: 0 };
+const TW_CARD = '.kcard, .sa-k, .pf-card, .plat-card, .metric-grid > div, .kp-stats > div, .pm-tile, .stat';
+const TW_OK = NUM_SEL + ', .num-cu, .pill, [data-count]';
+function twPulse(el, up) {
+  if (!el) return; el.classList.remove('mx-up', 'mx-down'); void el.offsetWidth; el.classList.add(up ? 'mx-up' : 'mx-down');
+  const c = el.closest(TW_CARD); if (c) { c.classList.remove('mx-chg'); void c.offsetWidth; c.classList.add('mx-chg'); }
+}
+function twRun(item) {
+  item.t0 = performance.now(); TW.q = TW.q.filter(x => x.key !== item.key); TW.q.push(item);
+  if (!TW.raf) TW.raf = requestAnimationFrame(function step(t) {
+    TW.q = TW.q.filter(x => { const k = Math.max(0, Math.min(1, (t - x.t0) / x.D)), e = 1 - Math.pow(1 - k, 3.2); if (k >= 1) { x.done(); return false; } x.set(x.a + (x.b - x.a) * e); return true; });
+    TW.raf = TW.q.length ? requestAnimationFrame(step) : 0;
+  });
+}
+function twCount(el, a, b, fin) {
+  const f = el.dataset.fmt, dec = +el.dataset.dec || 0, fmt = v => f === 'pct' ? pct(v, dec) : f === 'n' ? fnum(v) : fk(v);
+  el._cu = null; twPulse(el, b >= a);
+  twRun({ key: el, a, b, D: 1150, set: v => { el.textContent = fmt(v); }, done: () => { el.textContent = fin; } });
+}
+function twText(node, nt) {
+  const p = node.parentElement, ot = node.nodeValue;
+  if (!p || !p.closest(TW_OK) || p.closest(CU_SKIP) || /\d{1,2}:\d{2}|[ก-ฮ]\.[ก-ฮ]\./.test(ot + nt)) return false;
+  const P = t => { const m = t.match(/(-?\d[\d,]*(?:\.\d+)?)\s*([KMB](?![a-z]))?/); if (!m) return null; return { v: parseFloat(m[1].replace(/,/g, '')) * ({ K: 1e3, M: 1e6, B: 1e9 }[m[2]] || 1), i: m.index, len: m[0].length, dec: (m[1].split('.')[1] || '').length, comma: /,/.test(m[1]), suf: m[2] || '' }; };
+  const a = P(ot), b = P(nt); if (!a || !b || a.v === b.v || !isFinite(a.v) || !isFinite(b.v)) return false;
+  const pre = nt.slice(0, b.i), post = nt.slice(b.i + b.len), kfmt = !!(a.suf || b.suf);
+  const fmt = v => (v < 0 && pre.endsWith('+') ? pre.slice(0, -1) : pre) + (kfmt ? fk(v) : b.comma ? v.toLocaleString('en-US', { minimumFractionDigits: b.dec, maximumFractionDigits: b.dec }) : v.toFixed(b.dec)) + post;
+  twPulse(p, b.v >= a.v);
+  twRun({ key: node, a: a.v, b: b.v, D: 1150, set: v => { node.nodeValue = fmt(v); }, done: () => { node.nodeValue = nt; } });
+  return true;
+}
 function morph(live, html) { const t = document.createElement('template'); t.innerHTML = html; mChildren(live, t.content); }
 const mKey = n => n.nodeType === 1 ? (n.getAttribute('data-act') || '') + '|' + (n.getAttribute('data-id') || '') + '|' + (n.id || '') + '|' + (n.getAttribute('data-v') || '') + '|' + (n.getAttribute('data-key') || '') : '';
-function mNew(tn) { const n = tn.cloneNode(true); if (n.nodeType === 1) n._silent = true; return n; }
+function mNew(tn) { const n = tn.cloneNode(true); if (n.nodeType === 1) { if (SILENT) n._silent = true; else if (TWEEN) n.classList.add('mx-in'); } return n; }
 function mChildren(L, T) {
   const tk = Array.from(T.childNodes); let i = 0;
   for (const tn of tk) {
@@ -1038,12 +1076,14 @@ function mChildren(L, T) {
   while (L.childNodes.length > tk.length) L.removeChild(L.lastChild);
 }
 function mNode(L, T) {
-  if (L.nodeType !== 1) { if (L.nodeValue !== T.nodeValue) L.nodeValue = T.nodeValue; return; }
+  if (L.nodeType !== 1) { if (L.nodeValue !== T.nodeValue) { const tq = TW.q.find(x => x.key === L); if (tq && tq.done) TW.q = TW.q.filter(x => x !== tq); if (!(TWEEN && twText(L, T.nodeValue))) L.nodeValue = T.nodeValue; } return; }
+  const oldC = TWEEN && L.hasAttribute('data-count') ? +L.getAttribute('data-count') : null;
   const keep = L.tagName === 'DETAILS' ? ['open'] : [];
   Array.from(L.attributes).forEach(a => { if (!T.hasAttribute(a.name) && !keep.includes(a.name)) L.removeAttribute(a.name); });
   Array.from(T.attributes).forEach(a => { if (L.getAttribute(a.name) !== a.value) L.setAttribute(a.name, a.value); });
   if (L.tagName === 'INPUT' || L.tagName === 'TEXTAREA') { if (document.activeElement !== L) { if (L.type === 'checkbox' || L.type === 'radio') L.checked = T.hasAttribute('checked'); else if (T.hasAttribute('value') && L.value !== T.getAttribute('value')) L.value = T.getAttribute('value'); } return; }
   if (L.tagName === 'OPTION') L.selected = T.hasAttribute('selected');
+  if (oldC != null && T.hasAttribute('data-count')) { const nv = +T.getAttribute('data-count'); if (isFinite(oldC) && isFinite(nv) && oldC !== nv && !L.children.length) { twCount(L, oldC, nv, T.textContent); return; } }
   // กล่องที่ถูกเติมภายหลัง (กราฟ รายการโพสต์) ในแม่แบบจะว่าง — คงของเดิมไว้ แล้วให้ตัววาดของกล่องนั้นอัปเดตเอง
   if (!T.childNodes.length && L.id && L.childNodes.length) return;
   mChildren(L, T);
@@ -1055,6 +1095,18 @@ function renderView(mode = 'fade') {
   const v = $('#view'); if (!v) return;
   const my = ++viewSeq;
   if (mode === 'silent') { paint(v, VIEWS[S.page]()); stagger(v); if (AFTER[S.page]) AFTER[S.page](false); return; }
+  // เปลี่ยนตัวกรองในหน้าเดิม: จางลงแวบหนึ่ง → แก้เฉพาะจุดที่ต่าง ตัวเลขวิ่งจากค่าเดิมไปค่าใหม่ กราฟค่อยๆ เปลี่ยนรูป → คืนความคมชัด
+  if (mode === 'soft' && v.childElementCount && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    clearTimeout(v._mx); v.classList.remove('leaving', 'anim', 'soft', 'dim'); v.classList.add('mx-out');
+    setTimeout(() => {
+      if (my !== viewSeq) return;
+      v.classList.add('mx-run'); TWEEN = true;
+      try { paint(v, VIEWS[S.page]()); stagger(v); if (AFTER[S.page]) AFTER[S.page]('soft'); } catch (e) { console.warn(e); } finally { TWEEN = false; }
+      requestAnimationFrame(() => v.classList.remove('mx-out'));
+      v._mx = setTimeout(() => { v.classList.remove('mx-run'); $$('.mx-in', v).forEach(x => x.classList.remove('mx-in')); }, 1100);
+    }, 140);
+    return;
+  }
   const prev = {}; if (mode === 'soft') $$('[data-key]', v).forEach(el => { prev[el.dataset.key] = +el.dataset.count; });
   const doRender = () => {
     if (my !== viewSeq) return;
@@ -1078,7 +1130,7 @@ function go(page, tab) {
   $$('#side .nav button').forEach(b => b.dataset.v === page ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   renderTop(); renderView('fade'); renderFab(); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-function refilter() { renderTop(); renderView('soft'); }
+function refilter() { TWEEN = true; try { renderTop(); } finally { TWEEN = false; } renderView('soft'); }
 
 /* ================= overview ================= */
 const REACTIONS = [{ k: 'like', e: '👍', t: 'ถูกใจ', c: '#2a78d6' }, { k: 'love', e: '❤️', t: 'รักเลย', c: '#e34948' }, { k: 'care', e: '🥰', t: 'ห่วงใย', c: '#eda100' }, { k: 'haha', e: '😆', t: 'ฮ่าฮ่า', c: '#eda100' }, { k: 'wow', e: '😮', t: 'ว้าว', c: '#eda100' }, { k: 'sad', e: '😢', t: 'เศร้า', c: '#eda100' }, { k: 'angry', e: '😡', t: 'โกรธ', c: '#eb6834' }];

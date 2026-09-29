@@ -148,7 +148,7 @@
     async version() {
       await wait(60); need();
       const t = JSON.stringify([db().posts, db().audience, db().followers, db().daily, db().users, db().connections || null]);
-      let h = 0; for (let i = 0; i < t.length; i += 7) h = (h * 31 + t.charCodeAt(i)) | 0;
+      let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
       return { v: t.length + ':' + h };
     },
     // โหมดสาธิตมีเบราว์เซอร์เดียว จึงไม่มีการเข้าสู่ระบบซ้อน — จำลองได้ด้วย API._simulateOtherLogin()

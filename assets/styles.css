@@ -1489,3 +1489,31 @@ body.no-snow #snowfall{display:none}
 @keyframes kick-in{0%{transform:scale(.9)}60%{transform:scale(1.03)}100%{transform:none}}
 .auth-notice{margin-bottom:14px;animation:m-swap .4s var(--ease)}
 @media (prefers-reduced-motion:reduce){.kick-peng .pg,.kr-fg,.kick-bar span{animation:none}}
+
+/* ============ เปลี่ยนตัวกรองแบบลื่น: จางแวบ → ตัวเลขวิ่งจากค่าเดิม → กราฟเปลี่ยนรูป ============ */
+.view.mx-out{opacity:.62;filter:blur(1.4px) saturate(.85);transform:translateY(3px) scale(.996);transition:opacity .14s var(--ease),filter .14s var(--ease),transform .14s var(--ease)}
+.view.mx-run{transition:opacity .5s var(--ease),filter .55s var(--ease),transform .6s var(--spring)}
+.view.mx-run .mx-in{animation:mx-in .6s var(--spring) both}
+@keyframes mx-in{from{opacity:0;transform:translateY(10px) scale(.98);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+/* ตัวเลขที่เปลี่ยน: ขยับขึ้น/ลงตามทิศ + เรืองสีจางๆ */
+.mx-up,.mx-down{display:inline-block}
+.mx-up{animation:mx-up .9s var(--ease)}
+.mx-down{animation:mx-down .9s var(--ease)}
+@keyframes mx-up{0%{transform:translateY(7px);opacity:.35;filter:blur(2px);text-shadow:0 0 0 transparent}35%{transform:translateY(-2px);opacity:1;filter:none;text-shadow:0 0 14px color-mix(in srgb,var(--good) 45%,transparent)}100%{transform:none;text-shadow:0 0 0 transparent}}
+@keyframes mx-down{0%{transform:translateY(-7px);opacity:.35;filter:blur(2px);text-shadow:0 0 0 transparent}35%{transform:translateY(2px);opacity:1;filter:none;text-shadow:0 0 14px color-mix(in srgb,var(--bad) 40%,transparent)}100%{transform:none;text-shadow:0 0 0 transparent}}
+.pill.mx-up,.pill.mx-down{display:inline-flex}
+/* การ์ดที่ตัวเลขเปลี่ยน: คลื่นแสงวิ่งผ่าน + วงเรืองจางๆ */
+.mx-chg{animation:mx-ring .9s var(--ease)}
+@keyframes mx-ring{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 22%,transparent)}100%{box-shadow:0 0 0 8px transparent}}
+.kcard.mx-chg,.sa-k.mx-chg,.pf-card.mx-chg,.plat-card.mx-chg{background-image:linear-gradient(110deg,transparent 30%,color-mix(in srgb,var(--accent) 9%,transparent) 50%,transparent 70%);background-size:250% 100%;background-repeat:no-repeat;animation:mx-ring .9s var(--ease),mx-sheen .9s var(--ease)}
+.sa-k.mx-chg{background-image:linear-gradient(110deg,transparent 30%,color-mix(in srgb,var(--gc) 14%,transparent) 50%,transparent 70%),radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--gc) 12%,transparent),transparent 60%),linear-gradient(180deg,var(--surface),color-mix(in srgb,var(--gc) 3%,var(--surface)));background-size:250% 100%,100% 100%,100% 100%}
+@keyframes mx-sheen{from{background-position:120% 0}to{background-position:-30% 0}}
+/* กราฟ / แถบ / โดนัท ค่อยๆ เปลี่ยนรูปไปค่าใหม่ */
+.mx-run .mx-tw path{transition:d .8s var(--ease)}
+.mx-run .mx-tw rect:not(.hit):not(.vhl),.mx-run .mx-tw circle:not(.hd){transition:x .8s var(--ease),y .8s var(--ease),width .8s var(--ease),height .8s var(--ease),cx .8s var(--ease),cy .8s var(--ease)}
+.mx-run .mx-tw line{transition:opacity .4s var(--ease)}
+.mx-run .spark path,.mx-run .spark circle{transition:d .8s var(--ease),cx .8s var(--ease),cy .8s var(--ease)}
+.mx-run svg circle,.mx-run svg path[stroke-dasharray]{transition:stroke-dasharray .8s var(--ease),stroke-dashoffset .8s var(--ease),d .8s var(--ease)}
+.mx-run [style*="width:"]:not(.seg-thumb){transition:width .8s var(--spring)}
+.mx-run .sa-gauge .g-fg{transition:stroke-dasharray .9s var(--spring),stroke .4s}
+@media (prefers-reduced-motion:reduce){.view.mx-out,.view.mx-run{filter:none;transform:none;transition:none}.mx-up,.mx-down,.mx-chg,.mx-in{animation:none!important}}

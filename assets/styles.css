@@ -1048,22 +1048,10 @@ details.help.alt summary{color:var(--ink-2)}
 .ld-wrap.on .ld-card{opacity:1;transform:none}
 .ld-wrap.leaving .ld-card{opacity:0;transform:scale(1.04);filter:blur(6px)}
 .ld-wrap.leaving .ld-bd{opacity:0}
-.ld-stage{position:relative;z-index:1;width:min(440px,82vw)}
-.ld-art{width:100%;height:auto;overflow:visible;display:block}
-.ld-art *{transform-box:fill-box}
-.ld-orbit{transform-box:view-box;transform-origin:160px 118px;animation:ld-spin 18s linear infinite}
-.ld-phone{animation:ld-float 3.2s ease-in-out infinite}
-.ld-bars rect{transform-origin:50% 100%;animation:ld-bar 2.4s var(--ease) infinite}
-.ld-bars .b1{--h:.45;animation-delay:0s}.ld-bars .b2{--h:.85;animation-delay:.15s}.ld-bars .b3{--h:.62;animation-delay:.3s}.ld-bars .b4{--h:1;animation-delay:.45s}
-.ld-line{stroke-dasharray:1;stroke-dashoffset:1;animation:ld-draw 2.4s var(--ease) infinite}
-.ld-page{transform-origin:0% 50%;animation:ld-flip 3.2s cubic-bezier(.55,.1,.35,1) infinite}
-.ld-page.p2{animation-delay:1.6s}
-.ld-pop{transform-box:view-box;transform:translate(160px,112px) scale(.2);opacity:0;animation:ld-pop 3.3s cubic-bezier(.2,.9,.3,1.2) infinite;animation-delay:var(--d)}
-.ld-spark{transform-origin:50% 50%;animation:ld-twinkle 2.2s ease-in-out infinite;animation-delay:var(--d)}
 .ld-name{position:relative;z-index:1;margin:6px 0 0;font-family:var(--f-display);font-size:clamp(24px,4.2vw,42px);font-weight:700;line-height:1.25;display:flex;flex-wrap:wrap;justify-content:center}
 .ld-name span{display:inline-block;background:linear-gradient(135deg,var(--accent) 10%,#e0679a 60%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
   opacity:0;transform:translateY(22px) scale(.4) rotate(-8deg);
-  animation:ld-letter .7s var(--spring) forwards,ld-wave 2.8s ease-in-out infinite;animation-delay:calc(var(--i) * 55ms + 250ms),calc(var(--i) * 90ms + 1.6s)}
+  animation:ld-letter .7s var(--spring) forwards;animation-delay:calc(var(--i) * 55ms + 250ms)}
 .ld-org{position:relative;z-index:1;margin:0;color:var(--ink-3);font-size:14px;opacity:0;animation:ld-fade .6s var(--ease) .9s forwards}
 .ld-meter{position:relative;z-index:1;width:min(420px,84vw);margin-top:18px;opacity:0;animation:ld-fade .6s var(--ease) .5s forwards}
 .ld-pct{display:flex;align-items:baseline;justify-content:center;gap:2px;font-family:var(--f-display);font-variant-numeric:tabular-nums;margin-bottom:10px}
@@ -1088,4 +1076,88 @@ details.help.alt summary{color:var(--ink-2)}
 @keyframes ld-msg{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes ld-blob{from{transform:translate(0,0) scale(1)}to{transform:translate(60px,-40px) scale(1.2)}}
 @media (max-width:640px){.ld-card{inset:8px;border-radius:22px}}
-@media (prefers-reduced-motion:reduce){.ld-art *,.ld-name span,.ld-card::before,.ld-card::after{animation:none!important;opacity:1}.ld-pop{opacity:0}.ld-name span{transform:none}}
+
+
+/* ---- ฉากสามมิติ: หนังสือ มือถือ ไอคอน ---- */
+.ld-stage{position:relative;z-index:1;width:380px;height:300px;perspective:1000px;perspective-origin:50% 40%}
+.l3-scene{position:absolute;inset:0;transform-style:preserve-3d;animation:l3-sway 7s ease-in-out infinite alternate}
+.l3-scene *{box-sizing:border-box}
+.l3-glow{position:absolute;left:50%;top:50%;width:330px;height:330px;margin:-165px 0 0 -165px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 24%,transparent),transparent 65%);transform:translateZ(-80px)}
+.l3-ring{position:absolute;left:50%;top:56%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;border:2px dashed color-mix(in srgb,var(--accent) 35%,transparent);transform-style:preserve-3d;animation:l3-ring 16s linear infinite}
+.l3-ring i{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 12px var(--accent-2)}
+.l3-ring i:nth-child(1){left:50%;top:-7px;margin-left:-6px}.l3-ring i:nth-child(2){left:-7px;top:50%;margin-top:-6px;background:var(--gold);box-shadow:0 0 12px var(--gold)}.l3-ring i:nth-child(3){right:10%;bottom:6%;background:#e0679a;box-shadow:0 0 12px #e0679a}
+.l3-spark{position:absolute;width:16px;height:16px;background:var(--gold);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);animation:l3-twinkle 2.4s ease-in-out infinite}
+.l3-spark.s1{left:40px;top:60px}.l3-spark.s2{right:34px;top:40px;background:var(--accent-2);animation-delay:.7s;width:12px;height:12px}.l3-spark.s3{right:46px;top:190px;animation-delay:1.3s}.l3-spark.s4{left:70px;top:200px;width:10px;height:10px;background:#e0679a;animation-delay:1.9s}
+/* หนังสือวางราบ มีหน้ากระดาษพลิกแบบ 3 มิติ */
+.l3-book{position:absolute;left:50%;bottom:6px;width:250px;height:150px;margin-left:-125px;transform:rotateX(64deg) translateZ(-10px);transform-origin:50% 100%;transform-style:preserve-3d}
+.bk-cover{position:absolute;inset:-9px -12px;border-radius:12px;background:linear-gradient(135deg,var(--accent-2),var(--accent));transform:translateZ(-5px);box-shadow:0 30px 40px -10px rgba(40,15,70,.45)}
+.bk-page{position:absolute;top:0;width:50%;height:100%;padding:14px;background:repeating-linear-gradient(180deg,transparent 0 17px,color-mix(in srgb,var(--accent) 16%,transparent) 17px 19px) content-box,linear-gradient(90deg,#fff,#f3eef8)}
+.bk-page.left{left:0;border-radius:10px 3px 3px 10px;box-shadow:inset -10px 0 14px -10px rgba(40,15,70,.35)}
+.bk-page.right{right:0;border-radius:3px 10px 10px 3px;box-shadow:inset 10px 0 14px -10px rgba(40,15,70,.35)}
+.bk-flip{position:absolute;right:0;top:0;width:50%;height:100%;transform-origin:0% 50%;transform-style:preserve-3d;opacity:0;animation:l3-flip 3.6s cubic-bezier(.5,.05,.3,1) infinite}
+.bk-flip.f2{animation-delay:1.2s}.bk-flip.f3{animation-delay:2.4s}
+.bk-flip b,.bk-flip em{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:3px 10px 10px 3px}
+.bk-flip b{padding:14px;background:repeating-linear-gradient(180deg,transparent 0 17px,color-mix(in srgb,var(--accent) 14%,transparent) 17px 19px) content-box,#fff;box-shadow:inset 12px 0 16px -12px rgba(40,15,70,.3)}
+.bk-flip em{background:linear-gradient(90deg,#f6f1fb,#e9e0f3);transform:rotateY(180deg);border-radius:10px 3px 3px 10px}
+/* มือถือหมุนซ้ายขวาแบบมีความหนา */
+.l3-shadow{position:absolute;left:50%;top:222px;width:130px;height:22px;margin-left:-65px;border-radius:50%;background:radial-gradient(closest-side,rgba(40,15,70,.35),transparent);animation:l3-shadow 4.6s ease-in-out infinite}
+.l3-phone{position:absolute;left:50%;top:26px;width:98px;height:176px;margin-left:-49px;transform-style:preserve-3d;animation:l3-phone 4.6s ease-in-out infinite}
+.ph-back{position:absolute;inset:0;border-radius:22px;background:linear-gradient(135deg,#2c2436,#0e0a13);transform:translateZ(-8px)}
+.ph-body{position:absolute;inset:0;border-radius:22px;background:#1c1823;padding:7px;overflow:hidden;box-shadow:0 0 0 1.5px #3a3146 inset}
+.ph-body::before{content:"";position:absolute;inset:6px;border-radius:16px;background:linear-gradient(170deg,#9a6ad6,#5b2a86 55%,#3a1760)}
+.ph-body::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.28) 45%,transparent 60%);transform:translateX(-120%);animation:l3-sheen 4.6s ease-in-out infinite}
+.ph-body > *{position:relative;z-index:1}
+.ph-notch{width:30px;height:6px;border-radius:4px;background:#1c1823;margin:3px auto 8px}
+.ph-head{display:flex;align-items:center;gap:6px;padding:0 6px}
+.ph-head i{width:14px;height:14px;border-radius:50%;background:#fff;flex:none}
+.ph-head span{display:flex;flex-direction:column;gap:3px;flex:1}
+.ph-head b{display:block;height:4px;border-radius:2px;background:rgba(255,255,255,.85)}.ph-head b+b{width:60%;background:rgba(255,255,255,.5)}
+.ph-line{display:block;width:64px;height:22px;margin:8px auto 2px;overflow:visible}
+.ph-line path{fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:ld-draw 2.6s var(--ease) infinite}
+.ph-bars{display:flex;align-items:flex-end;justify-content:center;gap:5px;height:52px;margin-top:4px}
+.ph-bars i{width:11px;height:100%;border-radius:3px;background:#fff;transform-origin:50% 100%;animation:l3-bar 2.4s var(--ease) infinite}
+.ph-bars i:nth-child(2){background:var(--gold);animation-delay:.15s}.ph-bars i:nth-child(3){opacity:.75;animation-delay:.3s}.ph-bars i:nth-child(4){background:#f08ab5;animation-delay:.45s}
+.ph-likes{display:flex;align-items:center;gap:5px;margin:9px 8px 0;padding:4px 6px;border-radius:8px;background:rgba(255,255,255,.14)}
+.ph-likes span{width:14px;height:14px;display:grid;place-items:center;animation:l3-beat 1.2s ease-in-out infinite}
+.ph-likes span svg{width:14px;height:14px}
+.ph-likes b{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.6)}
+/* ไอคอนพุ่งออกมาหาผู้ชม (แกน Z) และหมุนเหมือนเหรียญ */
+.l3-ic{position:absolute;left:50%;top:40%;width:40px;height:40px;margin:-20px 0 0 -20px;transform-style:preserve-3d;opacity:0;animation:l3-pop 3.3s cubic-bezier(.2,.8,.3,1) infinite;animation-delay:var(--d)}
+.l3-ic-in{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;color:var(--c);
+  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.55),transparent 42%),var(--c);
+  box-shadow:0 10px 20px -6px color-mix(in srgb,var(--c) 70%,transparent),inset 0 -3px 0 rgba(0,0,0,.14);animation:l3-coin 3.3s ease-in-out infinite;animation-delay:var(--d)}
+.l3-ic-in svg{width:24px;height:24px}
+.l3-ic.beat .l3-ic-in svg{animation:l3-beat .9s ease-in-out infinite}
+@keyframes l3-sway{0%{transform:rotateY(-14deg) rotateX(10deg)}100%{transform:rotateY(14deg) rotateX(4deg)}}
+@keyframes l3-ring{from{transform:translateZ(-20px) rotateX(74deg) rotateZ(0)}to{transform:translateZ(-20px) rotateX(74deg) rotateZ(360deg)}}
+@keyframes l3-twinkle{0%,100%{scale:.5;opacity:.35;rotate:0deg}50%{scale:1.2;opacity:1;rotate:45deg}}
+@keyframes l3-flip{0%,6%{transform:rotateY(0);opacity:0}10%{opacity:1}52%{transform:rotateY(-180deg);opacity:1}60%,100%{transform:rotateY(-180deg);opacity:0}}
+@keyframes l3-phone{0%,100%{transform:translateZ(60px) translateY(0) rotateY(-24deg) rotateX(4deg)}50%{transform:translateZ(60px) translateY(-14px) rotateY(24deg) rotateX(-4deg)}}
+@keyframes l3-shadow{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.78);opacity:.6}}
+@keyframes l3-sheen{0%,35%{transform:translateX(-120%)}60%,100%{transform:translateX(120%)}}
+@keyframes l3-bar{0%,100%{transform:scaleY(.2)}50%{transform:scaleY(var(--h))}}
+@keyframes l3-beat{0%,100%{transform:scale(1)}15%{transform:scale(1.28)}30%{transform:scale(.94)}45%{transform:scale(1.12)}}
+@keyframes l3-pop{0%{transform:translate3d(0,0,0) scale(.2);opacity:0}12%{opacity:1}52%{transform:translate3d(var(--x),var(--y),var(--z)) scale(1);opacity:1}84%{opacity:1}100%{transform:translate3d(calc(var(--x) * 1.15),calc(var(--y) * 1.15 - 18px),calc(var(--z) + 40px)) scale(.85);opacity:0}}
+@keyframes l3-coin{0%{transform:rotateY(0)}45%{transform:rotateY(360deg)}100%{transform:rotateY(360deg)}}
+@media (max-width:640px){.ld-stage{transform:scale(.8);margin:-30px 0}}
+@media (max-height:700px){.ld-stage{transform:scale(.78);margin:-32px 0}}
+@media (prefers-reduced-motion:reduce){.l3-scene,.l3-scene *,.ld-name span,.ld-card::before,.ld-card::after{animation:none!important}.l3-ic,.bk-flip{opacity:0}.ld-name span{opacity:1;transform:none}}
+
+/* ============ ขั้นตอนตรวจสิทธิ์: วงหมุน / เช็คสีเขียว ============ */
+.checks li .ci{border-style:dashed;border-color:color-mix(in srgb,var(--ink-3) 45%,transparent)}
+.checks li.run .ci{border-color:transparent;animation:none;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.checks li.run .ci::before{content:"";position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 20%,var(--accent) 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));animation:spin .85s linear infinite}
+.checks li.run .ci::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);animation:ci-dot 1s ease-in-out infinite}
+.checks li.ok .ci{background:var(--good);border:1.5px solid var(--good);color:#fff;animation:pop .45s var(--spring)}
+.checks li.ok .ci::before{content:"";position:absolute;inset:-2px;border-radius:50%;border:2px solid var(--good);animation:ci-ring .75s var(--ease) forwards}
+.checks li.ok{color:var(--ink)}
+.checks li.fail .ci{border-style:solid}
+@keyframes ci-dot{0%,100%{transform:scale(.6);opacity:.55}50%{transform:scale(1);opacity:1}}
+@keyframes ci-ring{from{transform:scale(1);opacity:.8}to{transform:scale(1.8);opacity:0}}
+.stepper li span{position:relative}
+.stepper li.on span::after{content:"";position:absolute;inset:-5px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 55%,var(--accent) 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));animation:spin 1.3s linear infinite}
+.stepper li.on span{box-shadow:none}
+.stepper li.done span{background:var(--good);border-color:var(--good);color:#fff;animation:pop .45s var(--spring)}
+.stepper .bar::after{background:var(--good)}
+.ld-stage{margin-bottom:26px}
+@media (max-width:640px),(max-height:700px){.ld-stage{margin-bottom:-6px}}

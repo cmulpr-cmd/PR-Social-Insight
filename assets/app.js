@@ -458,7 +458,7 @@ function stepOtp(err) {
 }
 function stepCheck() {
   return `<h2>กำลังตรวจสอบสิทธิ์</h2><p class="lead">${esc(A.email)}</p>
-   <ul class="checks">${[['ck1', `อีเมลอยู่ในโดเมน @${DOMAIN}`], ['ck2', 'ยืนยันรหัส OTP'], ['ck3', 'ตรวจสอบสิทธิ์การเข้าใช้งาน'], ['ck4', 'โหลดข้อมูลแดชบอร์ด']].map(([id, t]) => `<li id="${id}"><span class="ci"></span>${t}</li>`).join('')}</ul>`;
+   <ul class="checks">${[['ck1', `อีเมลอยู่ในโดเมน @${DOMAIN}`], ['ck2', 'ยืนยันรหัส OTP'], ['ck3', 'ตรวจสอบสิทธิ์การเข้าใช้งาน']].map(([id, t]) => `<li id="${id}"><span class="ci"></span>${t}</li>`).join('')}</ul>`;
 }
 function stepResult(kind) {
   if (kind === 'pending') return `<div class="result"><div class="badge-ic wait">${ic('clock', 30)}</div><h2>ส่งคำขอสิทธิ์แล้ว</h2>
@@ -532,15 +532,14 @@ async function runChecks(code) {
     catch (e) { mark('ck2', 'fail'); await wait(650); verifying = false; setStep(2, stepOtp(e.message)); if (e.code === 'otp_expired' || e.code === 'otp_locked') A.resendAt = 0; return; }
     mark('ck2', 'ok'); mark('ck3', 'run'); await wait(420);
     if (res.status !== 'active') { mark('ck3', 'fail'); await wait(500); verifying = false; setStep(3, stepResult(res.status)); return; }
-    mark('ck3', 'ok'); mark('ck4', 'run');
-    let d; try { d = await minWait(API.bootstrap()); } catch (e) { mark('ck4', 'fail'); verifying = false; await wait(600); handleErr(e); setStep(1, stepEmail()); return; }
-    load(d); mark('ck4', 'ok'); await wait(350);
-    setStep(3, stepResult('ok'));
-    await wait(1000);
-    verifying = false;
-    const auth = $('#auth'); if (auth) auth.classList.add('leaving');
-    await wait(420);
-    S.page = 'dashboard'; startApp();
+    mark('ck3', 'ok');
+    const st3 = $('.stepper li[data-s="3"]'); if (st3) { st3.classList.remove('on'); st3.classList.add('done'); st3.querySelector('span').innerHTML = ic('check', 13); }
+    await wait(750);
+    // ผ่านการตรวจสิทธิ์แล้ว → เปิดหน้าต่างโหลดข้อมูลเต็มจอ แล้วค่อยเข้าแดชบอร์ด
+    const L = loaderShow(); L.at(4, 88);
+    let d; try { d = await API.bootstrap(); } catch (e) { L.fail(); verifying = false; handleErr(e); setStep(1, stepEmail()); return; }
+    L.at(92, 97); load(d); await L.done(2600);
+    verifying = false; S.page = 'dashboard'; startApp(); L.close();
     toast(`เข้าสู่ระบบแล้ว · ${ME.email}`);
   } catch (e) { verifying = false; handleErr(e); }
 }
@@ -558,44 +557,33 @@ function graphemes(t) {
   try { if (window.Intl && Intl.Segmenter) return [...new Intl.Segmenter('th', { granularity: 'grapheme' }).segment(t)].map(x => x.segment); } catch (_) {}
   const out = []; Array.from(t).forEach(ch => { if (out.length && /[ัิ-ฺ็-๎̀-ͯ]/.test(ch)) out[out.length - 1] += ch; else out.push(ch); }); return out;
 }
-const LOADER_ART = `<svg class="ld-art" viewBox="0 0 320 250" aria-hidden="true">
-  <defs>
-    <radialGradient id="ldGlow" cx="50%" cy="55%" r="50%"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></radialGradient>
-    <linearGradient id="ldScreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b5cc7"/><stop offset="1" stop-color="#4a1f73"/></linearGradient>
-    <linearGradient id="ldPage" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#ece6f4"/></linearGradient>
-  </defs>
-  <circle cx="160" cy="130" r="118" fill="url(#ldGlow)"/>
-  <circle class="ld-orbit" cx="160" cy="118" r="96" fill="none" stroke="var(--accent)" stroke-opacity=".22" stroke-width="1.5" stroke-dasharray="3 9"/>
-  <g class="ld-spark" style="--d:0s"><path d="M52 70l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="var(--gold)"/></g>
-  <g class="ld-spark" style="--d:.8s"><path d="M268 58l2.4 5.6 5.6 2.4-5.6 2.4-2.4 5.6-2.4-5.6-5.6-2.4 5.6-2.4z" fill="var(--accent-2)"/></g>
-  <g class="ld-spark" style="--d:1.5s"><path d="M276 168l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="var(--gold)"/></g>
-  <!-- หนังสือ -->
-  <g class="ld-book">
-    <path d="M60 196 Q110 180 160 196 L160 232 Q110 216 60 232 Z" fill="var(--accent)" opacity=".9"/>
-    <path d="M260 196 Q210 180 160 196 L160 232 Q210 216 260 232 Z" fill="var(--accent)" opacity=".75"/>
-    <path d="M66 190 Q112 176 158 190 L158 226 Q112 212 66 226 Z" fill="url(#ldPage)" stroke="var(--line-2)" stroke-width=".8"/>
-    <path d="M254 190 Q208 176 162 190 L162 226 Q208 212 254 226 Z" fill="url(#ldPage)" stroke="var(--line-2)" stroke-width=".8"/>
-    <g stroke="var(--line-2)" stroke-width="1.2" stroke-linecap="round"><path d="M80 198 Q110 190 144 198"/><path d="M80 206 Q110 198 144 206"/><path d="M176 198 Q206 190 240 198"/><path d="M176 206 Q206 198 240 206"/></g>
-    <path class="ld-page" d="M162 190 Q208 176 254 190 L254 226 Q208 212 162 226 Z" fill="#fff" stroke="var(--line-2)" stroke-width=".8"/>
-    <path class="ld-page p2" d="M162 190 Q208 176 254 190 L254 226 Q208 212 162 226 Z" fill="#faf7fd" stroke="var(--line-2)" stroke-width=".8"/>
-  </g>
-  <!-- มือถือ -->
-  <g class="ld-phone">
-    <rect x="124" y="46" width="72" height="128" rx="14" fill="#1c1823"/>
-    <rect x="129" y="52" width="62" height="116" rx="10" fill="url(#ldScreen)"/>
-    <rect x="150" y="56" width="20" height="4" rx="2" fill="#1c1823"/>
-    <circle cx="142" cy="74" r="6" fill="#fff" opacity=".9"/><rect x="152" y="70" width="28" height="3.5" rx="1.75" fill="#fff" opacity=".85"/><rect x="152" y="76" width="18" height="3" rx="1.5" fill="#fff" opacity=".5"/>
-    <g class="ld-bars"><rect class="b1" x="138" y="104" width="9" height="48" rx="2" fill="#fff" opacity=".95"/><rect class="b2" x="151" y="104" width="9" height="48" rx="2" fill="var(--gold)"/><rect class="b3" x="164" y="104" width="9" height="48" rx="2" fill="#fff" opacity=".75"/><rect class="b4" x="177" y="104" width="9" height="48" rx="2" fill="#e0679a"/></g>
-    <path class="ld-line" d="M136 100 L150 92 L163 97 L178 84 L186 88" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
-  </g>
-  <!-- ไอคอนที่เด้งออกจากมือถือ -->
-  <g class="ld-pop" style="--x:-92px;--y:-58px;--d:0s"><circle r="15" fill="#e34948"/><path d="M0 5.5c-5-3.6-8-6.2-8-9.2 0-2.4 1.8-4.2 4-4.2 1.7 0 3 1 4 2.4 1-1.4 2.3-2.4 4-2.4 2.2 0 4 1.8 4 4.2 0 3-3 5.6-8 9.2z" fill="#fff"/></g>
-  <g class="ld-pop" style="--x:94px;--y:-64px;--d:.55s"><circle r="15" fill="var(--fb)"/><path d="M-7-6h14a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H-1l-5 4v-4h-1a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3z" fill="#fff"/></g>
-  <g class="ld-pop" style="--x:-104px;--y:12px;--d:1.1s"><circle r="13" fill="var(--lineoa)"/><path d="M-5 1l3 3 7-7" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g>
-  <g class="ld-pop" style="--x:104px;--y:6px;--d:1.65s"><circle r="13" fill="var(--ig)"/><path d="M-6 2l4-4 3 3 5-6M4-5h3v3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
-  <g class="ld-pop" style="--x:-40px;--y:-92px;--d:2.2s"><circle r="12" fill="var(--tt)"/><path d="M-6 0c2.5-4 9.5-4 12 0-2.5 4-9.5 4-12 0z" fill="none" stroke="#fff" stroke-width="2"/><circle r="2" fill="#fff"/></g>
-  <g class="ld-pop" style="--x:46px;--y:-96px;--d:2.75s"><circle r="12" fill="var(--gold)"/><path d="M0-6l1.8 3.8 4.2.5-3.1 2.9.8 4.1L0 3.3-3.7 5.3l.8-4.1-3.1-2.9 4.2-.5z" fill="#fff"/></g>
-</svg>`;
+const ICO3 = {
+  heart: '<svg viewBox="-12 -12 24 24"><path d="M0 7c-6-4.4-9.6-7.6-9.6-11.2 0-2.9 2.2-5 4.8-5 2 0 3.6 1.2 4.8 2.9 1.2-1.7 2.8-2.9 4.8-2.9 2.6 0 4.8 2.1 4.8 5C9.6-.6 6 2.6 0 7z" fill="#fff"/></svg>',
+  cmt: '<svg viewBox="-12 -12 24 24"><path d="M-8-7h16a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H-1l-5 4.5V6h-2a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3z" fill="#fff"/><circle cx="-4" cy="-.5" r="1.4" fill="currentColor"/><circle cx="0" cy="-.5" r="1.4" fill="currentColor"/><circle cx="4" cy="-.5" r="1.4" fill="currentColor"/></svg>',
+  ok: '<svg viewBox="-12 -12 24 24"><path d="M-6 0l4 4 8-8.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  up: '<svg viewBox="-12 -12 24 24"><path d="M-8 5l6-6 4 4 7-8M4-5h5v5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  eye: '<svg viewBox="-12 -12 24 24"><path d="M-9 0c3.5-6 14.5-6 18 0-3.5 6-14.5 6-18 0z" fill="none" stroke="#fff" stroke-width="2.2"/><circle r="3" fill="#fff"/></svg>',
+  star: '<svg viewBox="-12 -12 24 24"><path d="M0-9l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L0 4.9l-5.4 2.9 1.1-6.1-4.5-4.3 6.1-.8z" fill="#fff"/></svg>'
+};
+const LOADER_ART = `<div class="l3-scene" aria-hidden="true">
+  <div class="l3-glow"></div>
+  <div class="l3-ring"><i></i><i></i><i></i></div>
+  <div class="l3-spark s1"></div><div class="l3-spark s2"></div><div class="l3-spark s3"></div><div class="l3-spark s4"></div>
+  <div class="l3-book">
+    <div class="bk-cover"></div>
+    <div class="bk-page left"></div><div class="bk-page right"></div>
+    <div class="bk-flip f1"><b></b><em></em></div><div class="bk-flip f2"><b></b><em></em></div><div class="bk-flip f3"><b></b><em></em></div>
+  </div>
+  <div class="l3-shadow"></div>
+  <div class="l3-phone"><div class="ph-back"></div><div class="ph-body">
+    <div class="ph-notch"></div>
+    <div class="ph-head"><i></i><span><b></b><b></b></span></div>
+    <svg class="ph-line" viewBox="0 0 64 22" preserveAspectRatio="none"><path d="M2 18 L16 10 L28 14 L44 4 L62 8" pathLength="1"/></svg>
+    <div class="ph-bars"><i style="--h:.45"></i><i style="--h:.85"></i><i style="--h:.6"></i><i style="--h:1"></i></div>
+    <div class="ph-likes"><span>${ICO3.heart}</span><b></b></div>
+  </div></div>
+  ${[['heart', '#e34948', -128, -70, 90, 0], ['cmt', 'var(--fb)', 124, -82, 70, .55], ['ok', 'var(--lineoa)', -140, 22, 50, 1.1], ['up', 'var(--ig)', 136, 10, 110, 1.65], ['eye', 'var(--tt)', -54, -128, 130, 2.2], ['star', 'var(--gold)', 60, -130, 80, 2.75]].map(([k, c, x, y, z, d]) => `<div class="l3-ic${k === 'heart' ? ' beat' : ''}" style="--c:${c};--x:${x}px;--y:${y}px;--z:${z}px;--d:${d}s"><div class="l3-ic-in">${ICO3[k]}</div></div>`).join('')}
+</div>`;
 function loaderShow(title) {
   let el = $('#loader'); if (!el) { el = document.createElement('div'); el.id = 'loader'; document.body.appendChild(el); }
   const name = CFG.APP_NAME || APP_NAME;
@@ -607,6 +595,12 @@ function loaderShow(title) {
     <div class="ld-meter"><div class="ld-pct"><b id="ld-n">0</b><span>%</span></div><div class="ld-bar"><span id="ld-bar"></span></div><p class="ld-msg" id="ld-msg">${LD_MSG[0]}</p></div>
   </div>`;
   document.body.classList.add('modal-open'); void el.offsetWidth; el.classList.add('on');
+  // ชื่อระบบเด้งขึ้นเป็นคลื่นทีละตัว → หยุดนิ่ง ~2 วินาที → เด้งใหม่ วนจนหน้าต่างปิด
+  const letters = $$('.ld-name span', el), stag = 70, bounce = 700, pause = 2000;
+  const cyc = bounce + stag * letters.length + pause, b = bounce / cyc;
+  if (letters[0] && letters[0].animate && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) letters.forEach((sp, i2) => sp.animate([
+    { translate: '0 0', scale: '1', offset: 0 }, { translate: '0 -16px', scale: '1.14', offset: b * .38 }, { translate: '0 3px', scale: '.96', offset: b * .72 }, { translate: '0 0', scale: '1', offset: b }, { translate: '0 0', scale: '1', offset: 1 }
+  ], { duration: cyc, delay: 1100 + i2 * stag, iterations: Infinity, easing: 'ease-in-out' }));
   let shown = 0, floor = 0, ceil = 0, raf = 0, alive = true, mi = 0;
   const paint = () => { const n = $('#ld-n'), b = $('#ld-bar'); if (n) n.textContent = Math.floor(shown); if (b) b.style.width = shown.toFixed(2) + '%'; };
   const tick = () => { if (!alive) return; if (shown < floor) shown = Math.min(floor, shown + Math.max(.8, (floor - shown) * .16)); else if (shown < ceil) shown += Math.max(.02, (ceil - shown) * .012); paint(); raf = requestAnimationFrame(tick); };

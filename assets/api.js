@@ -13,6 +13,13 @@
   const clone = o => JSON.parse(JSON.stringify(o));
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const DAYMS = 864e5;
+  /** ชื่ออุปกรณ์แบบอ่านง่าย (ใช้แจ้งเตือนเมื่อมีการเข้าสู่ระบบจากที่อื่น) เช่น “Chrome บน Windows” */
+  const deviceName = () => {
+    const u = navigator.userAgent || '';
+    const b = /Edg\//.test(u) ? 'Edge' : /OPR\/|Opera/.test(u) ? 'Opera' : /SamsungBrowser/.test(u) ? 'Samsung Internet' : /Line\//.test(u) ? 'LINE' : /FBAN|FBAV/.test(u) ? 'Facebook' : /Firefox\//.test(u) ? 'Firefox' : /Chrome\//.test(u) ? 'Chrome' : /Safari\//.test(u) ? 'Safari' : 'เบราว์เซอร์';
+    const o = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac OS X|Macintosh/.test(u) ? 'Mac' : /CrOS/.test(u) ? 'Chromebook' : /Linux/.test(u) ? 'Linux' : 'อุปกรณ์ไม่ทราบชื่อ';
+    return b + ' บน ' + o;
+  };
 
   /* ---------- Google Apps Script ---------- */
   const Remote = {
@@ -47,13 +54,15 @@
     },
     requestOtp(email) { return this.call('auth.request', { email }); },
     async verifyOtp(email, code) {
-      const d = await this.call('auth.verify', { email, code });
+      const d = await this.call('auth.verify', { email, code, device: deviceName() });
       if (d.status === 'active' && d.token) store.set(TOKEN_KEY, d.token);
       return d;
     },
     async logout() { try { await this.call('auth.logout'); } catch (_) {} store.del(TOKEN_KEY); },
     bootstrap() { return this.call('data.bootstrap'); },
     version() { return this.call('data.version'); },
+    sessionCheck() { return this.call('session.check'); },
+    sessionReport() { return this.call('session.report'); },
     savePost(payload) { return this.call('post.save', payload); },
     deletePost(id) { return this.call('post.delete', { id }); },
     recat(id, cat) { return this.call('comment.recat', { id, cat }); },
@@ -92,7 +101,7 @@
     'Analyst': ['dashboard', 'posts', 'comments', 'audience', 'strategy'],
     'Viewer': ['dashboard']
   };
-  let D = null;
+  let D = null, DEMO_KICK = null;
   const otp = {};
   const db = () => (D || (D = window.makeDemoDB()));
   const me = () => { const t = store.get(TOKEN_KEY) || ''; const e = t.startsWith('demo:') ? t.slice(5) : ''; return db().users.find(u => u.email === e && u.status === 'active'); };
@@ -134,7 +143,7 @@
       u.last = Date.now(); store.set(TOKEN_KEY, 'demo:' + email); log(email, 'เข้าสู่ระบบ');
       return { status: 'active', token: 'demo', user: clone(u) };
     },
-    async logout() { store.del(TOKEN_KEY); },
+    async logout() { DEMO_KICK = null; store.del(TOKEN_KEY); },
     // ลายนิ้วมือของข้อมูลทั้งหมด (โหมดสาธิต) — เปลี่ยนเมื่อข้อมูลใดๆ เปลี่ยน ใช้กับการรีเฟรชเบื้องหลังทุก 3 วินาที
     async version() {
       await wait(60); need();
@@ -142,6 +151,10 @@
       let h = 0; for (let i = 0; i < t.length; i += 7) h = (h * 31 + t.charCodeAt(i)) | 0;
       return { v: t.length + ':' + h };
     },
+    // โหมดสาธิตมีเบราว์เซอร์เดียว จึงไม่มีการเข้าสู่ระบบซ้อน — จำลองได้ด้วย API._simulateOtherLogin()
+    async sessionCheck() { await wait(40); need(); return DEMO_KICK ? Object.assign({ status: 'replaced' }, DEMO_KICK) : { status: 'ok' }; },
+    async sessionReport() { await wait(300); log((me() || {}).email || '', '⚠ แจ้งว่าไม่ได้เข้าสู่ระบบเอง'); return { ok: true }; },
+    _simulateOtherLogin(device) { DEMO_KICK = { at: Date.now(), device: device || 'Safari บน iPhone' }; return true; },
     /** ใช้ทดสอบ: จำลองว่ามีคนอื่นแก้ข้อมูล (เพิ่ม Reach ของโพสต์ล่าสุด) */
     _touch(n = 1234) { const p = [...db().posts].sort((a, b) => b.at - a.at)[0]; if (p) { p.m.reach = (p.m.reach || 0) + n; p.m.reactions = (p.m.reactions || 0) + Math.round(n / 20); } return p && p.id; },
     async bootstrap() {

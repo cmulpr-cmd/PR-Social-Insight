@@ -1460,3 +1460,32 @@ body.no-snow #snowfall{display:none}
 .pickbar .pb-seg button{padding:5px 10px 9px;min-width:46px;font-size:13px}
 .pickbar .pb-seg button small{font-size:10px}
 @media (max-width:640px){.pickbar{flex-wrap:wrap;width:100%}}
+
+/* ============ แจ้งเตือนการเข้าสู่ระบบจากอุปกรณ์อื่น ============ */
+.kick{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:6px 4px 2px}
+.kick-top{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin-bottom:2px}
+.kick-peng .pg{animation:kick-shiver .5s ease-in-out infinite}
+@keyframes kick-shiver{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-1px) rotate(-2deg)}75%{transform:translateX(1px) rotate(2deg)}}
+.kick-ring{position:relative;width:86px;height:86px;display:grid;place-items:center;align-content:center}
+.kick-ring svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.kr-bg{fill:none;stroke:color-mix(in srgb,var(--bad) 14%,var(--surface-2));stroke-width:6}
+.kr-fg{fill:none;stroke:var(--bad);stroke-width:6;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:0;animation:kr-run var(--n) linear forwards}
+@keyframes kr-run{to{stroke-dashoffset:100}}
+.kick-ring b{position:relative;font-family:var(--f-display);font-size:30px;font-weight:800;line-height:1;color:var(--bad);font-variant-numeric:tabular-nums}
+.kick-ring small{position:relative;font-size:10.5px;color:var(--ink-3)}
+.kick-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--bad);background:var(--bad-soft);padding:4px 12px;border-radius:99px}
+.kick h2{font-size:clamp(19px,2.6vw,23px);line-height:1.4;margin:2px 0 0}
+.kick-txt{margin:0;color:var(--ink-2);font-size:14px;line-height:1.7;max-width:44ch}
+.kick-dev{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);padding:8px 14px;border-radius:12px}
+.kick-dev svg{color:var(--accent);flex:none}
+.kick-count{margin:4px 0 0;font-size:13.5px;color:var(--ink-2)}
+.kick-count b{color:var(--bad);font-variant-numeric:tabular-nums}
+.kick-bar{width:100%;height:8px;border-radius:99px;background:color-mix(in srgb,var(--bad) 12%,var(--surface-2));overflow:hidden}
+.kick-bar span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--bad),#f08a78);transform-origin:left;animation:kb-run var(--n) linear forwards}
+@keyframes kb-run{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.kick-acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;width:100%}
+.kick-acts .btn{flex:1 1 200px;justify-content:center;min-height:46px}
+.modal-wrap.locked .modal:has(.kick){animation:kick-in .6s var(--spring)}
+@keyframes kick-in{0%{transform:scale(.9)}60%{transform:scale(1.03)}100%{transform:none}}
+.auth-notice{margin-bottom:14px;animation:m-swap .4s var(--ease)}
+@media (prefers-reduced-motion:reduce){.kick-peng .pg,.kr-fg,.kick-bar span{animation:none}}

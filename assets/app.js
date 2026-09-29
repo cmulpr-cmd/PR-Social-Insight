@@ -402,6 +402,7 @@ function toast(text, type = 'ok') {
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 260); }, type === 'error' ? 4200 : 2600);
 }
 function handleErr(e) {
+  if (e && e.code === 'replaced') { if (ME) sessKicked({}); return; }
   if (e && e.code === 'unauthorized') { toast(e.message, 'error'); setTimeout(() => showAuth(), 700); return; }
   toast((e && e.message) || 'เกิดข้อผิดพลาด ลองอีกครั้ง', 'error');
 }
@@ -419,7 +420,7 @@ function isDark() { const a = document.documentElement.getAttribute('data-theme'
    ===================================================================== */
 const A = { email: '', sentTo: '', demoCode: null, timer: null, resendAt: 0 };
 function showAuth() {
-  closeDrawer(); ME = null; S.acting = null;
+  closeDrawer(); ME = null; S.acting = null; clearInterval(SESS.timer); clearInterval(LIVE.timer);
   const r = root();
   const paint = () => {
     r.innerHTML = `<div class="auth" id="auth">
@@ -452,7 +453,8 @@ function setStep(n, html, after) {
 }
 function stepEmail(err) {
   const user = A.email ? A.email.replace('@' + DOMAIN, '') : '';
-  return `<h2>ขอสิทธิ์เข้าใช้งาน</h2>
+  const nt = A.notice; A.notice = '';
+  return `${nt ? `<div class="callout ${A.noticeWarn ? 'warn' : ''} auth-notice" role="alert">${ic('lock', 16)}<div>${esc(nt)}</div></div>` : ''}<h2>ขอสิทธิ์เข้าใช้งาน</h2>
    <p class="lead">ยืนยันตัวตนด้วยอีเมลมหาวิทยาลัย ระบบจะส่งรหัส 6 หลักไปที่อีเมลของคุณ</p>
    <form id="f-email" novalidate class="stack" style="gap:14px">
     <div class="field"><label for="au-email">อีเมลมหาวิทยาลัย</label>
@@ -565,6 +567,44 @@ async function runChecks(code) {
 /* =====================================================================
    APP SHELL
    ===================================================================== */
+/* ================= ตรวจการเข้าสู่ระบบซ้อน (ทุก 5 วินาที) =================
+   บัญชีเดียวใช้ได้ทีละอุปกรณ์/เบราว์เซอร์ — ถ้ามีการเข้าสู่ระบบจากที่อื่น แจ้งเตือนแบบป๊อปอัป นับถอยหลัง 10 วินาที แล้วออกจากระบบ */
+const SESS = { timer: 0, shown: false, cd: 0 };
+function sessStart() { clearInterval(SESS.timer); SESS.shown = false; if (API && API.sessionCheck) SESS.timer = setInterval(sessTick, 5000); }
+async function sessTick() {
+  if (!ME || SESS.shown || !API.sessionCheck) return;
+  try { const r = await API.sessionCheck(); if (r && r.status === 'replaced' && ME) sessKicked(r); }
+  catch (e) { if (e && e.code === 'replaced') sessKicked({}); }
+}
+function sessKicked(info) {
+  if (SESS.shown) return; SESS.shown = true; clearInterval(SESS.timer); clearInterval(LIVE.timer);
+  dpClose(); if (KPOP.key) kpopClose(); if (S.openPost) closeDrawer();
+  const at = info && info.at ? new Date(info.at) : new Date(), N = 10;
+  MODAL.kick = true;
+  modalOpen(`<div class="kick" style="--n:${N}s">
+    <div class="kick-top">${peng('kick-peng', 76)}<div class="kick-ring" role="timer" aria-live="off"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" class="kr-bg"/><circle cx="32" cy="32" r="28" class="kr-fg" pathLength="100"/></svg><b id="kick-n">${N}</b><small>วินาที</small></div></div>
+    <span class="kick-tag">${ic('lock', 13)} แจ้งเตือนความปลอดภัย</span>
+    <h2 id="modal-title">มีการลงชื่อเข้าใช้งานใหม่<br>ในอุปกรณ์หรือ Browser อื่น</h2>
+    <p class="kick-txt">จำเป็นต้องนำท่านออกจากระบบ หากท่านไม่ได้ดำเนินการ โปรดติดต่อ Admin เพื่อป้องกันข้อมูลสำคัญของหน่วยงาน</p>
+    <div class="kick-dev">${ic('eye', 14)}<span>อุปกรณ์ใหม่: <b>${esc(info && info.device || 'อุปกรณ์หรือเบราว์เซอร์อื่น')}</b> · <span style="white-space:nowrap">${at.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span></span></div>
+    <p class="kick-count" aria-live="polite">ระบบจะออกจากระบบอัตโนมัติใน <b id="kick-s">${N}</b> วินาที</p>
+    <div class="kick-bar"><span></span></div>
+    <div class="kick-acts"><button class="btn" data-act="kick-report">${ic('alert', 15)} ไม่ใช่ฉัน — แจ้ง Admin</button><button class="btn primary" data-act="kick-ok" data-focus>${ic('check', 15)} ใช่, ฉันเข้าสู่ระบบเอง</button></div>
+  </div>`, { locked: true });
+  let left = N;
+  SESS.cd = setInterval(() => { left--; const a = $('#kick-n'), b = $('#kick-s'); if (a) a.textContent = Math.max(0, left); if (b) b.textContent = Math.max(0, left); if (left <= 0) kickOut('auto'); }, 1000);
+}
+async function kickOut(why, btn) {
+  if (!SESS.shown) return; clearInterval(SESS.cd);
+  if (btn) { btn.classList.add('loading'); $$('.kick-acts .btn').forEach(b => b.disabled = true); }
+  if (why === 'report') { try { await API.sessionReport(); } catch (_) {} }
+  try { await API.logout(); } catch (_) {}
+  MODAL.kick = false; modalClose(true); SESS.shown = false;
+  A.notice = why === 'report' ? 'แจ้ง Admin เรียบร้อยแล้ว — ออกจากระบบแล้ว เพื่อความปลอดภัยแนะนำให้เข้าสู่ระบบใหม่ทันที (ระบบจะตัดการใช้งานจากอุปกรณ์อื่นออก) และติดต่อ Admin'
+    : 'ออกจากระบบแล้ว เนื่องจากบัญชีนี้เข้าสู่ระบบจากอุปกรณ์หรือ Browser อื่น';
+  A.noticeWarn = why === 'report';
+  showAuth();
+}
 /* หิมะโปรยเบาๆ ด้านหลังเนื้อหา (ปิดได้จากปุ่มเกล็ดหิมะที่แถบเมนู · ผู้ที่ตั้งค่าลดการเคลื่อนไหวจะไม่เห็น) */
 const snowOn = () => { try { return localStorage.getItem('psi_snow') !== '0'; } catch (_) { return true; } };
 function snowInit() {
@@ -623,7 +663,7 @@ function liveStart() {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && ME) { LIVE.next = 0; liveTick(); } });
 function startApp() {
-  snowInit(); liveStart();
+  snowInit(); liveStart(); sessStart();
   root().innerHTML = `<div class="app"><aside class="side" id="side"></aside><main><div class="topbar" id="topbar"></div><div id="view" class="view"></div></main><div id="fab-slot"></div></div>`;
   renderSide(); renderTop(); renderView('enter');
 }
@@ -2528,6 +2568,8 @@ document.addEventListener('click', async e => {
     case 'sa-er': S.sa.er = v; renderView('soft'); break;
     case 'sa-obj': S.sa.obj = v; renderView('soft'); break;
     case 'sa-kpi': kpopOpen(v); break;
+    case 'kick-ok': kickOut('self', el); break;
+    case 'kick-report': kickOut('report', el); break;
     case 'snow': { const on = !snowOn(); try { localStorage.setItem('psi_snow', on ? '1' : '0'); } catch (_) {} document.body.classList.toggle('no-snow', !on); renderSide(); toast(on ? 'เปิดหิมะตกแล้ว ❄' : 'ปิดหิมะตกแล้ว', 'info'); break; }
     case 'kpop-close': kpopClose(); break;
     case 'kpop-fx': kpopFx(el); break;
@@ -2658,7 +2700,7 @@ document.addEventListener('input', e => {
   if (k === 'fx-link') { S.fx.link = t.value; const pl = $('#fx-pl'); if (pl) pl.innerHTML = fxPlIcon(t.value); }
 });
 document.addEventListener('keydown', e => { if (DP.open && e.key === 'Enter' && e.target.closest && e.target.closest('#dp input')) { e.preventDefault(); dpApply(); return; } if (e.key === 'Escape') { if (DP.open) { dpClose(); const b = $('.date-btn'); if (b) b.focus(); return; } if ($('#modal.on')) { e.preventDefault(); modalClose(); return; } if (KPOP.key) { kpopClose(); return; } if (S.openPost) closeDrawer(); } });
-window.addEventListener('beforeunload', e => { if (MODAL.locked) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (MODAL.locked && !MODAL.kick) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target;
   if (f.id === 'f-email') return submitEmail($('#au-email').value);

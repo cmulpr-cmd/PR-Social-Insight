@@ -552,6 +552,80 @@ function startApp() {
   root().innerHTML = `<div class="app"><aside class="side" id="side"></aside><main><div class="topbar" id="topbar"></div><div id="view" class="view"></div></main><div id="fab-slot"></div></div>`;
   renderSide(); renderTop(); renderView('enter');
 }
+/* ================= หน้าต่างโหลดข้อมูลเต็มจอ (หนังสือ + มือถือ + ไอคอนโซเชียล) ================= */
+const LD_MSG = ['กำลังโหลดข้อมูลจากฐานลึกลับ…', 'กำลังเปิดสมุดบันทึกของเพจ…', 'กำลังนับหัวใจทีละดวง…', 'กำลังเรียงโพสต์ตามวันเวลา…', 'กำลังรวบรวมความคิดเห็น…', 'กำลังคำนวณการมีส่วนร่วม…', 'กำลังจัดหน้าให้สวยที่สุด…'];
+function graphemes(t) {
+  try { if (window.Intl && Intl.Segmenter) return [...new Intl.Segmenter('th', { granularity: 'grapheme' }).segment(t)].map(x => x.segment); } catch (_) {}
+  const out = []; Array.from(t).forEach(ch => { if (out.length && /[ัิ-ฺ็-๎̀-ͯ]/.test(ch)) out[out.length - 1] += ch; else out.push(ch); }); return out;
+}
+const LOADER_ART = `<svg class="ld-art" viewBox="0 0 320 250" aria-hidden="true">
+  <defs>
+    <radialGradient id="ldGlow" cx="50%" cy="55%" r="50%"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></radialGradient>
+    <linearGradient id="ldScreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b5cc7"/><stop offset="1" stop-color="#4a1f73"/></linearGradient>
+    <linearGradient id="ldPage" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#ece6f4"/></linearGradient>
+  </defs>
+  <circle cx="160" cy="130" r="118" fill="url(#ldGlow)"/>
+  <circle class="ld-orbit" cx="160" cy="118" r="96" fill="none" stroke="var(--accent)" stroke-opacity=".22" stroke-width="1.5" stroke-dasharray="3 9"/>
+  <g class="ld-spark" style="--d:0s"><path d="M52 70l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="var(--gold)"/></g>
+  <g class="ld-spark" style="--d:.8s"><path d="M268 58l2.4 5.6 5.6 2.4-5.6 2.4-2.4 5.6-2.4-5.6-5.6-2.4 5.6-2.4z" fill="var(--accent-2)"/></g>
+  <g class="ld-spark" style="--d:1.5s"><path d="M276 168l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="var(--gold)"/></g>
+  <!-- หนังสือ -->
+  <g class="ld-book">
+    <path d="M60 196 Q110 180 160 196 L160 232 Q110 216 60 232 Z" fill="var(--accent)" opacity=".9"/>
+    <path d="M260 196 Q210 180 160 196 L160 232 Q210 216 260 232 Z" fill="var(--accent)" opacity=".75"/>
+    <path d="M66 190 Q112 176 158 190 L158 226 Q112 212 66 226 Z" fill="url(#ldPage)" stroke="var(--line-2)" stroke-width=".8"/>
+    <path d="M254 190 Q208 176 162 190 L162 226 Q208 212 254 226 Z" fill="url(#ldPage)" stroke="var(--line-2)" stroke-width=".8"/>
+    <g stroke="var(--line-2)" stroke-width="1.2" stroke-linecap="round"><path d="M80 198 Q110 190 144 198"/><path d="M80 206 Q110 198 144 206"/><path d="M176 198 Q206 190 240 198"/><path d="M176 206 Q206 198 240 206"/></g>
+    <path class="ld-page" d="M162 190 Q208 176 254 190 L254 226 Q208 212 162 226 Z" fill="#fff" stroke="var(--line-2)" stroke-width=".8"/>
+    <path class="ld-page p2" d="M162 190 Q208 176 254 190 L254 226 Q208 212 162 226 Z" fill="#faf7fd" stroke="var(--line-2)" stroke-width=".8"/>
+  </g>
+  <!-- มือถือ -->
+  <g class="ld-phone">
+    <rect x="124" y="46" width="72" height="128" rx="14" fill="#1c1823"/>
+    <rect x="129" y="52" width="62" height="116" rx="10" fill="url(#ldScreen)"/>
+    <rect x="150" y="56" width="20" height="4" rx="2" fill="#1c1823"/>
+    <circle cx="142" cy="74" r="6" fill="#fff" opacity=".9"/><rect x="152" y="70" width="28" height="3.5" rx="1.75" fill="#fff" opacity=".85"/><rect x="152" y="76" width="18" height="3" rx="1.5" fill="#fff" opacity=".5"/>
+    <g class="ld-bars"><rect class="b1" x="138" y="104" width="9" height="48" rx="2" fill="#fff" opacity=".95"/><rect class="b2" x="151" y="104" width="9" height="48" rx="2" fill="var(--gold)"/><rect class="b3" x="164" y="104" width="9" height="48" rx="2" fill="#fff" opacity=".75"/><rect class="b4" x="177" y="104" width="9" height="48" rx="2" fill="#e0679a"/></g>
+    <path class="ld-line" d="M136 100 L150 92 L163 97 L178 84 L186 88" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+  </g>
+  <!-- ไอคอนที่เด้งออกจากมือถือ -->
+  <g class="ld-pop" style="--x:-92px;--y:-58px;--d:0s"><circle r="15" fill="#e34948"/><path d="M0 5.5c-5-3.6-8-6.2-8-9.2 0-2.4 1.8-4.2 4-4.2 1.7 0 3 1 4 2.4 1-1.4 2.3-2.4 4-2.4 2.2 0 4 1.8 4 4.2 0 3-3 5.6-8 9.2z" fill="#fff"/></g>
+  <g class="ld-pop" style="--x:94px;--y:-64px;--d:.55s"><circle r="15" fill="var(--fb)"/><path d="M-7-6h14a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H-1l-5 4v-4h-1a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3z" fill="#fff"/></g>
+  <g class="ld-pop" style="--x:-104px;--y:12px;--d:1.1s"><circle r="13" fill="var(--lineoa)"/><path d="M-5 1l3 3 7-7" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g class="ld-pop" style="--x:104px;--y:6px;--d:1.65s"><circle r="13" fill="var(--ig)"/><path d="M-6 2l4-4 3 3 5-6M4-5h3v3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g class="ld-pop" style="--x:-40px;--y:-92px;--d:2.2s"><circle r="12" fill="var(--tt)"/><path d="M-6 0c2.5-4 9.5-4 12 0-2.5 4-9.5 4-12 0z" fill="none" stroke="#fff" stroke-width="2"/><circle r="2" fill="#fff"/></g>
+  <g class="ld-pop" style="--x:46px;--y:-96px;--d:2.75s"><circle r="12" fill="var(--gold)"/><path d="M0-6l1.8 3.8 4.2.5-3.1 2.9.8 4.1L0 3.3-3.7 5.3l.8-4.1-3.1-2.9 4.2-.5z" fill="#fff"/></g>
+</svg>`;
+function loaderShow(title) {
+  let el = $('#loader'); if (!el) { el = document.createElement('div'); el.id = 'loader'; document.body.appendChild(el); }
+  const name = CFG.APP_NAME || APP_NAME;
+  el.className = 'ld-wrap'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+  el.innerHTML = `<div class="ld-bd"></div><div class="ld-card">
+    <div class="ld-stage">${LOADER_ART}</div>
+    <h1 class="ld-name" aria-label="${esc(name)}">${graphemes(name).map((g, i) => `<span style="--i:${i}">${g === ' ' ? '&nbsp;' : esc(g)}</span>`).join('')}</h1>
+    <p class="ld-org">${esc(title || CFG.ORG_NAME || '')}</p>
+    <div class="ld-meter"><div class="ld-pct"><b id="ld-n">0</b><span>%</span></div><div class="ld-bar"><span id="ld-bar"></span></div><p class="ld-msg" id="ld-msg">${LD_MSG[0]}</p></div>
+  </div>`;
+  document.body.classList.add('modal-open'); void el.offsetWidth; el.classList.add('on');
+  let shown = 0, floor = 0, ceil = 0, raf = 0, alive = true, mi = 0;
+  const paint = () => { const n = $('#ld-n'), b = $('#ld-bar'); if (n) n.textContent = Math.floor(shown); if (b) b.style.width = shown.toFixed(2) + '%'; };
+  const tick = () => { if (!alive) return; if (shown < floor) shown = Math.min(floor, shown + Math.max(.8, (floor - shown) * .16)); else if (shown < ceil) shown += Math.max(.02, (ceil - shown) * .012); paint(); raf = requestAnimationFrame(tick); };
+  tick();
+  const msgT = setInterval(() => { const m = $('#ld-msg'); if (!m) return; mi = (mi + 1) % LD_MSG.length; m.classList.remove('in'); void m.offsetWidth; m.textContent = LD_MSG[mi]; m.classList.add('in'); }, 2300);
+  const t0 = Date.now();
+  return {
+    at(p, next) { floor = Math.max(floor, p); ceil = Math.max(floor, Math.min(97, next == null ? p : p + (next - p) * .95)); },
+    text(t) { clearInterval(msgT); const m = $('#ld-msg'); if (m) { m.classList.remove('in'); void m.offsetWidth; m.textContent = t; m.classList.add('in'); } },
+    async done(minMs = 1500) {
+      const left = minMs - (Date.now() - t0); if (left > 0) { this.at(floor, 97); await wait(left); }
+      floor = ceil = 100; await new Promise(r => { const chk = () => shown >= 99.9 ? r() : setTimeout(chk, 30); chk(); });
+      clearInterval(msgT); const m = $('#ld-msg'); if (m) { m.textContent = 'พร้อมแล้ว!'; m.classList.add('ok'); }
+      await wait(380); alive = false; cancelAnimationFrame(raf);
+    },
+    close() { alive = false; cancelAnimationFrame(raf); clearInterval(msgT); el.classList.add('leaving'); el.classList.remove('on'); document.body.classList.remove('modal-open'); setTimeout(() => { if (!el.classList.contains('on')) el.remove(); }, 650); },
+    fail() { alive = false; cancelAnimationFrame(raf); clearInterval(msgT); el.remove(); document.body.classList.remove('modal-open'); }
+  };
+}
 function renderSkeleton() {
   root().innerHTML = `<div class="app"><aside class="side"><div class="brand">${brandMark()}<div><b>${esc(APP_NAME)}</b><small>กำลังโหลด…</small></div></div>${[1, 2, 3, 4, 5].map(() => '<div class="sk" style="height:34px"></div>').join('')}</aside>
    <main><div class="sk-wrap"><div class="sk" style="height:32px;width:280px"></div><div class="sk" style="height:38px;width:min(640px,100%)"></div><div class="sk" style="height:104px"></div><div class="grid-3"><div class="sk" style="height:150px"></div><div class="sk" style="height:150px"></div><div class="sk" style="height:150px"></div></div><div class="sk" style="height:300px"></div></div></main></div>`;
@@ -1955,13 +2029,13 @@ async function syncPostIds(ids, btn, label) {
   finally { if (btn && document.body.contains(btn)) { btn.disabled = false; btn.classList.remove('busy'); btn.innerHTML = orig; } }
 }
 async function refreshAll(btn) {
+  const L = loaderShow('อัปเดตข้อมูลล่าสุด'); L.at(3, 45);
   try {
-    await busy(btn, async () => {
-      if (PKEYS.some(p => conn(p).connected)) { try { await API.syncFollowers(); } catch (e) { if (e.code === 'unauthorized') throw e; } }
-      load(await API.bootstrap());
-    });
-    renderSide(); renderTop(); renderView('soft'); toast('อัปเดตข้อมูลล่าสุดแล้ว', 'info');
-  } catch (_) {}
+    if (PKEYS.some(p => conn(p).connected)) { L.text('กำลังดึงยอดผู้ติดตามล่าสุดจากแพลตฟอร์ม…'); try { await API.syncFollowers(); } catch (e) { if (e.code === 'unauthorized') throw e; } }
+    L.at(50, 92); L.text('กำลังโหลดข้อมูลจากฐานลึกลับ…');
+    load(await API.bootstrap());
+    await L.done(1200); renderSide(); renderTop(); renderView('soft'); L.close(); toast('อัปเดตข้อมูลล่าสุดแล้ว', 'info');
+  } catch (e) { L.fail(); handleErr(e); }
 }
 
 /* ================= integrations ================= */
@@ -2482,8 +2556,10 @@ async function boot() {
   if (!window.API) { showSetup(); return; }
   if (API.hasToken()) {
     renderSkeleton();
-    try { const d = await API.bootstrap(); load(d); startApp(); }
+    const L = loaderShow(); L.at(4, 88);
+    try { const d = await API.bootstrap(); L.at(92, 97); load(d); await L.done(); startApp(); L.close(); }
     catch (e) {
+      L.fail();
       if (e.code === 'unauthorized' || e.code === 'forbidden') { showAuth(); return; }
       root().innerHTML = `<div class="fatal"><div class="fatal-card"><h2>เชื่อมต่อข้อมูลไม่สำเร็จ</h2><p class="muted">${esc(e.message)}</p><div style="display:flex;gap:8px"><button class="btn primary" onclick="location.reload()">ลองอีกครั้ง</button><button class="btn" id="to-login">เข้าสู่ระบบใหม่</button></div></div></div>`;
       $('#to-login').onclick = () => { try { localStorage.removeItem('psi_token'); } catch (_) {} showAuth(); };

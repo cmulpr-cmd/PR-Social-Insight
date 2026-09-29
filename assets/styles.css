@@ -1033,3 +1033,59 @@ details.help.alt summary{color:var(--ink-2)}
 [data-count].cu-done{animation:cu-pop .5s var(--spring)}
 @keyframes cu-pop{0%{transform:translateY(-1px) scale(1.035);opacity:.9}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){[data-count].cu-done{animation:none}}
+
+/* ============ หน้าต่างโหลดข้อมูลเต็มจอ ============ */
+.ld-wrap{position:fixed;inset:0;z-index:400;display:block}
+.ld-bd{position:absolute;inset:0;background:rgba(26,11,43,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);opacity:0;transition:opacity .4s var(--ease)}
+.ld-wrap.on .ld-bd{opacity:1}
+.ld-card{position:absolute;inset:max(12px,3vh) max(12px,3vw);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;
+  background:radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,var(--accent) 10%,var(--surface)) 0%,var(--surface) 55%),var(--surface);
+  border:1px solid var(--line);box-shadow:0 40px 100px -30px rgba(20,10,32,.55);
+  opacity:0;transform:translateY(24px) scale(.94);transition:opacity .45s var(--ease),transform .7s var(--spring),filter .5s var(--ease)}
+.ld-card::before,.ld-card::after{content:"";position:absolute;border-radius:50%;filter:blur(60px);opacity:.35;pointer-events:none}
+.ld-card::before{width:360px;height:360px;left:-120px;bottom:-140px;background:var(--accent-2);animation:ld-blob 9s ease-in-out infinite alternate}
+.ld-card::after{width:300px;height:300px;right:-100px;top:-120px;background:var(--gold);opacity:.22;animation:ld-blob 11s ease-in-out infinite alternate-reverse}
+.ld-wrap.on .ld-card{opacity:1;transform:none}
+.ld-wrap.leaving .ld-card{opacity:0;transform:scale(1.04);filter:blur(6px)}
+.ld-wrap.leaving .ld-bd{opacity:0}
+.ld-stage{position:relative;z-index:1;width:min(440px,82vw)}
+.ld-art{width:100%;height:auto;overflow:visible;display:block}
+.ld-art *{transform-box:fill-box}
+.ld-orbit{transform-box:view-box;transform-origin:160px 118px;animation:ld-spin 18s linear infinite}
+.ld-phone{animation:ld-float 3.2s ease-in-out infinite}
+.ld-bars rect{transform-origin:50% 100%;animation:ld-bar 2.4s var(--ease) infinite}
+.ld-bars .b1{--h:.45;animation-delay:0s}.ld-bars .b2{--h:.85;animation-delay:.15s}.ld-bars .b3{--h:.62;animation-delay:.3s}.ld-bars .b4{--h:1;animation-delay:.45s}
+.ld-line{stroke-dasharray:1;stroke-dashoffset:1;animation:ld-draw 2.4s var(--ease) infinite}
+.ld-page{transform-origin:0% 50%;animation:ld-flip 3.2s cubic-bezier(.55,.1,.35,1) infinite}
+.ld-page.p2{animation-delay:1.6s}
+.ld-pop{transform-box:view-box;transform:translate(160px,112px) scale(.2);opacity:0;animation:ld-pop 3.3s cubic-bezier(.2,.9,.3,1.2) infinite;animation-delay:var(--d)}
+.ld-spark{transform-origin:50% 50%;animation:ld-twinkle 2.2s ease-in-out infinite;animation-delay:var(--d)}
+.ld-name{position:relative;z-index:1;margin:6px 0 0;font-family:var(--f-display);font-size:clamp(24px,4.2vw,42px);font-weight:700;line-height:1.25;display:flex;flex-wrap:wrap;justify-content:center}
+.ld-name span{display:inline-block;background:linear-gradient(135deg,var(--accent) 10%,#e0679a 60%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
+  opacity:0;transform:translateY(22px) scale(.4) rotate(-8deg);
+  animation:ld-letter .7s var(--spring) forwards,ld-wave 2.8s ease-in-out infinite;animation-delay:calc(var(--i) * 55ms + 250ms),calc(var(--i) * 90ms + 1.6s)}
+.ld-org{position:relative;z-index:1;margin:0;color:var(--ink-3);font-size:14px;opacity:0;animation:ld-fade .6s var(--ease) .9s forwards}
+.ld-meter{position:relative;z-index:1;width:min(420px,84vw);margin-top:18px;opacity:0;animation:ld-fade .6s var(--ease) .5s forwards}
+.ld-pct{display:flex;align-items:baseline;justify-content:center;gap:2px;font-family:var(--f-display);font-variant-numeric:tabular-nums;margin-bottom:10px}
+.ld-pct b{font-size:clamp(40px,6vw,58px);font-weight:700;line-height:1;color:var(--accent)}
+.ld-pct span{font-size:20px;font-weight:600;color:var(--ink-3)}
+.ld-bar{height:12px;border-radius:99px;background:color-mix(in srgb,var(--accent) 12%,var(--surface-2));overflow:hidden}
+.ld-bar span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),#e0679a,var(--gold),var(--accent));background-size:300% 100%;animation:m-flow 2.6s linear infinite;position:relative;overflow:hidden}
+.ld-bar span::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.5) 50%,transparent 80%);transform:translateX(-100%);animation:m-shine 1.5s var(--ease) infinite}
+.ld-msg{margin:12px 0 0;font-size:14px;color:var(--ink-2);min-height:1.6em}
+.ld-msg.in{animation:ld-msg .5s var(--ease)}
+.ld-msg.ok{color:var(--good);font-weight:600}
+@keyframes ld-spin{to{transform:rotate(360deg)}}
+@keyframes ld-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes ld-bar{0%,100%{transform:scaleY(.18)}50%{transform:scaleY(var(--h))}}
+@keyframes ld-draw{0%{stroke-dashoffset:1}55%,80%{stroke-dashoffset:0}100%{stroke-dashoffset:-1}}
+@keyframes ld-flip{0%,8%{transform:scaleX(1);opacity:1}45%{transform:scaleX(-1);opacity:1}60%,100%{transform:scaleX(-1);opacity:0}}
+@keyframes ld-pop{0%{transform:translate(160px,112px) scale(.2);opacity:0}14%{opacity:1}52%{transform:translate(calc(160px + var(--x)),calc(112px + var(--y))) scale(1);opacity:1}82%{opacity:1}100%{transform:translate(calc(160px + var(--x) * 1.14),calc(112px + var(--y) * 1.14 - 14px)) scale(.85);opacity:0}}
+@keyframes ld-twinkle{0%,100%{transform:scale(.6) rotate(0);opacity:.4}50%{transform:scale(1.15) rotate(45deg);opacity:1}}
+@keyframes ld-letter{0%{opacity:0;transform:translateY(22px) scale(.4) rotate(-8deg)}70%{opacity:1;transform:translateY(-6px) scale(1.12) rotate(2deg)}100%{opacity:1;transform:none}}
+@keyframes ld-wave{0%,100%{translate:0 0}50%{translate:0 -5px}}
+@keyframes ld-fade{to{opacity:1}}
+@keyframes ld-msg{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ld-blob{from{transform:translate(0,0) scale(1)}to{transform:translate(60px,-40px) scale(1.2)}}
+@media (max-width:640px){.ld-card{inset:8px;border-radius:22px}}
+@media (prefers-reduced-motion:reduce){.ld-art *,.ld-name span,.ld-card::before,.ld-card::after{animation:none!important;opacity:1}.ld-pop{opacity:0}.ld-name span{transform:none}}

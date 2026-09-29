@@ -57,6 +57,8 @@ const ROLES = { 'Super Admin': { menus: MENUS.map(m => m.k), platforms: PKEYS },
 const AGES = ['13–17', '18–24', '25–34', '35–44', '45–54', '55+'];
 
 const ICON = {
+  alert: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  snow: '<path d="M12 2v20M4.9 6l14.2 12M4.9 18 19.1 6"/><path d="m9.5 3.5 2.5 2 2.5-2M9.5 20.5l2.5-2 2.5 2M3.3 9.6l3.1.8-.9 3M20.7 14.4l-3.1-.8.9-3M3.3 14.4l3.1-.8-.9-3M20.7 9.6l-3.1.8.9 3"/>',
   strategy: '<path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><circle cx="12" cy="12" r="2"/><path d="m13.5 10.5 7-7M17 3.5h3.5V7"/>',
   dashboard: '<path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/>',
   posts: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
@@ -142,6 +144,16 @@ function range() {
   if (p === 'day') from = t; else if (p === 'week') from = t - 6 * DAY; else if (p === 'month') from = t - 29 * DAY; else if (p === 'year') from = t - 364 * DAY;
   else if (p === 'all') { const ts = DB.posts.map(x => x.at).concat((DB.daily || []).map(x => x._t)); from = ts.length ? sod(Math.min(...ts)) : t - 29 * DAY; }
   else { from = S.f.from ? parseISO(S.f.from) : t - 29 * DAY; to = S.f.to ? parseISO(S.f.to) + DAY : end; if (to <= from) to = from + DAY; }
+  // เลือกปีปฏิทิน / เดือนปฏิทิน จากแถบด้านล่างตัวกรอง — ช่วงก่อนหน้าคือปี/เดือนก่อนหน้า (ยาวเท่ากัน ถ้าเป็นปี/เดือนปัจจุบันเทียบถึงวันเดียวกัน)
+  const pk = S.f.pick;
+  if (pk && ((p === 'year' && pk.y != null && pk.m == null) || (p === 'month' && pk.y != null && pk.m != null))) {
+    const Y = pk.y, M = pk.m;
+    from = p === 'year' ? new Date(Y, 0, 1).getTime() : new Date(Y, M, 1).getTime();
+    const full = p === 'year' ? new Date(Y + 1, 0, 1).getTime() : new Date(Y, M + 1, 1).getTime();
+    to = Math.min(full, end); if (to <= from) to = from + DAY;
+    const pf = p === 'year' ? new Date(Y - 1, 0, 1).getTime() : new Date(Y, M - 1, 1).getTime();
+    return { from, to, pf, pt: Math.min(from, pf + (to - from)), hasPrev: true, cal: p };
+  }
   const len = to - from; return { from, to, pf: from - len, pt: from, hasPrev: p !== 'all' };
 }
 function rangeText(r) { const a = fdate(r.from), b = fdate(r.to - 1); return a === b ? a : `${fds(r.from)} – ${b}`; }
@@ -225,7 +237,12 @@ function lineChart(el, cfg, animate) {
   hit.addEventListener('pointerleave', () => { tip.classList.remove('on'); xh.style.opacity = 0; svg.querySelectorAll('.hd').forEach(c => c.style.opacity = 0); });
 }
 const drawChart = (el, cfg, animate) => (cfg.type === 'bar' ? vbarChart : lineChart)(el, cfg, animate);
-function mountChart(id, cfg, animate) { const el = document.getElementById(id); if (!el) return; charts = charts.filter(c => c.el !== el); charts.push({ el, cfg }); drawChart(el, cfg, animate); }
+function mountChart(id, cfg, animate) {
+  const el = document.getElementById(id); if (!el) return;
+  const old = charts.find(c => c.el === el), sig = JSON.stringify(cfg);
+  if (SILENT) { if (old && old.sig === sig && el.firstChild) return; animate = false; }
+  charts = charts.filter(c => c.el !== el); charts.push({ el, cfg, sig }); drawChart(el, cfg, animate);
+}
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => charts.forEach(c => { if (document.body.contains(c.el)) drawChart(c.el, c.cfg, false); }), 150); });
 function barList(items, o = {}) {
   if (!items.length) return `<div class="empty">ยังไม่มีข้อมูลในช่วงนี้</div>`;
@@ -245,7 +262,7 @@ function spark(vals, color, W = 120, H = 34) {
   return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${color};stop-opacity:.25"/><stop offset="1" style="stop-color:${color};stop-opacity:0"/></linearGradient></defs><path class="area-fade" d="${d}L${lp[0]} ${H}L${pts[0][0]} ${H}Z" fill="url(#${gid})"/><path class="line-draw" pathLength="1" d="${d}" style="fill:none;stroke:${color};stroke-width:2;stroke-linecap:round"/><circle cx="${lp[0]}" cy="${lp[1]}" r="3" style="fill:${color};stroke:var(--surface);stroke-width:1.5"/></svg>`;
 }
 function emptyState(title, text, action) {
-  return `<div class="empty-state"><svg viewBox="0 0 124 92" width="124" height="92" aria-hidden="true"><rect x="16" y="22" width="72" height="54" rx="12" style="fill:var(--surface-2);stroke:var(--line-2)"/><rect x="34" y="12" width="72" height="54" rx="12" style="fill:var(--surface);stroke:var(--line-2)"/><path d="M46 50l10-12 8 8 10-13 14 17" style="fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"/><circle cx="52" cy="28" r="4" style="fill:var(--accent-2)"/><path d="M104 10l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" style="fill:var(--gold)"/></svg><b>${title}</b><p>${text}</p>${action ? `<div class="btns">${action}</div>` : ''}</div>`;
+  return `<div class="empty-state"><div class="es-art" aria-hidden="true"><span class="es-snow s1">❄</span><span class="es-snow s2">❄</span><span class="es-mound"></span>${peng('es-peng', 84)}</div><b>${title}</b><p>${text}</p>${action ? `<div class="btns">${action}</div>` : ''}</div>`;
 }
 function ago(ms) {
   if (!ms) return '—'; const s = (Date.now() - ms) / 1000;
@@ -359,7 +376,7 @@ function countUp(scope) {
 /* เฝ้าดูทุกครั้งที่มีตัวเลขใหม่ถูกวาดบนหน้า (สลับหน้า ตัวกรอง แท็บ ลิ้นชักโพสต์ ป๊อปอัป) แล้วเล่นแอนิเมชันให้อัตโนมัติ */
 const CU_Q = { set: new Set(), raf: 0 };
 const cuObs = new MutationObserver(ms => {
-  ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) CU_Q.set.add(n); }));
+  ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1 && !n._silent) CU_Q.set.add(n); }));
   if (!CU_Q.raf && CU_Q.set.size) CU_Q.raf = requestAnimationFrame(() => { CU_Q.raf = 0; const list = [...CU_Q.set]; CU_Q.set.clear(); list.filter(n => !list.some(o => o !== n && o.contains(n))).forEach(n => countUp(n)); });
 });
 if (document.body) cuObs.observe(document.body, { childList: true, subtree: true });
@@ -548,77 +565,200 @@ async function runChecks(code) {
 /* =====================================================================
    APP SHELL
    ===================================================================== */
+/* หิมะโปรยเบาๆ ด้านหลังเนื้อหา (ปิดได้จากปุ่มเกล็ดหิมะที่แถบเมนู · ผู้ที่ตั้งค่าลดการเคลื่อนไหวจะไม่เห็น) */
+const snowOn = () => { try { return localStorage.getItem('psi_snow') !== '0'; } catch (_) { return true; } };
+function snowInit() {
+  let w = $('#snowfall'); if (!w) { w = document.createElement('div'); w.id = 'snowfall'; w.setAttribute('aria-hidden', 'true'); document.body.prepend(w);
+    w.innerHTML = Array.from({ length: 34 }, (_, i) => { const r = (n => (Math.sin(i * 97.13 + n) + 1) / 2); return `<i style="--x:${(r(1) * 100).toFixed(2)}vw;--s:${(3 + r(2) * 6).toFixed(1)}px;--d:${(11 + r(3) * 14).toFixed(1)}s;--dl:-${(r(4) * 25).toFixed(1)}s;--sw:${(10 + r(5) * 40).toFixed(0)}px;--o:${(.35 + r(6) * .55).toFixed(2)}"></i>`; }).join(''); }
+  document.body.classList.toggle('no-snow', !snowOn());
+}
+/* ================= รีเฟรชข้อมูลเบื้องหลังแบบเงียบ =================
+   ทุก 3 วินาที ถามฐานข้อมูลว่า “เวอร์ชันข้อมูล” เปลี่ยนไหม (คำขอเล็กมาก) — ไม่เปลี่ยนก็ไม่ทำอะไร
+   ถ้าเปลี่ยน โหลดข้อมูลใหม่ แล้วแก้ DOM เฉพาะจุดที่ต่าง ไม่มีหน้าโหลด ไม่กระพริบ ไม่เลื่อนหน้า และไม่รบกวนคนที่กำลังพิมพ์ */
+const LIVE = { v: null, busy: false, timer: 0, fails: 0, next: 0, sig: '' };
+const liveSig = d => { try { return JSON.stringify([d.posts, d.audience, d.followers, d.daily, d.users, d.connections, d.user]); } catch (_) { return String(Math.random()); } };
+function liveBusy() {
+  const a = document.activeElement;
+  if (MODAL.locked || $('#modal.on') || $('#loader') || DP.open) return true;
+  if (a && a !== document.body && a.matches && a.matches('input, textarea, select, [contenteditable]') && !a.closest('#kpop')) return true;
+  return false;
+}
+async function liveTick() {
+  if (!ME || !API || !API.version || LIVE.busy || document.hidden || Date.now() < LIVE.next) return;
+  LIVE.busy = true;
+  try {
+    const r = await API.version(); const v = r && r.v != null ? String(r.v) : null;
+    if (v == null) return;
+    if (LIVE.v == null) { LIVE.v = v; return; }
+    if (v === LIVE.v) return;
+    if (liveBusy()) return;                                   // ไว้รอบถัดไปเมื่อผู้ใช้ว่าง
+    const d = await API.bootstrap();
+    if (liveBusy() || !ME) return;
+    LIVE.v = v; LIVE.fails = 0;
+    const sig = liveSig(d); if (sig === LIVE.sig) return; LIVE.sig = sig;
+    applySilent(d);
+  } catch (e) {
+    LIVE.fails++; LIVE.next = Date.now() + Math.min(60000, 3000 * Math.pow(2, Math.min(LIVE.fails, 5)));   // เงียบไว้ แล้วค่อยลองใหม่ห่างขึ้น
+    if (e && e.code === 'unauthorized') LIVE.next = Date.now() + 3600e3;
+  } finally { LIVE.busy = false; }
+}
+function applySilent(d) {
+  const page0 = S.page, openP = S.openPost, loadedAt = DB.loadedAt;
+  load(d); DB.loadedAt = loadedAt;
+  SILENT = true;
+  try {
+    renderSide();
+    if (S.page !== page0) { SILENT = false; renderTop(); renderView('fade'); return; }
+    renderTop(); renderFab();
+    if (!['add', 'connect'].includes(S.page)) renderView('silent');
+    if (openP) { if (DB.posts.some(p => p.id === openP)) renderDrawer(false); else closeDrawer(); }
+    if (KPOP.key) kpopRefresh();
+  } catch (e) { console.warn('silent refresh', e); }
+  finally { SILENT = false; }
+}
+function liveStart() {
+  clearInterval(LIVE.timer); LIVE.v = null; LIVE.fails = 0; LIVE.next = 0;
+  LIVE.sig = liveSig({ posts: DB.posts, audience: DB.audience, followers: DB.followers, daily: (DB.daily || []).map(x => { const y = Object.assign({}, x); delete y._t; return y; }), users: DB.users, connections: DB.connections, user: ME });
+  LIVE.timer = setInterval(liveTick, 3000); liveTick();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ME) { LIVE.next = 0; liveTick(); } });
 function startApp() {
+  snowInit(); liveStart();
   root().innerHTML = `<div class="app"><aside class="side" id="side"></aside><main><div class="topbar" id="topbar"></div><div id="view" class="view"></div></main><div id="fab-slot"></div></div>`;
   renderSide(); renderTop(); renderView('enter');
 }
+/* ================= มาสคอตเพนกวิน (วาดใหม่เป็นเวกเตอร์ของระบบเอง: หมวกไหมพรมม่วง ผ้าพันคอชมพู) ================= */
+const PENG_G = `<g class="pg">
+  <ellipse class="pg-sh" cx="40" cy="76" rx="17" ry="2.6"/>
+  <ellipse cx="32" cy="73.2" rx="6.2" ry="2.8" fill="#f5a524"/><ellipse cx="48" cy="73.2" rx="6.2" ry="2.8" fill="#f5a524"/>
+  <path class="pg-fl pg-fl-l" d="M21 41c-6.5 3.5-10 11-9.4 17.6 4.6-.6 9.6-5.6 11-12z" fill="#2a2248"/>
+  <path class="pg-fl pg-fl-r" d="M59 41c6.5 3.5 10 11 9.4 17.6-4.6-.6-9.6-5.6-11-12z" fill="#2a2248"/>
+  <path class="pg-body" d="M40 13.5c-14 0-22 12-22 28.5v13.5c0 11 9 18 22 18s22-7 22-18V42c0-16.5-8-28.5-22-28.5z" fill="#2a2248"/>
+  <path d="M40 31c-8.6 0-13.6 7.6-13.6 16.4v7.6c0 7.6 5.8 12.6 13.6 12.6s13.6-5 13.6-12.6v-7.6C53.6 38.6 48.6 31 40 31z" fill="#fff"/>
+  <path d="M40 24.6c-3-3.6-7.8-4.6-11.6-2.4-4 2.8-4.2 8.8-1.2 12.6 3 3 8 4.2 12.8 3 4.8 1.2 9.8 0 12.8-3 3-3.8 2.8-9.8-1.2-12.6-3.8-2.2-8.6-1.2-11.6 2.4z" fill="#fff"/>
+  <g class="pg-eyes"><ellipse cx="34" cy="29.6" rx="2.6" ry="2.9" fill="#1b1530"/><ellipse cx="46" cy="29.6" rx="2.6" ry="2.9" fill="#1b1530"/><circle cx="35" cy="28.5" r=".9" fill="#fff"/><circle cx="47" cy="28.5" r=".9" fill="#fff"/></g>
+  <ellipse cx="29.2" cy="34.6" rx="3" ry="1.7" fill="#f59bbd" opacity=".8"/><ellipse cx="50.8" cy="34.6" rx="3" ry="1.7" fill="#f59bbd" opacity=".8"/>
+  <path d="M36.6 33.8h6.8l-3.4 4.1z" fill="#f5a524" stroke="#f5a524" stroke-width="1.3" stroke-linejoin="round"/>
+  <path d="M23.4 44.6c10.4 4.2 22.8 4.2 33.2 0l.4 5.4c-10.6 4.4-23.4 4.4-34 0z" fill="#e0679a"/>
+  <path d="M24 47.4c10.2 3.8 21.8 3.8 32 0" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.2" stroke-dasharray="3 2.4"/>
+  <path class="pg-tail" d="M49.5 49.5l4.6 11.2-6.4-.6-2.4-9.4z" fill="#c9508a"/>
+  <path d="M23.6 22.4c2-9.2 8.8-13.6 16.4-13.6s14.4 4.4 16.4 13.6c-10.6-3.2-22.2-3.2-32.8 0z" fill="#7b47bf"/>
+  <path d="M23 22.8c10.8-3.6 23.2-3.6 34 0l-.9 3.6c-10.4-3.2-21.8-3.2-32.2 0z" fill="#a47ae6"/>
+  <circle class="pg-pom" cx="40" cy="8.2" r="3.8" fill="#fff"/><circle cx="41.2" cy="9.2" r="2" fill="#e9e3f5"/>
+</g>`;
+const peng = (cls = '', size = 56) => `<svg class="peng ${cls}" viewBox="0 0 80 80" width="${size}" height="${size}" aria-hidden="true" focusable="false">${PENG_G}</svg>`;
+const PENG_PEEK = `<div class="pop-peng" aria-hidden="true">${peng('wave', 58)}</div>`;
 /* ================= หน้าต่างโหลดข้อมูลเต็มจอ (หนังสือ + มือถือ + ไอคอนโซเชียล) ================= */
 const LD_MSG = ['กำลังโหลดข้อมูลจากฐานลึกลับ…', 'กำลังเปิดสมุดบันทึกของเพจ…', 'กำลังนับหัวใจทีละดวง…', 'กำลังเรียงโพสต์ตามวันเวลา…', 'กำลังรวบรวมความคิดเห็น…', 'กำลังคำนวณการมีส่วนร่วม…', 'กำลังจัดหน้าให้สวยที่สุด…'];
 function graphemes(t) {
   try { if (window.Intl && Intl.Segmenter) return [...new Intl.Segmenter('th', { granularity: 'grapheme' }).segment(t)].map(x => x.segment); } catch (_) {}
   const out = []; Array.from(t).forEach(ch => { if (out.length && /[ัิ-ฺ็-๎̀-ͯ]/.test(ch)) out[out.length - 1] += ch; else out.push(ch); }); return out;
 }
-const ICO3 = {
-  heart: '<svg viewBox="-12 -12 24 24"><path d="M0 7c-6-4.4-9.6-7.6-9.6-11.2 0-2.9 2.2-5 4.8-5 2 0 3.6 1.2 4.8 2.9 1.2-1.7 2.8-2.9 4.8-2.9 2.6 0 4.8 2.1 4.8 5C9.6-.6 6 2.6 0 7z" fill="#fff"/></svg>',
-  cmt: '<svg viewBox="-12 -12 24 24"><path d="M-8-7h16a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H-1l-5 4.5V6h-2a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3z" fill="#fff"/><circle cx="-4" cy="-.5" r="1.4" fill="currentColor"/><circle cx="0" cy="-.5" r="1.4" fill="currentColor"/><circle cx="4" cy="-.5" r="1.4" fill="currentColor"/></svg>',
-  ok: '<svg viewBox="-12 -12 24 24"><path d="M-6 0l4 4 8-8.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  up: '<svg viewBox="-12 -12 24 24"><path d="M-8 5l6-6 4 4 7-8M4-5h5v5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  eye: '<svg viewBox="-12 -12 24 24"><path d="M-9 0c3.5-6 14.5-6 18 0-3.5 6-14.5 6-18 0z" fill="none" stroke="#fff" stroke-width="2.2"/><circle r="3" fill="#fff"/></svg>',
-  star: '<svg viewBox="-12 -12 24 24"><path d="M0-9l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L0 4.9l-5.4 2.9 1.1-6.1-4.5-4.3 6.1-.8z" fill="#fff"/></svg>'
-};
-const LOADER_ART = `<div class="l3-scene" aria-hidden="true">
-  <div class="l3-glow"></div>
-  <div class="l3-ring"><i></i><i></i><i></i></div>
-  <div class="l3-spark s1"></div><div class="l3-spark s2"></div><div class="l3-spark s3"></div><div class="l3-spark s4"></div>
-  <div class="l3-book">
-    <div class="bk-cover"></div>
-    <div class="bk-page left"></div><div class="bk-page right"></div>
-    <div class="bk-flip f1"><b></b><em></em></div><div class="bk-flip f2"><b></b><em></em></div><div class="bk-flip f3"><b></b><em></em></div>
-  </div>
-  <div class="l3-shadow"></div>
-  <div class="l3-phone"><div class="ph-back"></div><div class="ph-body">
-    <div class="ph-notch"></div>
-    <div class="ph-head"><i></i><span><b></b><b></b></span></div>
-    <svg class="ph-line" viewBox="0 0 64 22" preserveAspectRatio="none"><path d="M2 18 L16 10 L28 14 L44 4 L62 8" pathLength="1"/></svg>
-    <div class="ph-bars"><i style="--h:.45"></i><i style="--h:.85"></i><i style="--h:.6"></i><i style="--h:1"></i></div>
-    <div class="ph-likes"><span>${ICO3.heart}</span><b></b></div>
-  </div></div>
-  ${[['heart', '#e34948', -128, -70, 90, 0], ['cmt', 'var(--fb)', 124, -82, 70, .55], ['ok', 'var(--lineoa)', -140, 22, 50, 1.1], ['up', 'var(--ig)', 136, 10, 110, 1.65], ['eye', 'var(--tt)', -54, -128, 130, 2.2], ['star', 'var(--gold)', 60, -130, 80, 2.75]].map(([k, c, x, y, z, d]) => `<div class="l3-ic${k === 'heart' ? ' beat' : ''}" style="--c:${c};--x:${x}px;--y:${y}px;--z:${z}px;--d:${d}s"><div class="l3-ic-in">${ICO3[k]}</div></div>`).join('')}
-</div>`;
+/* ฉากโหลดแบบเวกเตอร์ (ถอดแบบจากงานออกแบบ Soft Wave) — ทุกชิ้นแยกเลเยอร์เพื่อขยับได้อิสระ
+   ใช้เทคนิค translate(cx cy) → animate → translate(-cx -cy) ให้หมุน/ย่อรอบจุดศูนย์กลางของชิ้นนั้นได้แม่นยำทุกเบราว์เซอร์ */
+const WV_STAR = 'M0-9C1-2.2 2.2-1 9 0 2.2 1 1 2.2 0 9-1 2.2-2.2 1-9 0-2.2-1-1-2.2 0-9z';
+const WV_HEART = 'M0 7c-6-4.4-9.6-7.6-9.6-11.2 0-2.9 2.2-5 4.8-5 2 0 3.6 1.2 4.8 2.9 1.2-1.7 2.8-2.9 4.8-2.9 2.6 0 4.8 2.1 4.8 5C9.6-.6 6 2.6 0 7z';
+const wvAt = (x, y, cls, inner, st = '') => `<g transform="translate(${x} ${y})"><g class="${cls}"${st ? ` style="${st}"` : ''}><g transform="translate(${-x} ${-y})">${inner}</g></g></g>`;
+const wvLayer = (d, inner) => `<g class="wv-p" style="--d:${d}">${inner}</g>`;
+const WV_PAGE_R = 'M372 293Q428 281 483 287L495 361Q433 355 372 364Z', WV_PAGE_L = 'M372 293Q316 281 261 287L249 361Q311 355 372 364Z';
+const wvLines = side => [301, 315, 329, 343].map((y, i) => side < 0 ? `<path d="M${266 - i * 3} ${y - 1}Q316 ${y - 5} 364 ${y + 1}"/>` : `<path d="M380 ${y + 1}Q428 ${y - 5} ${478 + i * 3} ${y - 1}"/>`).join('');
+const LOADER_ART = `<svg class="wv-art" viewBox="176 46 392 338" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="wv-glow" cx="50%" cy="46%" r="50%"><stop offset="0" stop-color="#b58be0" stop-opacity=".30"/><stop offset=".55" stop-color="#d9c6ef" stop-opacity=".14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="wv-scr" x1="0" y1="0" x2=".25" y2="1"><stop offset="0" stop-color="#9a6bdc"/><stop offset=".55" stop-color="#6b3aa8"/><stop offset="1" stop-color="#4a2180"/></linearGradient>
+    <linearGradient id="wv-cov" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8455c8"/><stop offset="1" stop-color="#5b2c98"/></linearGradient>
+    <linearGradient id="wv-pgr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ece5f4"/><stop offset=".18" stop-color="#fbf9fd"/><stop offset="1" stop-color="#fff"/></linearGradient>
+    <linearGradient id="wv-pgl" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ece5f4"/><stop offset=".18" stop-color="#fbf9fd"/><stop offset="1" stop-color="#fff"/></linearGradient>
+    <linearGradient id="wv-sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".32"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <clipPath id="wv-clip"><rect x="330.5" y="93.5" width="85" height="163" rx="13"/></clipPath>
+    <filter id="wv-soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="wv-drop" x="-40%" y="-20%" width="180%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#3b1a66" flood-opacity=".28"/></filter>
+    <filter id="wv-dot" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  ${wvLayer(3, `<circle class="wv-glow" cx="372" cy="200" r="168" fill="url(#wv-glow)"/>`)}
+  ${wvLayer(6, `<g class="wv-book">
+    <path d="M252 281H492L512 368H232Z" fill="url(#wv-cov)" stroke="#6f40b3" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M234 366H510L506 376Q372 382 238 376Z" fill="#4c2383"/>
+    <path d="${WV_PAGE_L}" fill="url(#wv-pgl)"/><path d="${WV_PAGE_R}" fill="url(#wv-pgr)"/>
+    <g class="wv-lines">${wvLines(-1)}${wvLines(1)}</g>
+    <path d="M372 293V364" stroke="#d9cde8" stroke-width="1.4"/>
+    ${[0, 1, 2].map(i => wvAt(372, 0, 'wv-flip f' + i, `<path d="${WV_PAGE_R}" class="wv-fp"/><g class="wv-lines">${wvLines(1)}</g>`)).join('')}
+  </g>`)}
+  ${wvLayer(10, wvAt(372, 228, 'wv-orbit', `<circle class="wv-ring" cx="372" cy="228" r="150"/>
+    <circle cx="372" cy="78" r="7" fill="#7b47bf" filter="url(#wv-dot)" class="wv-dot"/>
+    <circle cx="222" cy="228" r="7" fill="#e7a83a" filter="url(#wv-dot)" class="wv-dot d2"/>
+    <circle cx="468" cy="343" r="6" fill="#e8699a" filter="url(#wv-dot)" class="wv-dot d3"/>
+    <circle cx="478" cy="122" r="3.2" fill="#b894e2" class="wv-dot d4"/>`))}
+  ${wvLayer(12, wvAt(372, 292, 'wv-shadow', `<ellipse cx="372" cy="292" rx="56" ry="8" fill="#3b1a66" opacity=".28" filter="url(#wv-soft)"/>`))}
+  ${wvLayer(16, wvAt(373, 175, 'wv-phone', `<g filter="url(#wv-drop)"><rect x="325" y="88" width="96" height="174" rx="18" fill="#28202f"/></g>
+    <rect x="326.2" y="89.2" width="93.6" height="171.6" rx="17" fill="none" stroke="#4a3f58" stroke-width="1.2"/>
+    <rect x="330.5" y="93.5" width="85" height="163" rx="13" fill="url(#wv-scr)"/>
+    <g clip-path="url(#wv-clip)">
+      <rect x="359" y="97" width="28" height="7" rx="3.5" fill="#241b2c"/>
+      <circle cx="345" cy="118" r="7" fill="#fff"/>
+      ${wvAt(357, 115, 'wv-ln', '<rect x="357" y="113" width="52" height="4.2" rx="2.1" fill="#fff" opacity=".92"/>')}
+      ${wvAt(357, 123, 'wv-ln l2', '<rect x="357" y="121" width="31" height="3.6" rx="1.8" fill="#fff" opacity=".55"/>')}
+      ${[['#fff', 344], ['#e8ab3c', 360], ['#cfc0e6', 376], ['#ee8db3', 392]].map(([c, x], i) => wvAt(x + 5.5, 212, 'wv-bar b' + i, `<rect x="${x}" y="156" width="11" height="56" rx="3" fill="${c}"/>`)).join('')}
+      <rect x="338" y="221" width="70" height="22" rx="8" fill="#fff" opacity=".17"/>
+      ${wvAt(350, 232, 'wv-heart', `<path d="${WV_HEART}" transform="translate(350 232) scale(.52)" fill="#fff"/>`)}
+      ${wvAt(363, 232, 'wv-ln l3', '<rect x="363" y="230" width="36" height="4" rx="2" fill="#fff" opacity=".72"/>')}
+      <g transform="rotate(18 372 175)"><rect class="wv-sheen" x="300" y="70" width="46" height="220" fill="url(#wv-sheen)"/></g>
+    </g>`))}
+  ${wvLayer(20, [['#ee6a9b', 'heart', 430, 142, 0, 12], ['#8a55c9', 'cmt', 312, 176, 1.1, -14], ['#e8ab3c', 'star', 432, 214, 2.2, 16]].map(([c, k, x, y, d, dx]) => wvAt(x, y, 'wv-rx', `<circle cx="${x}" cy="${y}" r="10.5" fill="${c}"/><circle cx="${x - 3}" cy="${y - 4}" r="4" fill="#fff" opacity=".35"/>` + (k === 'heart' ? `<path d="${WV_HEART}" transform="translate(${x} ${y + .6}) scale(.46)" fill="#fff"/>` : k === 'star' ? `<path d="${WV_STAR}" transform="translate(${x} ${y}) scale(.62)" fill="#fff"/>` : `<rect x="${x - 5.5}" y="${y - 4.5}" width="11" height="8" rx="2.4" fill="#fff"/><path d="M${x - 2.5} ${y + 3}l-1.5 3.4 4.2-3.4z" fill="#fff"/>`), `animation-delay:${d}s;--dx:${dx}px`)).join(''))}
+  ${wvLayer(14, `<g transform="translate(180 326) scale(.56)"><g class="wv-peng">${PENG_G}</g></g>`)}
+  ${wvLayer(24, [[231, 128, 1, '#e8ab3c', 0], [522, 106, .72, '#7b47bf', .7], [508, 258, .9, '#e8ab3c', 1.4], [258, 266, .55, '#e8699a', 2.0], [300, 72, .42, '#b894e2', 1.1], [452, 64, .5, '#e8ab3c', 2.5]].map(([x, y, sc, c, d]) => wvAt(x, y, 'wv-spk', `<path d="${WV_STAR}" transform="translate(${x} ${y}) scale(${sc})" fill="${c}"/>`, `animation-delay:${d}s`)).join(''))}
+</svg>`;
 function loaderShow(title) {
   let el = $('#loader'); if (!el) { el = document.createElement('div'); el.id = 'loader'; document.body.appendChild(el); }
-  const name = CFG.APP_NAME || APP_NAME;
+  const name = CFG.LOADER_TITLE || 'CMUL PR Social Insight', sub = CFG.LOADER_SUB || 'หน่วยสื่อสารองค์กร';
+  const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let li = 0;
+  const title3 = name.split(/\s+/).filter(Boolean).map(w => `<span class="ld-word">${graphemes(w).map(g => `<span class="ld-ch" style="--i:${li++}">${esc(g)}</span>`).join('')}</span>`).join('<span class="ld-sp"> </span>');
   el.className = 'ld-wrap'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
   el.innerHTML = `<div class="ld-bd"></div><div class="ld-card">
     <div class="ld-stage">${LOADER_ART}</div>
-    <h1 class="ld-name" aria-label="${esc(name)}">${graphemes(name).map((g, i) => `<span style="--i:${i}">${g === ' ' ? '&nbsp;' : esc(g)}</span>`).join('')}</h1>
-    <p class="ld-org">${esc(title || CFG.ORG_NAME || '')}</p>
-    <div class="ld-meter"><div class="ld-pct"><b id="ld-n">0</b><span>%</span></div><div class="ld-bar"><span id="ld-bar"></span></div><p class="ld-msg" id="ld-msg">${LD_MSG[0]}</p></div>
+    <h1 class="ld-name" aria-label="${esc(name)}">${title3}</h1>
+    <p class="ld-org">${esc(sub)}</p>
+    <div class="ld-meter"><div class="ld-pct"><b id="ld-n">0</b><span>%</span></div><div class="ld-bar"><span id="ld-bar"></span></div><p class="ld-msg" id="ld-msg">${esc(title || LD_MSG[0])}</p></div>
   </div>`;
   document.body.classList.add('modal-open'); void el.offsetWidth; el.classList.add('on');
-  // ชื่อระบบเด้งขึ้นเป็นคลื่นทีละตัว → หยุดนิ่ง ~2 วินาที → เด้งใหม่ วนจนหน้าต่างปิด
-  const letters = $$('.ld-name span', el), stag = 70, bounce = 700, pause = 2000;
-  const cyc = bounce + stag * letters.length + pause, b = bounce / cyc;
-  if (letters[0] && letters[0].animate && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) letters.forEach((sp, i2) => sp.animate([
-    { translate: '0 0', scale: '1', offset: 0 }, { translate: '0 -16px', scale: '1.14', offset: b * .38 }, { translate: '0 3px', scale: '.96', offset: b * .72 }, { translate: '0 0', scale: '1', offset: b }, { translate: '0 0', scale: '1', offset: 1 }
-  ], { duration: cyc, delay: 1100 + i2 * stag, iterations: Infinity, easing: 'ease-in-out' }));
+  const h1 = $('.ld-name', el), letters = $$('.ld-ch', el);
+  // ไล่สีต่อเนื่องทั้งชื่อ (แต่ละตัวอักษรถือพื้นหลังชิ้นเดียวกันแต่เลื่อนตำแหน่ง) — ขยับตัวอักษรได้โดยสีไม่ขาด
+  const paintGrad = () => { if (!letters.length) return; const x0 = Math.min(...letters.map(s => s.offsetLeft)), x1 = Math.max(...letters.map(s => s.offsetLeft + s.offsetWidth)), w = Math.max(1, x1 - x0);
+    letters.forEach(s => { s.style.backgroundSize = w + 'px 100%'; s.style.backgroundPosition = (x0 - s.offsetLeft) + 'px 0'; }); };
+  paintGrad(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(paintGrad); window.addEventListener('resize', paintGrad);
+  // Soft Wave: คลื่นไหลทีละตัว (เร็ว 980ms, ห่างกัน 46ms) → หยุดนิ่ง 2 วินาที → วนใหม่จนหน้าต่างปิด
+  if (!reduce && letters[0] && letters[0].animate) {
+    const small = innerWidth <= 520, speed = 980, gap = small ? 38 : 46, pause = 2000, rise = small ? 8 : 12;
+    const cyc = speed + gap * (letters.length - 1) + pause, w = speed / cyc, E = 'cubic-bezier(.22,1,.36,1)';
+    const K = (o, y, r, sc, br) => ({ offset: o * w, translate: `0 ${y}px`, rotate: r + 'deg', scale: String(sc), filter: `brightness(${br})`, easing: E });
+    const frames = [K(0, 0, 0, 1, 1), K(.3, -rise, -1.2, 1.018, 1.08), K(.52, 2, .7, .995, 1.02), K(.72, -2, -.25, 1.004, 1), K(1, 0, 0, 1, 1), { offset: 1, translate: '0 0', rotate: '0deg', scale: '1', filter: 'brightness(1)' }];
+    const start = 700 + letters.length * 32;
+    letters.forEach((sp, i) => sp.animate(frames, { duration: cyc, delay: start + i * gap, iterations: Infinity }));
+  }
+  // พารัลแลกซ์: เลื่อนเมาส์/นิ้ว แต่ละเลเยอร์ขยับไม่เท่ากัน ให้ฉากดูมีความลึก
+  const art = $('.wv-art', el);
+  const onMove = ev => { if (!art) return; const r = art.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2; const pt = ev.touches ? ev.touches[0] : ev;
+    art.style.setProperty('--mx', Math.max(-1, Math.min(1, (pt.clientX - cx) / (innerWidth / 2))).toFixed(3)); art.style.setProperty('--my', Math.max(-1, Math.min(1, (pt.clientY - cy) / (innerHeight / 2))).toFixed(3)); };
+  if (!reduce) { el.addEventListener('pointermove', onMove); el.addEventListener('touchmove', onMove, { passive: true }); }
   let shown = 0, floor = 0, ceil = 0, raf = 0, alive = true, mi = 0;
-  const paint = () => { const n = $('#ld-n'), b = $('#ld-bar'); if (n) n.textContent = Math.floor(shown); if (b) b.style.width = shown.toFixed(2) + '%'; };
+  const paint = () => { const n = $('#ld-n'), b = $('#ld-bar'); if (n) n.textContent = Math.floor(shown); if (b) b.style.width = shown.toFixed(2) + '%'; if (art) art.style.setProperty('--pct', (shown / 100).toFixed(3)); };
   const tick = () => { if (!alive) return; if (shown < floor) shown = Math.min(floor, shown + Math.max(.8, (floor - shown) * .16)); else if (shown < ceil) shown += Math.max(.02, (ceil - shown) * .012); paint(); raf = requestAnimationFrame(tick); };
   tick();
   const msgT = setInterval(() => { const m = $('#ld-msg'); if (!m) return; mi = (mi + 1) % LD_MSG.length; m.classList.remove('in'); void m.offsetWidth; m.textContent = LD_MSG[mi]; m.classList.add('in'); }, 2300);
   const t0 = Date.now();
+  const stop = () => { alive = false; cancelAnimationFrame(raf); clearInterval(msgT); window.removeEventListener('resize', paintGrad); };
   return {
     at(p, next) { floor = Math.max(floor, p); ceil = Math.max(floor, Math.min(97, next == null ? p : p + (next - p) * .95)); },
     text(t) { clearInterval(msgT); const m = $('#ld-msg'); if (m) { m.classList.remove('in'); void m.offsetWidth; m.textContent = t; m.classList.add('in'); } },
     async done(minMs = 1500) {
       const left = minMs - (Date.now() - t0); if (left > 0) { this.at(floor, 97); await wait(left); }
       floor = ceil = 100; await new Promise(r => { const chk = () => shown >= 99.9 ? r() : setTimeout(chk, 30); chk(); });
-      clearInterval(msgT); const m = $('#ld-msg'); if (m) { m.textContent = 'พร้อมแล้ว!'; m.classList.add('ok'); }
-      await wait(380); alive = false; cancelAnimationFrame(raf);
+      clearInterval(msgT); const m = $('#ld-msg'); if (m) { m.textContent = 'พร้อมแล้ว!'; m.classList.add('ok'); } el.classList.add('ready');
+      await wait(420); alive = false; cancelAnimationFrame(raf);
     },
-    close() { alive = false; cancelAnimationFrame(raf); clearInterval(msgT); el.classList.add('leaving'); el.classList.remove('on'); document.body.classList.remove('modal-open'); setTimeout(() => { if (!el.classList.contains('on')) el.remove(); }, 650); },
-    fail() { alive = false; cancelAnimationFrame(raf); clearInterval(msgT); el.remove(); document.body.classList.remove('modal-open'); }
+    close() { stop(); el.classList.add('leaving'); el.classList.remove('on'); document.body.classList.remove('modal-open'); setTimeout(() => { if (!el.classList.contains('on')) el.remove(); }, 650); },
+    fail() { stop(); el.remove(); document.body.classList.remove('modal-open'); }
   };
 }
 function renderSkeleton() {
@@ -631,25 +771,25 @@ function renderSide() {
   const pending = DB.users.filter(x => x.status === 'pending').length;
   const needs = cstats(postsOf(allowedP())).needs.length;
   setTimeout(renderFab);
-  $('#side').innerHTML = `
+  paint($('#side'), `
    <div class="brand">${brandMark()}<div><b>${esc(APP_NAME)}</b><small>${esc(CFG.ORG_NAME || 'Social Analytics')}</small></div></div>
    <nav class="nav" aria-label="เมนูหลัก">${NAV_GROUPS.map(([g, keys]) => { const items = keys.filter(k => can(k)); if (!items.length) return ''; return `<div class="nav-label">${g}</div>` + items.map(k => { const m = PAGES.find(x => x.k === k); const warn = k === 'connect' && PKEYS.some(p => conn(p).error); return `<button data-act="nav" data-v="${k}" ${S.page === k ? 'aria-current="page"' : ''}>${ic(k)}<span>${m.t}</span>${k === 'admin' && pending ? `<span class="count">${pending}</span>` : ''}${k === 'comments' && needs ? `<span class="count" title="คำถาม ร้องเรียน หรือสนใจซื้อ ที่ยังไม่ได้ตอบ">${needs}</span>` : ''}${warn ? '<span class="count" title="การเชื่อมต่อมีปัญหา">!</span>' : ''}</button>`; }).join(''); }).join('')}
    </nav>
-   <div class="me">
+   <div class="me"><span class="me-peng" aria-hidden="true">${peng('sit wave', 46)}</span>
     <span class="mode-pill" title="${API.demo ? 'ยังไม่ได้ตั้งค่า API_URL ใน config.js' : 'บันทึกข้อมูลลงฐานข้อมูลของหน่วยงาน'}">${ic(API.demo ? 'spark' : 'sheet', 12)} ${API.demo ? 'โหมดสาธิต' : 'เชื่อมต่อฐานเก็บข้อมูลแล้ว'}</span>
     <div class="me-row"><span class="avatar">${initials(ME.name)}</span><div><b>${esc(ME.name)}</b><span>${esc(ME.email)} · ${esc(ME.role)}</span></div></div>
-    <div class="me-actions"><button class="btn sm ghost" data-act="theme" aria-label="สลับธีมสว่าง/มืด">${ic(isDark() ? 'sun' : 'moon', 15)} ${isDark() ? 'ธีมสว่าง' : 'ธีมมืด'}</button><button class="btn sm ghost" data-act="logout">${ic('out', 15)} ออกจากระบบ</button></div>
-   </div>`;
+    <div class="me-actions"><button class="btn sm ghost icon-only${snowOn() ? ' on' : ''}" data-act="snow" aria-pressed="${snowOn()}" title="${snowOn() ? 'ปิด' : 'เปิด'}หิมะตก" aria-label="หิมะตก">${ic('snow', 15)}</button><button class="btn sm ghost" data-act="theme" aria-label="สลับธีมสว่าง/มืด">${ic(isDark() ? 'sun' : 'moon', 15)} ${isDark() ? 'ธีมสว่าง' : 'ธีมมืด'}</button><button class="btn sm ghost" data-act="logout">${ic('out', 15)} ออกจากระบบ</button></div>
+   </div>`);
 }
-function renderFab() { const f = $('#fab-slot'); if (f) f.innerHTML = can('add') ? `<button class="fab${S.page === 'add' ? ' raised' : ''}" data-act="dupscan" title="ตรวจหาข้อมูลซ้ำในฐานข้อมูล">${ic('search', 17)}<span>ตรวจข้อมูลซ้ำ</span></button>` : ''; }
+function renderFab() { const f = $('#fab-slot'); if (f) paint(f, can('add') ? `<button class="fab${S.page === 'add' ? ' raised' : ''}" data-act="dupscan" title="ตรวจหาข้อมูลซ้ำในฐานข้อมูล">${ic('search', 17)}<span>ตรวจข้อมูลซ้ำ</span></button>` : ''); }
 function renderTop() {
   const u = me();
-  $('#topbar').innerHTML = `
+  paint($('#topbar'), `
    ${S.acting ? `<div class="impersonate">${ic('eye', 16)} กำลังดูตัวอย่างมุมมองของ <b>${esc(u.email)}</b> (${esc(u.role)}) — เมนูและแพลตฟอร์มแสดงตามสิทธิ์ของผู้ใช้นี้<button class="btn sm" data-act="stop-acting">กลับเป็นมุมมองของฉัน</button></div>` : ''}
    <div class="title-row"><div><span class="eyebrow-sm">${ic(S.page, 13)} ${esc((PAGES.find(m => m.k === S.page) || {}).sub || '')}</span><h1>${pageTitle()}</h1><p>${pageSub()}</p></div>
     <div class="filters">${['dashboard', 'posts', 'comments', 'audience', 'strategy'].includes(S.page) ? `<button class="btn ghost upd" data-act="refresh" title="ดึงยอดผู้ติดตามล่าสุดและโหลดข้อมูลล่าสุดจากฐานข้อมูล">${ic('refresh', 15)} <span>อัปเดตล่าสุด ${DB.loadedAt ? new Date(DB.loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span></button>` : ''}${S.page === 'posts' && can('add') ? `${PKEYS.some(p => conn(p).connected) ? `<button class="btn" data-act="sync-all">${ic('refresh', 16)} อัปเดตจากแพลตฟอร์ม</button>` : ''}<button class="btn primary" data-act="go-link">${ic('add', 16)} เพิ่มคอนเทนต์</button>` : ''}</div></div>
-   ${['dashboard', 'posts', 'comments', 'audience', 'strategy'].includes(S.page) ? filtersBar() : ''}`;
-  syncThumbs($('#topbar'));
+   ${['dashboard', 'posts', 'comments', 'audience', 'strategy'].includes(S.page) ? filtersBar() : ''}`);
+  syncThumbs($('#topbar'), !SILENT); PB.anim = false;
 }
 function greet() { const h = new Date().getHours(); return h < 12 ? 'สวัสดีตอนเช้า' : h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น'; }
 function dashInsight() {
@@ -666,8 +806,38 @@ function filtersBar() {
   return `<div class="filters fbar">
    <div class="seg seg-x" role="group" aria-label="แพลตฟอร์ม" data-seg="pl"><span class="seg-thumb" aria-hidden="true"></span>${a.length > 1 ? `<button data-act="fp" data-v="all" aria-pressed="${S.f.platform === 'all'}"><span class="pl-all" aria-hidden="true">${a.map(p => `<i style="background:${PL[p].c}"></i>`).join('')}</span>ทั้งหมด</button>` : ''}${a.map(p => `<button data-act="fp" data-v="${p}" data-c="${PL[p].c}" aria-pressed="${S.f.platform === p || a.length === 1}"><span class="pl-ico" style="--pc:${PL[p].c}">${PL[p].short}</span>${PL[p].name}</button>`).join('')}</div>
    ${showPeriod ? `<div class="seg seg-x" role="group" aria-label="ช่วงเวลา" data-seg="per"><span class="seg-thumb" aria-hidden="true"></span>${PERIODS.filter(([k]) => k !== 'custom').map(([k, t]) => `<button data-act="per" data-v="${k}" aria-pressed="${S.f.period === k}">${t}</button>`).join('')}</div>
-   <button class="date-btn${S.f.period === 'custom' ? ' on' : ''}${DP.open ? ' open' : ''}" data-act="dp-open" aria-haspopup="dialog" aria-expanded="${DP.open}" title="เลือกช่วงวันที่เอง">${ic('cal', 16)}<span class="db-t"><b>${rangeText(r)}</b><small>${S.f.period === 'custom' ? 'กำหนดเอง · ' : ''}${days} วัน</small></span><svg class="db-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>` : ''}
+   <button class="date-btn${S.f.period === 'custom' ? ' on' : ''}${DP.open ? ' open' : ''}" data-act="dp-open" aria-haspopup="dialog" aria-expanded="${DP.open}" title="เลือกช่วงวันที่เอง">${ic('cal', 16)}<span class="db-t"><b>${rangeText(r)}</b><small>${S.f.period === 'custom' ? 'กำหนดเอง · ' : r.cal === 'year' ? 'ปี พ.ศ. ' + (new Date(r.from).getFullYear() + 543) + ' · ' : r.cal === 'month' ? 'เดือน' + TH_MON[new Date(r.from).getMonth()] + ' · ' : ''}${days} วัน</small></span><svg class="db-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>${pickBar()}` : ''}
   </div>`;
+}
+/* ---------- แถบเลือกปี / เดือน (แสดงเมื่อเลือก “รายปี” หรือ “รายเดือน”) ---------- */
+const PB = { anim: false, viewY: new Date().getFullYear() };
+const TH_MS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+function pbCounts() {
+  const ps = activeP(), c = {};
+  DB.posts.forEach(x => { if (!ps.includes(x.platform)) return; const d = new Date(x.at), k = d.getFullYear() + '-' + d.getMonth(); c[k] = (c[k] || 0) + 1; c[d.getFullYear()] = (c[d.getFullYear()] || 0) + 1; });
+  return c;
+}
+function pickBar() {
+  const per = S.f.period; if (per !== 'year' && per !== 'month') return '';
+  const c = pbCounts(), now = new Date(TODAY), cy = now.getFullYear(), cm = now.getMonth(), pk = S.f.pick;
+  const yrs = Object.keys(c).filter(k => /^\d{4}$/.test(k)).map(Number);
+  const y0 = Math.min(cy - 2, ...(yrs.length ? yrs : [cy])), anim = PB.anim ? ' in' : '';
+  const bar = (n, mx) => `<i class="pb-lvl" style="--h:${mx ? Math.max(n ? .12 : 0, n / mx) : 0}"></i>`;
+  if (per === 'year') {
+    const list = []; for (let y = cy; y >= y0; y--) list.push(y);
+    const mx = Math.max(1, ...list.map(y => c[y] || 0));
+    return `<div class="pickbar${anim}" id="pickbar"><span class="pb-lab">${ic('cal', 14)} เลือกปี</span>
+      <div class="seg seg-x pb-seg" role="group" aria-label="เลือกปี" data-seg="pby"><span class="seg-thumb" aria-hidden="true"></span>
+      <button data-act="pick-y" data-v="" aria-pressed="${!pk}"><span class="pb-t">12 เดือนล่าสุด</span><small>ย้อนหลัง 365 วัน</small></button>
+      ${list.map(y => `<button data-act="pick-y" data-v="${y}" aria-pressed="${!!pk && pk.y === y}"${c[y] ? '' : ' class="pb-empty"'}><span class="pb-t">${y + 543}</span><small>${c[y] ? fnum(c[y]) + ' โพสต์' : 'ไม่มีโพสต์'}</small>${bar(c[y] || 0, mx)}</button>`).join('')}</div></div>`;
+  }
+  const vy = PB.viewY = Math.min(cy, Math.max(y0, PB.viewY));
+  const mx = Math.max(1, ...TH_MS.map((_, m) => c[vy + '-' + m] || 0));
+  return `<div class="pickbar${anim}" id="pickbar"><span class="pb-lab">${ic('cal', 14)} เลือกเดือน</span>
+    <div class="pb-year"><button class="pb-arr" data-act="pick-vy" data-v="-1" ${vy <= y0 ? 'disabled' : ''} aria-label="ปีก่อนหน้า">‹</button><b>พ.ศ. ${vy + 543}</b><button class="pb-arr" data-act="pick-vy" data-v="1" ${vy >= cy ? 'disabled' : ''} aria-label="ปีถัดไป">›</button></div>
+    <div class="seg seg-x pb-seg pb-months" role="group" aria-label="เลือกเดือน" data-seg="pbm"><span class="seg-thumb" aria-hidden="true"></span>
+    <button data-act="pick-m" data-v="" aria-pressed="${!pk}" class="pb-roll"><span class="pb-t">30 วันล่าสุด</span></button>
+    ${TH_MS.map((t, m) => { const fut = vy === cy && m > cm, n = c[vy + '-' + m] || 0; return `<button data-act="pick-m" data-v="${m}" aria-pressed="${!!pk && pk.y === vy && pk.m === m}" ${fut ? 'disabled' : ''}${n ? '' : ' class="pb-empty"'} title="${TH_MON[m]} ${vy + 543}${n ? ' · ' + fnum(n) + ' โพสต์' : ''}"><span class="pb-t">${t}</span>${bar(n, mx)}</button>`; }).join('')}</div></div>`;
 }
 /* ---------- แถบเลือกแบบเลื่อน (ไฮไลต์ไหลไปยังปุ่มที่เลือก) ---------- */
 const THUMB = {};
@@ -806,12 +976,45 @@ function dpApply() {
 document.addEventListener('mousedown', e => { if (DP.open && !e.target.closest('#dp .dp-pop') && !e.target.closest('.date-btn')) dpClose(); });
 document.addEventListener('mouseover', e => { if (!DP.open || DP.a == null || DP.b != null) return; const d = e.target.closest && e.target.closest('#dp .dp-day'); if (!d || d.disabled) return; const t = +d.dataset.v; if (t !== DP.hover) { DP.hover = t; const c = $('#dp-cal'); if (c) c.innerHTML = dpCal(); } });
 window.addEventListener('scroll', () => { if (DP.open) dpPlace(); }, { passive: true });
+/* ---------- วาดหน้าใหม่แบบเงียบ: เทียบ DOM เดิมกับของใหม่ แล้วแก้เฉพาะจุดที่ต่าง (ไม่กระพริบ ไม่เลื่อนหน้า ไม่เล่นแอนิเมชัน) ---------- */
+let SILENT = false;
+function paint(el, html) { if (!el) return; if (SILENT && el.childNodes.length) morph(el, html); else el.innerHTML = html; }
+function morph(live, html) { const t = document.createElement('template'); t.innerHTML = html; mChildren(live, t.content); }
+const mKey = n => n.nodeType === 1 ? (n.getAttribute('data-act') || '') + '|' + (n.getAttribute('data-id') || '') + '|' + (n.id || '') + '|' + (n.getAttribute('data-v') || '') + '|' + (n.getAttribute('data-key') || '') : '';
+function mNew(tn) { const n = tn.cloneNode(true); if (n.nodeType === 1) n._silent = true; return n; }
+function mChildren(L, T) {
+  const tk = Array.from(T.childNodes); let i = 0;
+  for (const tn of tk) {
+    let ln = L.childNodes[i];
+    if (ln && tn.nodeType === 1 && (ln.nodeType !== 1 || mKey(ln) !== mKey(tn))) {
+      const k = mKey(tn); const found = k !== '||||' ? Array.from(L.childNodes).slice(i + 1).find(n => n.nodeType === 1 && mKey(n) === k && n.tagName === tn.tagName) : null;
+      if (found) { L.insertBefore(found, ln); ln = found; }
+    }
+    if (!ln) L.appendChild(mNew(tn));
+    else if (ln.nodeType !== tn.nodeType || ln.nodeName !== tn.nodeName) L.replaceChild(mNew(tn), ln);
+    else mNode(ln, tn);
+    i++;
+  }
+  while (L.childNodes.length > tk.length) L.removeChild(L.lastChild);
+}
+function mNode(L, T) {
+  if (L.nodeType !== 1) { if (L.nodeValue !== T.nodeValue) L.nodeValue = T.nodeValue; return; }
+  const keep = L.tagName === 'DETAILS' ? ['open'] : [];
+  Array.from(L.attributes).forEach(a => { if (!T.hasAttribute(a.name) && !keep.includes(a.name)) L.removeAttribute(a.name); });
+  Array.from(T.attributes).forEach(a => { if (L.getAttribute(a.name) !== a.value) L.setAttribute(a.name, a.value); });
+  if (L.tagName === 'INPUT' || L.tagName === 'TEXTAREA') { if (document.activeElement !== L) { if (L.type === 'checkbox' || L.type === 'radio') L.checked = T.hasAttribute('checked'); else if (T.hasAttribute('value') && L.value !== T.getAttribute('value')) L.value = T.getAttribute('value'); } return; }
+  if (L.tagName === 'OPTION') L.selected = T.hasAttribute('selected');
+  // กล่องที่ถูกเติมภายหลัง (กราฟ รายการโพสต์) ในแม่แบบจะว่าง — คงของเดิมไว้ แล้วให้ตัววาดของกล่องนั้นอัปเดตเอง
+  if (!T.childNodes.length && L.id && L.childNodes.length) return;
+  mChildren(L, T);
+}
 const VIEWS = {};
 const AFTER = {};
 let viewSeq = 0;
 function renderView(mode = 'fade') {
   const v = $('#view'); if (!v) return;
   const my = ++viewSeq;
+  if (mode === 'silent') { paint(v, VIEWS[S.page]()); stagger(v); if (AFTER[S.page]) AFTER[S.page](false); return; }
   const prev = {}; if (mode === 'soft') $$('[data-key]', v).forEach(el => { prev[el.dataset.key] = +el.dataset.count; });
   const doRender = () => {
     if (my !== viewSeq) return;
@@ -1034,19 +1237,19 @@ function filteredPosts() {
 function renderPostList(animate) {
   const el = $('#post-list'); if (!el) return; const l = filteredPosts();
   $('#pcount').textContent = `พบ ${l.length} โพสต์ · ${rangeText(range())}`;
-  el.classList.remove('anim'); if (animate) { void el.offsetWidth; el.classList.add('anim'); }
+  if (!SILENT) { el.classList.remove('anim'); if (animate) { void el.offsetWidth; el.classList.add('anim'); } }
   if (!l.length) {
-    el.innerHTML = DB.posts.length ? `<div class="panel">${emptyState('ไม่พบโพสต์ตามตัวกรองนี้', 'ลองเปลี่ยนช่วงเวลาเป็น “ทั้งหมด” หรือล้างคำค้นและตัวกรอง', `<button class="btn" data-act="per" data-v="all">ดูทุกช่วงเวลา</button>`)}</div>`
-      : `<div class="panel">${emptyState('ยังไม่มีโพสต์ในระบบ', 'เพิ่มโพสต์ทีละรายการ หรือนำเข้าไฟล์ CSV ที่ Export จาก Meta Business Suite / TikTok Studio', can('add') ? `<button class="btn" data-act="go-csv">${ic('file', 15)} นำเข้า CSV</button><button class="btn primary" data-act="nav" data-v="add">${ic('add', 15)} เพิ่มโพสต์</button>` : '')}</div>`;
+    paint(el, DB.posts.length ? `<div class="panel">${emptyState('ไม่พบโพสต์ตามตัวกรองนี้', 'ลองเปลี่ยนช่วงเวลาเป็น “ทั้งหมด” หรือล้างคำค้นและตัวกรอง', `<button class="btn" data-act="per" data-v="all">ดูทุกช่วงเวลา</button>`)}</div>`
+      : `<div class="panel">${emptyState('ยังไม่มีโพสต์ในระบบ', 'เพิ่มโพสต์ทีละรายการ หรือนำเข้าไฟล์ CSV ที่ Export จาก Meta Business Suite / TikTok Studio', can('add') ? `<button class="btn" data-act="go-csv">${ic('file', 15)} นำเข้า CSV</button><button class="btn primary" data-act="nav" data-v="add">${ic('add', 15)} เพิ่มโพสต์</button>` : '')}</div>`);
     return;
   }
   if (S.pf.view === 'grid') {
-    el.innerHTML = `<div class="post-grid" data-stagger>${l.map(p => `<button class="post-card" data-act="open" data-id="${p.id}"><div class="thumb-wrap">${thumb(p)}</div><div class="pc-body"><div class="pc-meta">${platChip(p.platform)}${catChip(p.cat)}<span class="pc-date">${fdate(p.at)}</span></div><p>${esc(p.caption)}</p>
-      <div class="pc-metrics"><div><small>Reach</small><b>${fk(p.m.reach)}</b></div><div><small>${p.v ? 'Views' : 'Impr.'}</small><b>${fk(p.v ? p.v.videoViews : p.m.impressions)}</b></div><div><small>Eng.</small><b>${fk(engP(p))}</b></div><div><small>คอมเมนต์</small><b>${fk(p.m.comments)}</b></div></div>${postSrc(p)}</div></button>`).join('')}</div>`;
+    paint(el, `<div class="post-grid" data-stagger>${l.map(p => `<button class="post-card" data-act="open" data-id="${p.id}"><div class="thumb-wrap">${thumb(p)}</div><div class="pc-body"><div class="pc-meta">${platChip(p.platform)}${catChip(p.cat)}<span class="pc-date">${fdate(p.at)}</span></div><p>${esc(p.caption)}</p>
+      <div class="pc-metrics"><div><small>Reach</small><b>${fk(p.m.reach)}</b></div><div><small>${p.v ? 'Views' : 'Impr.'}</small><b>${fk(p.v ? p.v.videoViews : p.m.impressions)}</b></div><div><small>Eng.</small><b>${fk(engP(p))}</b></div><div><small>คอมเมนต์</small><b>${fk(p.m.comments)}</b></div></div>${postSrc(p)}</div></button>`).join('')}</div>`);
   } else {
-    el.innerHTML = `<div class="tbl-wrap post-list"><table class="tbl"><thead><tr><th>โพสต์</th><th>แพลตฟอร์ม</th><th>ประเภท</th><th>หมวดหมู่</th><th>วันที่</th><th class="r">Reach</th><th class="r">Impr./Views</th><th class="r">Reactions</th><th class="r">Comments</th><th class="r">Shares</th><th class="r">Saves</th><th class="r">ER</th></tr></thead><tbody data-stagger>
+    paint(el, `<div class="tbl-wrap post-list"><table class="tbl"><thead><tr><th>โพสต์</th><th>แพลตฟอร์ม</th><th>ประเภท</th><th>หมวดหมู่</th><th>วันที่</th><th class="r">Reach</th><th class="r">Impr./Views</th><th class="r">Reactions</th><th class="r">Comments</th><th class="r">Shares</th><th class="r">Saves</th><th class="r">ER</th></tr></thead><tbody data-stagger>
     ${l.map(p => `<tr class="click" data-act="open" data-id="${p.id}"><td><div class="cell-post">${thumb(p, 1)}<p style="white-space:normal">${esc(p.caption)}</p></div></td><td>${platChip(p.platform)}</td><td>${esc(p.type)}</td><td>${catChip(p.cat)}</td><td>${fdt(p.at)}</td><td class="r num">${fk(p.m.reach)}</td><td class="r num">${fk(p.v ? p.v.videoViews : p.m.impressions)}</td><td class="r num">${fk(p.m.reactions)}</td><td class="r num">${fk(p.m.comments)}</td><td class="r num">${fk(p.m.shares)}</td><td class="r num">${fk(p.m.saves)}</td><td class="r num">${p.m.reach ? pct(engP(p) / p.m.reach, 2) : '—'}</td></tr>`).join('')}
-    </tbody></table></div>`;
+    </tbody></table></div>`);
   }
   stagger(el);
 }
@@ -1064,13 +1267,15 @@ function plNote(p) {
 const MROWS = [['reach', 'Reach'], ['impressions', 'Impressions / Views'], ['reactions', 'Likes / Reactions'], ['comments', 'Comments'], ['shares', 'Shares'], ['saves', 'Saves'], ['clicks', 'Clicks'], ['profileVisits', 'Profile Visits'], ['newFollowers', 'New Followers'], ['linkClicks', 'Link Clicks']];
 function openPost(id) {
   S.openPost = id; S.drawerCat = ''; S.delPost = false;
-  const d = $('#drawer'); d.setAttribute('aria-hidden', 'false'); renderDrawer(true);
+  const d = $('#drawer'); d.setAttribute('aria-hidden', 'false'); d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'drawer-title'); d.innerHTML = ''; renderDrawer(true);
+  document.body.classList.add('modal-open');
   requestAnimationFrame(() => { d.classList.add('on'); $('#backdrop').classList.add('on'); });
-  setTimeout(() => { const b = $('#drawer [data-act="close-drawer"]'); if (b) b.focus(); }, 80);
+  setTimeout(() => { const b = $('#drawer .pop-x'); if (b) b.focus(); }, 80);
 }
-function closeDrawer() { S.openPost = null; const d = $('#drawer'); if (!d) return; d.classList.remove('on'); $('#backdrop').classList.remove('on'); d.setAttribute('aria-hidden', 'true'); }
+function closeDrawer() { const was = S.openPost; S.openPost = null; const d = $('#drawer'); if (!d) return; d.classList.remove('on'); $('#backdrop').classList.remove('on'); d.setAttribute('aria-hidden', 'true'); if (was && !$('#kpop.on') && !$('#modal.on')) document.body.classList.remove('modal-open'); }
 function renderDrawer(animate) {
   const p = DB.posts.find(x => x.id === S.openPost); const d = $('#drawer'); if (!p) { closeDrawer(); return; }
+  const scB = $('#drawer .pop-body'), sc0 = scB ? scB.scrollTop : 0;
   const C = cstats([p]); const v = p.v;
   const af = p.apiFields || []; const apiTag = k => af.includes(k) ? '<i class="api-dot" title="ดึงจาก API"></i>' : '';
   const mRows = MROWS.filter(([k]) => p.m[k] != null && p.m[k] !== 0);
@@ -1078,19 +1283,19 @@ function renderDrawer(animate) {
   const missing = MROWS.filter(([k]) => (!MREL[p.platform] || MREL[p.platform].includes(k)) && !(p.m[k] != null && p.m[k] !== 0)).map(([k]) => ML(p.platform, k));
   const mg = mRows.map(([k]) => `<div><small>${ML(p.platform, k)}${apiTag(k)}</small><b>${fnum(p.m[k])}</b></div>`).join('') +
     (p.platform === 'line' ? (p.m.reach && p.m.impressions ? `<div><small>อัตราเปิดอ่าน</small><b>${pct(p.m.impressions / p.m.reach, 1)}</b></div>` : '') + (p.m.impressions && p.m.clicks ? `<div><small>อัตราคลิก (CTR)</small><b>${pct(p.m.clicks / p.m.impressions, 1)}</b></div>` : '')
-      : p.m.reach ? `<div><small>Engagement rate</small><b>${pct(engP(p) / p.m.reach, 2)}</b></div>` : p.platform === 'x' && p.m.impressions ? `<div><small>Engagement rate</small><b>${pct(engP(p) / p.m.impressions, 2)}</b></div>` : '') +
+      : p.m.reach ? (engP(p) > p.m.reach ? `<div class="mg-warn" title="Engagement มากกว่า Reach — ค่า Reach อาจกรอกผิดหรือไฟล์ไม่มีค่า Reach"><small>Engagement rate ${ic('alert', 12)}</small><b>${pct(engP(p) / p.m.reach, 2)}</b><em>Reach (${fnum(p.m.reach)}) น้อยกว่า Engagement (${fnum(engP(p))}) — ตรวจค่า Reach</em></div>` : `<div><small>Engagement rate</small><b>${pct(engP(p) / p.m.reach, 2)}</b></div>`) : p.platform === 'x' && p.m.impressions ? `<div><small>Engagement rate</small><b>${pct(engP(p) / p.m.impressions, 2)}</b></div>` : '') +
     vRows.map(([t, x, f]) => `<div><small>${t}</small><b>${f(x)}</b></div>`).join('');
   const base = v && Math.max(n0(v.s3), n0(v.videoViews));
   const ret = v && base ? [['3-second views', v.s3], ['5-second views', v.s5], ['10-second views', v.s10], ['ดูถึง 25%', v.p25], ['ดูถึง 50%', v.p50], ['ดูถึง 75%', v.p75], ['ดูจบ 100%', v.p100]].filter(([, x]) => x != null).map(([l, x]) => ({ l, v: x, ext: pct(x / base, 0) })) : null;
   const list = p.comments.filter(c => !S.drawerCat || c.cat === S.drawerCat);
   const canEdit = can('add');
-  d.innerHTML = `<div class="drawer-head"><button class="icon-btn" data-act="close-drawer" aria-label="ปิด">${ic('x', 18)}</button><h2>${esc(p.caption)}</h2>
-    ${canEdit ? `<button class="btn sm" data-act="edit-post" data-id="${p.id}">${ic('edit', 14)} แก้ไข</button>${S.delPost ? `<button class="btn sm danger" data-act="del-post-yes" data-id="${p.id}">ยืนยันลบ</button><button class="btn sm" data-act="del-post-no">ยกเลิก</button>` : `<button class="btn sm danger" data-act="del-post">ลบ</button>`}` : ''}</div>
-   <div class="drawer-body${animate ? ' anim' : ''}" data-stagger>
+  paint(d, `${PENG_PEEK}<div class="pop-card"><div class="pop-head drawer-head"><span class="pop-ic" style="--gc:${PL[p.platform].c}">${PL[p.platform].short}</span><div class="pop-ttl"><small>${PL[p.platform].name} · ${esc(p.type)} · ${fdate(p.at)}</small><h2 id="drawer-title">${esc(p.caption)}</h2></div><div class="pop-acts">
+    ${canEdit ? `<button class="btn sm" data-act="edit-post" data-id="${p.id}">${ic('edit', 14)} แก้ไข</button>${S.delPost ? `<button class="btn sm danger" data-act="del-post-yes" data-id="${p.id}">ยืนยันลบ</button><button class="btn sm" data-act="del-post-no">ยกเลิก</button>` : `<button class="btn sm danger" data-act="del-post">ลบ</button>`}` : ''}</div><button class="pop-x" data-act="close-drawer" aria-label="ปิดหน้าต่าง">${ic('x', 20)}</button></div>
+   <div class="pop-body drawer-body${animate && !SILENT ? ' anim' : ''}" data-stagger>
     <div class="pd-top">${thumb(p)}<div class="pd-info"><div style="display:flex;gap:6px;flex-wrap:wrap">${platChip(p.platform)}${typeChip(p.type)}${catChip(p.cat)}</div>
       <p>${esc(p.caption)}</p><span class="note">โพสต์เมื่อ ${fdt(p.at)}${v && v.duration ? ` · ความยาว ${fdur(v.duration)}` : ''}${p.createdBy ? ` · บันทึกโดย ${esc(p.createdBy)}` : ''}</span>
       <a class="pd-link" href="${esc(p.link)}" target="_blank" rel="noopener noreferrer">${ic('link', 14)} ${esc(p.link)}</a></div></div>
-    <div class="syncbar${p.source === 'api' ? ' api' : ''}"><div>${p.source === 'api' ? `<b>${ic('refresh', 14)} ดึงข้อมูลจาก ${PL[p.platform].name}</b><span>อัปเดตล่าสุด ${p.syncedAt ? fdt(p.syncedAt) + ' น. (' + ago(p.syncedAt) + ')' : '—'}</span>` : `<b>${ic(p.source === 'csv' ? 'file' : 'edit', 14)} ${p.source === 'csv' ? 'นำเข้าจากไฟล์ CSV' : 'กรอกข้อมูลเอง'}</b><span>${conn(p.platform).connected ? 'กดดึงข้อมูลเพื่อให้ระบบอัปเดตตัวเลขและความคิดเห็นจากแพลตฟอร์ม' : PL[p.platform].name + ' ยังไม่ได้เชื่อมต่อ — ตัวเลขชุดนี้มาจากการกรอกเอง'}</span>`}${p.syncError ? `<span class="warn-t">อัปเดตครั้งล่าสุดไม่สำเร็จ: ${esc(p.syncError)}</span>` : ''}</div>
+    <div class="syncbar${p.source === 'api' ? ' api' : ''}"><div>${p.source === 'api' ? `<b>${ic('refresh', 14)} ดึงข้อมูลจาก ${PL[p.platform].name}</b><span>อัปเดตล่าสุด ${p.syncedAt ? fdt(p.syncedAt) + ' น. (' + ago(p.syncedAt) + ')' : '—'}</span>` : `<b>${ic(p.source === 'csv' ? 'file' : 'edit', 14)} ${p.source === 'csv' ? 'นำเข้าจากไฟล์ CSV' : 'กรอกข้อมูลเอง'}</b><span>${conn(p.platform).connected ? 'กดดึงข้อมูลเพื่อให้ระบบอัปเดตตัวเลขและความคิดเห็นจากแพลตฟอร์ม' : (p.source === 'csv' ? 'ตัวเลขชุดนี้มาจากไฟล์ CSV ที่นำเข้า' + (p.importedAt ? ' เมื่อ ' + fdt(p.importedAt) : '') + ' · เชื่อมต่อ ' + PL[p.platform].name + ' เพื่อให้อัปเดตอัตโนมัติ' : PL[p.platform].name + ' ยังไม่ได้เชื่อมต่อ — ตัวเลขชุดนี้มาจากการกรอกเอง')}</span>`}${p.syncError ? `<span class="warn-t">อัปเดตครั้งล่าสุดไม่สำเร็จ: ${esc(p.syncError)}</span>` : ''}</div>
      ${canSync(p) ? `<button class="btn sm primary" data-act="sync-post" data-id="${p.id}">${ic('refresh', 14)} ${p.source === 'api' ? 'อัปเดตข้อมูล' : 'ดึงข้อมูลจากลิงก์'}</button>` : ''}</div>
     <section><div class="panel-head"><div><h2>ตัวชี้วัดของโพสต์</h2>${af.length ? `<p><i class="api-dot"></i> ดึงจาก API · ช่องที่เหลือมาจากการกรอกเอง</p>` : ''}</div></div><div class="metric-grid">${mg}</div>${missing.length ? `<p class="note" style="margin:8px 0 0">ไม่มีข้อมูล: ${missing.join(', ')}</p>` : ''}</section>
     ${p.reactionsBreakdown ? (() => { const rb = p.reactionsBreakdown, tot = REACTIONS.reduce((s, x) => s + n0(rb[x.k]), 0); return tot ? `<section class="panel"><div class="panel-head"><div><h2>ความรู้สึกที่ผู้ติดตามกด</h2><p>${fnum(tot)} ครั้ง แยกตามอิโมจิ</p></div></div><div class="react-row">${REACTIONS.map(x => `<div class="react"><span class="re">${x.e}</span><b>${fnum(rb[x.k])}</b><small>${x.t} · ${pct(n0(rb[x.k]) / tot, 0)}</small></div>`).join('')}</div></section>` : ''; })() : ''}
@@ -1100,8 +1305,8 @@ function renderDrawer(animate) {
      <div class="filters" style="margin-top:16px"><button class="chip" data-act="dcat" data-v="" aria-pressed="${!S.drawerCat}">ทั้งหมด ${p.comments.length}</button>${SENT.filter(s => C.by[s.k]).map(s => `<button class="chip" data-act="dcat" data-v="${s.k}" aria-pressed="${S.drawerCat === s.k}"><i class="dot" style="background:${s.c}"></i>${s.t} ${C.by[s.k]}</button>`).join('')}</div>
      <div style="margin-top:6px" id="dlist">${list.map(c => cmtItem(c)).join('') || emptyState(p.comments.length ? 'ไม่มีความคิดเห็นในหมวดนี้' : 'ยังไม่มีความคิดเห็น', p.comments.length ? 'เลือกหมวดอื่นด้านบน' : p.platform === 'tt' && p.source === 'api' ? 'TikTok ไม่เปิดให้ดึงรายการความคิดเห็น เพิ่มเองได้จากปุ่ม “แก้ไข”' : canSync(p) ? 'กด “ดึงข้อมูล” ด้านบนเพื่อดึงความคิดเห็นทั้งหมด หรือเพิ่มเองจากปุ่ม “แก้ไข”' : 'เพิ่มความคิดเห็นได้จากปุ่ม “แก้ไข” แล้ววางข้อความทีละบรรทัด')}</div>
     </section>`}
-   </div>`;
-  stagger(d);
+   </div></div>`);
+  stagger(d); if (!animate) { const b2 = $('#drawer .pop-body'); if (b2) b2.scrollTop = sc0; }
 }
 function cmtItem(c, post) {
   const sel = can('comments') ? `<select class="cat-sel" data-change="recat" data-id="${c.id}" aria-label="หมวดความคิดเห็น" style="border-color:${SE[c.cat].c}">${SENT.map(s => `<option value="${s.k}" ${c.cat === s.k ? 'selected' : ''}>${s.t}</option>`).join('')}</select>` : `<span class="cat-dot" style="margin-left:auto"><i class="dot" style="background:${SE[c.cat].c}"></i>${SE[c.cat].t}</span>`;
@@ -1179,7 +1384,7 @@ function renderFeed() {
   const el = $('#cfeed'); if (!el) return;
   const r = range(); const C = cstats(postsIn(r.from, r.to)); const cf = S.cf, q = cf.q.trim().toLowerCase();
   const l = C.all.filter(c => (!cf.cat || c.cat === cf.cat) && (!cf.unreplied || !c.thread.some(t => t.from === 'page')) && (!q || c.text.toLowerCase().includes(q) || c.author.toLowerCase().includes(q))).sort((a, b) => b.at - a.at);
-  el.innerHTML = `<span class="note">${l.length} รายการ${l.length > 80 ? ' · แสดง 80 รายการล่าสุด' : ''}</span>${l.slice(0, 80).map(c => cmtItem(c.ref, c.post)).join('') || '<div class="empty" style="margin-top:10px">ไม่พบความคิดเห็นตามตัวกรองนี้</div>'}`;
+  paint(el, `<span class="note">${l.length} รายการ${l.length > 80 ? ' · แสดง 80 รายการล่าสุด' : ''}</span>${l.slice(0, 80).map(c => cmtItem(c.ref, c.post)).join('') || '<div class="empty" style="margin-top:10px">ไม่พบความคิดเห็นตามตัวกรองนี้</div>'}`);
 }
 
 /* ================= audience ================= */
@@ -2316,9 +2521,16 @@ document.addEventListener('click', async e => {
     case 'csv-import': startImport('posts'); break;
     case 'copy-code': { const t = $('#su-code').textContent; try { await navigator.clipboard.writeText(t); toast('คัดลอกแล้ว'); } catch (_) { const r = document.createRange(); r.selectNodeContents($('#su-code')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('เลือกข้อความแล้ว กด Ctrl+C เพื่อคัดลอก', 'info'); } break; }
     case 'fp': S.f.platform = v; refilter(); break;
-    case 'per': S.f.period = v; refilter(); break;
+    case 'per': S.f.period = v; S.f.pick = null; PB.anim = ['year', 'month'].includes(v); if (PB.anim) PB.viewY = new Date(TODAY).getFullYear(); refilter(); break;
+    case 'pick-y': S.f.pick = v === '' ? null : { y: +v, m: null }; refilter(); break;
+    case 'pick-m': S.f.pick = v === '' ? null : { y: PB.viewY, m: +v }; refilter(); break;
+    case 'pick-vy': { PB.viewY += +v; const bar = $('#pickbar'); if (bar) { bar.outerHTML = pickBar(); syncThumbs($('#topbar'), false); } break; }
     case 'sa-er': S.sa.er = v; renderView('soft'); break;
     case 'sa-obj': S.sa.obj = v; renderView('soft'); break;
+    case 'sa-kpi': kpopOpen(v); break;
+    case 'snow': { const on = !snowOn(); try { localStorage.setItem('psi_snow', on ? '1' : '0'); } catch (_) {} document.body.classList.toggle('no-snow', !on); renderSide(); toast(on ? 'เปิดหิมะตกแล้ว ❄' : 'ปิดหิมะตกแล้ว', 'info'); break; }
+    case 'kpop-close': kpopClose(); break;
+    case 'kpop-fx': kpopFx(el); break;
     case 'sa-catalog': modalOpen(saCatalogView(), { wide: true }); break;
     case 'sa-copy': { const t = S.saText || ''; try { await navigator.clipboard.writeText(t); toast('คัดลอกสรุปแล้ว วางในอีเมลหรือแชทได้เลย'); } catch (_) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('คัดลอกสรุปแล้ว'); } catch (__) { toast('คัดลอกไม่สำเร็จ', 'error'); } ta.remove(); } break; }
     case 'dp-open': if (DP.open) dpClose(); else dpOpen(el); break;
@@ -2445,7 +2657,7 @@ document.addEventListener('input', e => {
   if (k === 'acap' && !S.editing && !S.catTouched) { const c = autoCategory(t.value); const sel = $('#a-cat'); if (sel && t.value.trim().length > 8) { sel.value = c; const h = $('#cat-hint'); if (h) h.textContent = 'ระบบแนะนำหมวด “' + CAT[c].t + '” จากข้อความ เปลี่ยนเองได้'; } }
   if (k === 'fx-link') { S.fx.link = t.value; const pl = $('#fx-pl'); if (pl) pl.innerHTML = fxPlIcon(t.value); }
 });
-document.addEventListener('keydown', e => { if (DP.open && e.key === 'Enter' && e.target.closest && e.target.closest('#dp input')) { e.preventDefault(); dpApply(); return; } if (e.key === 'Escape') { if (DP.open) { dpClose(); const b = $('.date-btn'); if (b) b.focus(); return; } if ($('#modal.on')) { e.preventDefault(); modalClose(); return; } if (S.openPost) closeDrawer(); } });
+document.addEventListener('keydown', e => { if (DP.open && e.key === 'Enter' && e.target.closest && e.target.closest('#dp input')) { e.preventDefault(); dpApply(); return; } if (e.key === 'Escape') { if (DP.open) { dpClose(); const b = $('.date-btn'); if (b) b.focus(); return; } if ($('#modal.on')) { e.preventDefault(); modalClose(); return; } if (KPOP.key) { kpopClose(); return; } if (S.openPost) closeDrawer(); } });
 window.addEventListener('beforeunload', e => { if (MODAL.locked) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target;
@@ -2679,6 +2891,156 @@ function saCatalogView() {
 }
 
 /* ----- หน้าจอ ----- */
+/* ----- KPI: นิยามสูตร + ตัวคำนวณชุดเดียว ใช้ร่วมกันทั้งการ์ด ป๊อปอัป และตารางแทนค่า ----- */
+const saRB = (l, k, base) => { const x = l.filter(p => p.m[k] != null && p.m[base]); if (!x.length) return null; const num = saSum(x, p => p.m[k]), den = saSum(x, p => p.m[base]); return den ? { v: num / den, num, den, n: x.length } : null; };
+const saRatio = (x, fnum_, fden) => { if (!x.length) return null; const num = saSum(x, fnum_), den = saSum(x, fden); return num != null && den ? { v: num / den, num, den, n: x.length } : null; };
+const saReach = l => { const r = saSum(l, p => p.m.reach); return r != null ? r : saSum(l, p => p.m.impressions); };
+const SA_G = { Awareness: { ic: 'target', c: '#8b5cf6', th: 'การรับรู้' }, Engagement: { ic: 'heart', c: '#e0679a', th: 'การมีส่วนร่วม' }, Traffic: { ic: 'link', c: '#3b82f6', th: 'การพาไปต่อ' }, Video: { ic: 'play', c: '#f59e0b', th: 'วิดีโอ' }, 'Brand & Community': { ic: 'audience', c: '#10b981', th: 'แบรนด์และชุมชน' } };
+const SA_K = [
+  { k: 'reach', g: 'Awareness', t: c => c.ln ? 'ส่งถึง (Reach)' : 'Reach', kind: 'sum', num: 'Reach', sub: c => 'จำนวนบัญชีที่เห็นโพสต์',
+    long: 'จำนวนบัญชีที่เห็นโพสต์อย่างน้อย 1 ครั้ง รวมทุกโพสต์ในช่วงที่เลือก (คนเดียวกันเห็นหลายโพสต์จะถูกนับซ้ำตามจำนวนโพสต์)', read: 'สูงขึ้น = คอนเทนต์ไปถึงคนได้กว้างขึ้น ดูคู่กับ Frequency ว่าเป็นคนใหม่หรือคนเดิม',
+    calc: c => { const v = saReach(c.l); return v == null ? null : { v, num: v, n: c.l.length }; } },
+  { k: 'imp', g: 'Awareness', t: c => c.ln ? 'เปิดอ่าน (Impressions)' : 'Impressions', kind: 'sum', num: 'Impressions', sub: () => 'จำนวนครั้งที่แสดงทั้งหมด',
+    long: 'จำนวนครั้งที่โพสต์ถูกแสดงบนหน้าจอ นับซ้ำได้ถ้าคนเดิมเห็นหลายครั้ง', read: 'ยิ่งมากยิ่งถูกมองเห็นบ่อย แต่ถ้าสูงกว่า Reach มากเกินไปอาจแปลว่าวนเห็นแต่คนเดิม',
+    calc: c => { const v = saSum(c.l, p => p.m.impressions); return v == null ? null : { v, num: v, n: c.l.filter(p => p.m.impressions != null).length }; } },
+  { k: 'freq', g: 'Awareness', t: () => 'Frequency', kind: 'x', num: 'Impressions', den: 'Reach', sub: () => 'คนเดิมเห็นซ้ำเฉลี่ยกี่ครั้ง',
+    long: 'จำนวนครั้งเฉลี่ยที่แต่ละคนเห็นโพสต์ของเรา คิดเฉพาะโพสต์ที่มีทั้ง Impressions และ Reach (ไม่รวม LINE OA)', read: 'ราว 1.5–3 ครั้งกำลังดี ต่ำไปคนอาจจำไม่ได้ สูงไปเสี่ยงให้คนเบื่อ',
+    calc: c => saRatio(c.l.filter(p => p.platform !== 'line' && p.m.reach && p.m.impressions), p => p.m.impressions, p => p.m.reach) },
+  { k: 'reachG', g: 'Awareness', t: () => 'Reach Growth', kind: 'growth', num: 'Reach ช่วงนี้', den: 'Reach ช่วงก่อน', prev: true, sub: () => 'เทียบช่วงก่อนหน้าที่ยาวเท่ากัน',
+    long: 'การเปลี่ยนแปลงของ Reach รวม เทียบกับช่วงก่อนหน้าที่ยาวเท่ากัน (ในตารางรายช่วง แต่ละช่วงเทียบกับช่วงก่อนหน้าของมันเอง)', read: 'บวก = เข้าถึงคนได้มากขึ้น ถ้าจำนวนโพสต์เพิ่มด้วยให้ดู Reach ต่อโพสต์ประกอบ',
+    calc: c => { if (!c.pl) return null; const a = saReach(c.l), b = saReach(c.pl); return a != null && b ? { v: (a - b) / b, num: a, den: b } : null; } },
+  { k: 'eng', g: 'Engagement', t: () => 'Total Engagement', kind: 'sum', num: 'Engagement', sub: c => c.ln ? 'คลิกในข้อความ LINE' : 'Like + Comment + Share + Save',
+    long: 'ผลรวมการมีส่วนร่วมทุกแบบ: ถูกใจ/ความรู้สึก + ความคิดเห็น + แชร์ + บันทึก (LINE OA ใช้จำนวนคลิกแทน เพราะไม่มีถูกใจ/แชร์)', read: 'ใช้ดูปริมาณ ส่วนคุณภาพให้ดู ER ด้านข้าง',
+    calc: c => { const v = saSum(c.l, p => engP(p)); if (v == null) return null; const s = k => n0(saSum(c.l.filter(p => p.platform !== 'line'), p => p.m[k])); return { v, num: v, n: c.l.length, parts: [['Like', s('reactions')], ['Comment', s('comments')], ['Share', s('shares')], ['Save', s('saves')], ['คลิก LINE', n0(saSum(c.l.filter(p => p.platform === 'line'), p => p.m.clicks))]].filter(x => x[1] || x[0] !== 'คลิก LINE') }; } },
+  { k: 'erR', g: 'Engagement', t: () => 'ER by Reach', kind: 'pct', dec: 2, num: 'Engagement', den: 'Reach', mul: true, sub: () => 'คนที่เห็นแล้วสนใจจริง',
+    long: 'สัดส่วนคนที่เห็นแล้วลงมือมีส่วนร่วม คิดจากผลรวม Engagement ÷ ผลรวม Reach ของโพสต์ที่มี Reach', read: 'Facebook ทั่วไป 1–5% ถือว่าดี · Instagram/TikTok มักสูงกว่า — เทียบกับช่วงก่อนหน้าของตัวเองแม่นที่สุด',
+    calc: c => saRatio(c.l.filter(p => p.m.reach), p => engP(p), p => p.m.reach) },
+  { k: 'erI', g: 'Engagement', t: () => 'ER by Impression', kind: 'pct', dec: 2, num: 'Engagement', den: 'Impressions', mul: true, sub: () => 'ประสิทธิภาพต่อการแสดงผล',
+    long: 'Engagement ÷ Impressions ใช้เทียบข้ามแพลตฟอร์มที่ไม่มี Reach (เช่น X) หรือเมื่อคนเห็นซ้ำหลายครั้ง', read: 'มักต่ำกว่า ER by Reach เสมอ ถ้าสองค่าห่างกันมาก แปลว่าคนเห็นซ้ำเยอะ',
+    calc: c => saRatio(c.l.filter(p => p.m.impressions), p => engP(p), p => p.m.impressions) },
+  { k: 'cmtR', g: 'Engagement', t: () => 'Comment Rate', kind: 'pct', dec: 2, num: 'Comments', den: 'Reach', mul: true, sub: () => 'กระตุ้นบทสนทนา', long: 'ความคิดเห็น ÷ Reach ของโพสต์ที่มีข้อมูลทั้งสองช่อง', read: 'สูง = คอนเทนต์ชวนคุย ถามคำถาม หรือมีประเด็นให้แสดงความเห็น', calc: c => saRB(c.l, 'comments', 'reach') },
+  { k: 'shareR', g: 'Engagement', t: () => 'Share Rate', kind: 'pct', dec: 2, num: 'Shares', den: 'Reach', mul: true, sub: () => 'ความอยากบอกต่อ', long: 'แชร์ ÷ Reach — ตัวชี้วัดว่าคนอยากส่งต่อให้คนอื่นแค่ไหน', read: 'แชร์คือการเข้าถึงฟรี ยิ่งสูงยิ่งช่วยให้โพสต์ไปไกล', calc: c => saRB(c.l, 'shares', 'reach') },
+  { k: 'saveR', g: 'Engagement', t: () => 'Save Rate', kind: 'pct', dec: 2, num: 'Saves', den: 'Reach', mul: true, sub: () => 'คุณค่าจนต้องเก็บไว้', long: 'บันทึก ÷ Reach — คนเห็นว่ามีประโยชน์จนอยากกลับมาดูอีก', read: 'เหมาะวัดคอนเทนต์ความรู้ อินโฟกราฟิก และคู่มือ', calc: c => saRB(c.l, 'saves', 'reach') },
+  { k: 'clickR', g: 'Engagement', t: () => 'Click Rate', kind: 'pct', dec: 2, num: 'Clicks', den: 'Reach', mul: true, sub: () => 'ดึงคนไปขั้นถัดไป', long: 'คลิกทั้งหมดบนโพสต์ (รวมคลิกดูรูป อ่านเพิ่ม ลิงก์) ÷ Reach', read: 'Meta นับคลิกทุกชนิด จึงสูงกว่า Link CTR มาก — ดู Link CTR ถ้าต้องการคนออกไปเว็บ', calc: c => saRB(c.l, 'clicks', 'reach') },
+  { k: 'ctr', g: 'Traffic', t: () => 'CTR', kind: 'pct', dec: 2, num: 'Clicks', den: 'Impressions', mul: true, sub: () => 'กระตุ้นการคลิกดีไหม', long: 'คลิก ÷ Impressions (ถ้าไม่มีคลิกทั้งหมด ใช้ Link clicks แทน)', read: 'สูง = ภาพ/พาดหัวชวนให้กดดูต่อ',
+    calc: c => saRB(c.l, 'clicks', 'impressions') || Object.assign(saRB(c.l, 'linkClicks', 'impressions') || {}, { alt: true }) },
+  { k: 'linkCtr', g: 'Traffic', t: () => 'Link CTR', kind: 'pct', dec: 2, num: 'Link clicks', den: 'Impressions', mul: true, sub: () => 'คลิกลิงก์ออกไปภายนอก', long: 'คลิกลิงก์ ÷ Impressions — วัดว่าคนออกไปยังเว็บไซต์หรือแบบฟอร์มจริงเท่าไร', read: 'โพสต์ประชาสัมพันธ์ที่มีลิงก์ลงทะเบียนควรดูตัวนี้เป็นหลัก', calc: c => saRB(c.l, 'linkClicks', 'impressions') },
+  { k: 'viewRate', g: 'Video', t: () => 'View Rate', kind: 'pct', dec: 1, num: 'Video views', den: 'Impressions', mul: true, sub: c => `${c.nv || 0} วิดีโอ · Hook/ภาพปกดึงดูดไหม`, long: 'ยอดรับชมวิดีโอ ÷ Impressions ของโพสต์วิดีโอ', read: 'เกิน 100% ได้ เพราะบางแพลตฟอร์มนับการดูซ้ำ/เล่นอัตโนมัติเป็นยอดดู',
+    calc: c => { const x = c.l.filter(p => p.v && (p.v.videoViews || p.v.s3) && p.m.impressions); return saRatio(x, p => p.v.videoViews, p => p.m.impressions); } },
+  { k: 'completion', g: 'Video', t: () => 'Completion Rate', kind: 'pct', dec: 1, num: 'ดูจบ 100%', den: 'Video starts', mul: true, sub: () => 'รักษาความสนใจได้ไหม', long: 'จำนวนที่ดูจบ ÷ จำนวนที่เริ่มดู (ใช้ยอดดู 3 วินาทีเป็นจุดเริ่ม ถ้ามี)', read: 'วิดีโอสั้นควรเกิน 15–20% ถ้าต่ำ ลองตัดให้สั้นลงและใส่ประเด็นใน 3 วินาทีแรก',
+    calc: c => { const x = c.l.filter(p => p.v && p.v.p100 != null && (p.v.s3 || p.v.videoViews)); return saRatio(x, p => p.v.p100, p => p.v.s3 || p.v.videoViews); } },
+  { k: 'avgWatch', g: 'Video', t: () => 'Avg. Watch Time', kind: 'dur', num: 'Watch time รวม', den: 'Views', sub: () => 'คนดูนานเท่าไร', long: 'เวลาดูรวม ÷ ยอดดู (ถ้าไม่มีเวลาดูรวม ใช้ค่าเฉลี่ยที่แพลตฟอร์มรายงาน)', read: 'เทียบกับความยาววิดีโอ ถ้าดูได้เกินครึ่งถือว่าดี',
+    calc: c => { const v = c.l.filter(p => p.v && p.v.totalWatch && p.v.videoViews); if (v.length) return saRatio(v, p => p.v.totalWatch, p => p.v.videoViews); const m = saMean(c.l.filter(p => p.v).map(p => p.v.avgWatch)); return m == null ? null : { v: m, mean: true, n: c.l.filter(p => p.v && p.v.avgWatch != null).length }; } },
+  { k: 'folG', g: 'Brand & Community', t: () => 'Follower Growth Rate', kind: 'growth', num: 'ผู้ติดตามปลายช่วง', den: 'ผู้ติดตามต้นช่วง', sub: c => c.fd != null ? `${c.fd >= 0 ? '+' : ''}${fnum(c.fd)} คน` : 'การเติบโตของผู้ติดตาม',
+    long: 'ผู้ติดตามรวมทุกช่องทางที่เลือก ณ ปลายช่วง เทียบกับวันก่อนเริ่มช่วง', read: 'บวกต่อเนื่อง = แบรนด์โตขึ้น ถ้าติดลบให้ดูว่าช่วงนั้นโพสต์น้อยหรือมีประเด็นเชิงลบ',
+    calc: c => { const a = sumFol(c.ps, Math.min(c.to - 1, Date.now())), b = sumFol(c.ps, c.from - DAY); return a != null && b ? { v: (a - b) / b, num: a, den: b } : null; } },
+  { k: 'sent', g: 'Brand & Community', t: () => 'Sentiment Score', kind: 'score', num: 'บวก − ลบ − ร้องเรียน', den: 'ความคิดเห็นทั้งหมด', mul: true, sub: () => 'ช่วง −100 ถึง +100', long: 'ความรู้สึกสุทธิของความคิดเห็น: (เชิงบวก − เชิงลบ − ร้องเรียน) ÷ ทั้งหมด × 100', read: 'มากกว่า 0 = คำชมมากกว่าคำติ · ติดลบ ควรเร่งตอบและแก้ประเด็น',
+    calc: c => { const C = cstats(c.l); if (!C.total) return null; const pos = C.by.pos || 0, neg = (C.by.neg || 0) + (C.by.cmp || 0); return { v: (pos - neg) / C.total * 100, num: pos - neg, den: C.total, pos, neg }; } },
+  { k: 'resp', g: 'Brand & Community', t: () => 'Response Rate', kind: 'pct', dec: 0, num: 'ความคิดเห็นที่ตอบแล้ว', den: 'ความคิดเห็นทั้งหมด', mul: true, sub: c => c.rt != null ? `ตอบเฉลี่ยใน ${fmins(c.rt)}` : 'การตอบกลับของเพจ', long: 'ความคิดเห็นหลักที่เพจตอบกลับแล้ว ÷ ความคิดเห็นหลักทั้งหมด', read: 'ควรใกล้ 100% สำหรับคำถาม ข้อร้องเรียน และผู้สนใจ',
+    calc: c => { const C = cstats(c.l); if (!C.total) return null; const done = Math.round(C.replyRate * C.total); return { v: C.replyRate, num: done, den: C.total }; } }
+];
+const SA_KM = Object.fromEntries(SA_K.map(x => [x.k, x]));
+const saFmt = (sp, v) => v == null || !isFinite(v) ? '—' : sp.kind === 'sum' ? fk(v) : sp.kind === 'pct' ? pp(v, sp.dec) : sp.kind === 'x' ? f2(v) : sp.kind === 'growth' ? sgn(v) : sp.kind === 'dur' ? fdur(v) : f2(v, 0);
+const saFmtN = (sp, v) => sp.kind === 'dur' ? fdur(v) : fnum(v);
+const SA_UNIT = { hour: 'รายชั่วโมง', day: 'รายวัน', week: 'รายสัปดาห์', month: 'รายเดือน' };
+/** คำนวณทุก KPI ของช่วงปัจจุบัน ช่วงก่อนหน้า และแยกตามช่วงย่อย (ชั่วโมง/วัน/สัปดาห์/เดือน ตามความยาวช่วงที่เลือก) */
+function saKpiAll(r, ps) {
+  const cur = postsIn(r.from, r.to, ps), prev = r.hasPrev ? postsIn(r.pf, r.pt, ps) : [];
+  const ln = ps.length === 1 && ps[0] === 'line';
+  const C0 = cstats(cur), f0 = sumFol(ps, Math.min(r.to - 1, Date.now())), f1 = sumFol(ps, r.from - DAY);
+  const ctx = (l, pl, from, to, pps = ps) => ({ l, pl, from, to, ps: pps, ln, nv: l.filter(p => p.v && (p.v.videoViews || p.v.s3)).length });
+  const base = Object.assign(ctx(cur, r.hasPrev ? prev : null, r.from, r.to), { rt: C0.avgRT, fd: f0 != null && f1 != null ? f0 - f1 : null });
+  const pb = r.hasPrev ? ctx(prev, postsIn(r.pf - (r.pt - r.pf), r.pf, ps), r.pf, r.pt) : null;
+  const B = buckets(r.from, r.to);
+  const bc = B.b.map(b => ctx(postsIn(b.s, b.e, ps), postsIn(b.s - (b.e - b.s), b.s, ps), b.s, b.e));
+  const out = {};
+  SA_K.forEach(sp => {
+    const X = sp.calc(base), P = pb ? sp.calc(pb) : null;
+    out[sp.k] = { sp, X: X && X.v != null && isFinite(X.v) ? X : null, P: P && P.v != null && isFinite(P.v) ? P : null, rows: B.b.map((b, i) => { const x = sp.calc(bc[i]); return { b, n: bc[i].l.length, x: x && x.v != null && isFinite(x.v) ? x : null }; }) };
+  });
+  return { r, ps, B, ctx: base, cur, prev, out };
+}
+function saTile(K, key) {
+  const o = K.out[key]; if (!o || !o.X) return '';
+  const sp = o.sp, g = SA_G[sp.g], d = sp.prev ? null : (o.P ? delta(o.X.v, o.P.v) : null);
+  const vals = o.rows.map(x => x.x ? x.x.v : null).filter(v => v != null);
+  return `<button class="sa-k" data-act="sa-kpi" data-v="${key}" style="--gc:${g.c}" aria-haspopup="dialog" aria-label="${esc(sp.t(K.ctx))} ${esc(saFmt(sp, o.X.v))} — กดดูรายละเอียด">
+    <span class="sa-k-top"><span class="sa-k-ic">${ic(g.ic, 14)}</span><span class="sa-k-n">${esc(sp.t(K.ctx))}</span>${d != null && K.r.hasPrev ? dpill(d) : ''}</span>
+    <b class="${sp.kind === 'sum' ? '' : 'num-cu'}">${sp.kind === 'sum' ? cnt(o.X.v, 'k', null, 'sk-' + key) : saFmt(sp, o.X.v)}</b>
+    <small>${esc(sp.sub(K.ctx))}</small>
+    <span class="sa-k-foot">${vals.length > 1 ? spark(vals, g.c, 132, 30) : '<span></span>'}<span class="sa-k-more">รายละเอียด ${ic('arrow', 12)}</span></span>
+  </button>`;
+}
+/* ----- ป๊อปอัปรายละเอียด KPI + สูตรคำนวณแบบแทนค่า ----- */
+const fxFrac = (a, b) => `<span class="fx-frac"><span>${a}</span><span>${b}</span></span>`;
+function saSubst(sp, x, big) {
+  if (!x) return '<span class="muted">ไม่มีข้อมูลพอคำนวณ</span>';
+  const res = `<span class="fx-eq">=</span><b class="fx-res${big ? ' big' : ''}">${saFmt(sp, x.v)}</b>`;
+  if (sp.kind === 'sum') return x.parts && x.parts.length > 1 ? `<span class="fx-sum">${x.parts.map(([t, v]) => `<span class="fx-term"><b>${fnum(v)}</b><small>${t}</small></span>`).join('<span class="fx-op">+</span>')}</span>${res}` : `<span class="fx-term"><b>Σ</b><small>${x.n != null ? fnum(x.n) + ' โพสต์' : ''}</small></span>${res.replace(saFmt(sp, x.v), fnum(x.v))}`;
+  if (sp.kind === 'growth') return `${fxFrac(`${fnum(x.num)} − ${fnum(x.den)}`, fnum(x.den))}<span class="fx-op">× 100</span>${res}`;
+  if (x.mean) return `<span class="fx-term"><b>ค่าเฉลี่ย</b><small>${x.n} วิดีโอ</small></span>${res}`;
+  if (sp.k === 'sent') return `${fxFrac(`${fnum(x.pos)} − ${fnum(x.neg)}`, fnum(x.den))}<span class="fx-op">× 100</span>${res}`;
+  return `${fxFrac(saFmtN(sp, x.num), saFmtN(sp, x.den))}${sp.mul ? '<span class="fx-op">× 100</span>' : ''}${res}`;
+}
+function saGeneric(sp) {
+  if (sp.kind === 'sum') return sp.k === 'eng' ? `<span class="fx-sum">${['Like', 'Comment', 'Share', 'Save'].map(t => `<span class="fx-term"><b>${t}</b></span>`).join('<span class="fx-op">+</span>')}</span><span class="fx-eq">=</span><b class="fx-res">${sp.t({})}</b>` : `<span class="fx-term"><b>Σ ${sp.num}</b><small>ทุกโพสต์ในช่วง</small></span><span class="fx-eq">=</span><b class="fx-res">${sp.t({})}</b>`;
+  if (sp.kind === 'growth') return `${fxFrac(`${sp.num} − ${sp.den}`, sp.den)}<span class="fx-op">× 100</span><span class="fx-eq">=</span><b class="fx-res">${sp.t({})}</b>`;
+  return `${fxFrac(sp.num, sp.den)}${sp.mul ? '<span class="fx-op">× 100</span>' : ''}<span class="fx-eq">=</span><b class="fx-res">${sp.t({})}</b>`;
+}
+function saPeriodLabel(r) {
+  if (r.cal === 'year') return 'รายปี · ปี พ.ศ. ' + (new Date(r.from).getFullYear() + 543);
+  if (r.cal === 'month') { const d = new Date(r.from); return 'รายเดือน · ' + TH_MON[d.getMonth()] + ' ' + (d.getFullYear() + 543); }
+  const p = S.f.period; return p === 'custom' ? 'กำหนดเอง' : p === 'month' ? '30 วันล่าสุด' : p === 'year' ? '12 เดือนล่าสุด' : p === 'week' ? '7 วันล่าสุด' : p === 'day' ? 'วันนี้' : 'ทั้งหมด';
+}
+function saBars(o) {
+  const rows = o.rows, vals = rows.map(x => x.x ? x.x.v : null), pos = Math.max(0, ...vals.filter(v => v != null)), neg = Math.max(0, ...vals.filter(v => v != null).map(v => -v));
+  const tot = pos + neg || 1, z = pos / tot, every = Math.max(1, Math.ceil(rows.length / (innerWidth < 640 ? 6 : 12))), mxI = vals.indexOf(pos || null);
+  return `<div class="kb" style="--z:${z.toFixed(4)}">${rows.map((x, i) => { const v = vals[i], h = v == null ? 0 : Math.abs(v) / tot; const tip = `${o.B.u === 'day' ? fdate(x.b.s) : o.B.u === 'week' ? fds(x.b.s) + ' – ' + fdate(x.b.e - 1) : x.b.l} · ${v == null ? 'ไม่มีข้อมูล' : saFmt(o.sp, v)}${x.n ? ` · ${x.n} โพสต์` : ''}`;
+    return `<div class="kb-c${v == null ? ' na' : v < 0 ? ' neg' : ''}${i === mxI && v ? ' top' : ''}" style="--h:${h.toFixed(4)};--i:${Math.min(i, 40)}" data-tip="${esc(tip)}" tabindex="0"><i></i><span>${i % every === 0 ? esc(x.b.l) : ''}</span></div>`; }).join('')}</div>`;
+}
+function kpopHtml(key) {
+  const K = saKpiAll(range(), shownP()), o = K.out[key]; if (!o) return '';
+  const sp = o.sp, g = SA_G[sp.g], r = K.r, name = sp.t(K.ctx), unit = SA_UNIT[K.B.u] || '';
+  o.B = K.B;
+  const have = o.rows.filter(x => x.x);
+  const hi = have.length ? have.reduce((a, b) => b.x.v > a.x.v ? b : a) : null, lo = have.length ? have.reduce((a, b) => b.x.v < a.x.v ? b : a) : null;
+  const avg = saMean(have.map(x => x.x.v)), d = !sp.prev && o.P && o.X ? delta(o.X.v, o.P.v) : null;
+  const bl = x => K.B.u === 'day' ? fdate(x.b.s) : K.B.u === 'week' ? `${fds(x.b.s)} – ${fdate(x.b.e - 1)}` : K.B.u === 'hour' ? x.b.l + ' น.' : x.b.l;
+  const byPl = K.ps.length > 1 ? K.ps.map(p => { const cx = { l: K.cur.filter(x => x.platform === p), pl: r.hasPrev ? K.prev.filter(x => x.platform === p) : null, from: r.from, to: r.to, ps: [p], ln: p === 'line' }; const x = sp.calc(cx); return { p, x: x && x.v != null && isFinite(x.v) ? x : null }; }).filter(x => x.x) : [];
+  const plMax = Math.max(1e-9, ...byPl.map(x => Math.abs(x.x.v)));
+  const odd = key === 'erR' || key === 'erI' ? K.cur.filter(p => { const b = key === 'erR' ? p.m.reach : p.m.impressions; return b && engP(p) > b; }).length : 0;
+  const colHead = sp.kind === 'sum' ? '<th class="r">โพสต์</th><th class="r">' + esc(sp.num) + '</th>' : sp.kind === 'growth' ? `<th class="r">${esc(sp.num)}</th><th class="r">${esc(sp.den)}</th>` : `<th class="r">${esc(sp.num)}</th><th class="r">${esc(sp.den || '')}</th>`;
+  const colRow = x => sp.kind === 'sum' ? `<td class="r">${fnum(x.n)}</td><td class="r">${x.x ? fnum(x.x.v) : '—'}</td>` : x.x && !x.x.mean ? `<td class="r">${sp.k === 'sent' ? `${fnum(x.x.pos)} − ${fnum(x.x.neg)}` : saFmtN(sp, x.x.num)}</td><td class="r">${saFmtN(sp, x.x.den)}</td>` : '<td class="r">—</td><td class="r">—</td>';
+  return `<div class="pop-head"><span class="pop-ic" style="--gc:${g.c}">${ic(g.ic, 18)}</span><div class="pop-ttl"><small>${esc(sp.g)} · ${esc(g.th)}</small><h2 id="kpop-title">${esc(name)}</h2></div><button class="pop-x" data-act="kpop-close" aria-label="ปิดหน้าต่าง">${ic('x', 20)}</button></div>
+  <div class="pop-body" style="--gc:${g.c}">
+    <div class="kp-hero" style="--gc:${g.c}"><div class="kp-val"><b class="${sp.kind === 'sum' ? '' : 'num-cu'}">${sp.kind === 'sum' ? cnt(o.X ? o.X.v : null, 'n') : saFmt(sp, o.X && o.X.v)}</b>${d != null ? dpill(d) : ''}</div>
+      <div class="kp-meta"><span class="kp-per">${ic('cal', 13)} ${esc(saPeriodLabel(r))}</span><span>${rangeText(r)}</span><span>${K.ps.map(p => PL[p].name).join(' · ')}</span>${r.hasPrev && o.P ? `<span>ช่วงก่อนหน้า ${fds(r.pf)} – ${fdate(r.pt - 1)}: <b>${saFmt(sp, o.P.v)}</b></span>` : ''}</div>
+      <p class="kp-long">${esc(sp.long)}</p><p class="kp-read">${ic('spark', 13)} ${esc(sp.read)}</p></div>
+    <section class="kp-sec"><div class="kp-sh"><h3>แยก${unit}</h3><small>${have.length} จาก ${o.rows.length} ช่วงมีข้อมูล · แตะแท่งเพื่อดูค่า</small></div>${saBars(o)}
+      <div class="kp-stats"><div><small>สูงสุด</small><b>${hi ? saFmt(sp, hi.x.v) : '—'}</b><span>${hi ? esc(bl(hi)) : ''}</span></div><div><small>ต่ำสุด</small><b>${lo ? saFmt(sp, lo.x.v) : '—'}</b><span>${lo ? esc(bl(lo)) : ''}</span></div><div><small>เฉลี่ยต่อช่วง</small><b>${saFmt(sp, avg)}</b><span>${unit}</span></div><div><small>ทั้งช่วงที่เลือก</small><b>${saFmt(sp, o.X && o.X.v)}</b><span>${sp.kind === 'sum' ? 'ผลรวม' : 'คิดจากผลรวม'}</span></div></div></section>
+    ${byPl.length > 1 ? `<section class="kp-sec"><div class="kp-sh"><h3>แยกตามช่องทาง</h3></div><div class="kp-pl">${byPl.map(x => `<div class="kp-pl-r"><span>${platChip(x.p)}</span><div class="kp-pl-b"><i style="width:${(Math.abs(x.x.v) / plMax * 100).toFixed(1)}%;background:${PL[x.p].c}"></i></div><b>${saFmt(sp, x.x.v)}</b></div>`).join('')}</div></section>` : ''}
+    ${odd ? `<div class="callout warn">${ic('alert', 16)}<div>มี <b>${odd} โพสต์</b> ที่ Engagement มากกว่า${key === 'erR' ? ' Reach' : ' Impressions'} (ER เกิน 100%) — มักเกิดจากกรอก Reach ผิดหรือไฟล์ไม่มีค่า Reach ควรตรวจและแก้ไขโพสต์เหล่านั้น</div></div>` : ''}
+    <div class="kx-btn-row"><button class="btn kx-btn" data-act="kpop-fx" aria-expanded="false" aria-controls="kx">${ic('strategy', 15)} <span>สูตรคำนวณ</span> <svg class="kx-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div>
+    <div class="kx-wrap" id="kx"><div class="kx-in"><div class="kx">
+      <div class="kx-step"><span class="kx-n">1</span><div><h4>สูตร</h4><div class="fx">${saGeneric(sp)}</div></div></div>
+      <div class="kx-step"><span class="kx-n">2</span><div><h4>แทนค่า · ${esc(saPeriodLabel(r))} (${rangeText(r)})</h4><div class="fx">${saSubst(sp, o.X, true)}</div>${o.X && o.X.alt ? '<p class="note">ไม่มีข้อมูลคลิกทั้งหมด จึงใช้ Link clicks แทน</p>' : ''}</div></div>
+      ${r.hasPrev ? `<div class="kx-step"><span class="kx-n">3</span><div><h4>ช่วงก่อนหน้า (${fds(r.pf)} – ${fdate(r.pt - 1)})</h4><div class="fx">${saSubst(sp, o.P)}</div>${o.X && o.P && !sp.prev ? `<p class="note">เปลี่ยนแปลง (${saFmt(sp, o.X.v)} − ${saFmt(sp, o.P.v)}) ÷ ${saFmt(sp, o.P.v)} = <b>${sgn(delta(o.X.v, o.P.v))}</b></p>` : ''}</div></div>` : ''}
+      <div class="kx-step"><span class="kx-n">${r.hasPrev ? 4 : 3}</span><div style="min-width:0;flex:1"><h4>แทนค่าแยก${unit}</h4>
+        <div class="tbl-wrap kx-tbl"><table class="tbl"><thead><tr><th>ช่วง</th>${colHead}<th class="r">ผลลัพธ์</th></tr></thead><tbody>${have.map(x => `<tr><td>${esc(bl(x))}</td>${colRow(x)}<td class="r"><b>${saFmt(sp, x.x.v)}</b></td></tr>`).join('') || '<tr><td colspan="4" class="muted">ไม่มีข้อมูล</td></tr>'}</tbody></table></div></div></div>
+      <p class="note kx-note">${sp.kind === 'sum' ? 'ผลรวมของทุกโพสต์ที่โพสต์ในช่วงนั้น' : sp.kind === 'growth' ? 'แต่ละช่วงย่อยเทียบกับช่วงก่อนหน้าที่ยาวเท่ากันของตัวเอง' : 'อัตราของทั้งช่วงคิดจาก “ผลรวมตัวตั้ง ÷ ผลรวมตัวหาร” ของโพสต์ที่มีข้อมูลครบทั้งสองช่อง (ถ่วงน้ำหนักตามขนาด) จึงไม่เท่ากับค่าเฉลี่ยของแต่ละช่วงย่อย · โพสต์ที่ไม่มีข้อมูลช่องใดช่องหนึ่งจะไม่ถูกนับ'}</p>
+    </div></div></div>
+  </div>`;
+}
+const KPOP = { key: null };
+function kpopOpen(key) {
+  KPOP.key = key; let w = $('#kpop'); if (!w) { w = document.createElement('div'); w.id = 'kpop'; document.body.appendChild(w); }
+  w.className = 'pop-wrap'; w.innerHTML = `<div class="pop-bd" data-act="kpop-close"></div><div class="pop kpop" role="dialog" aria-modal="true" aria-labelledby="kpop-title">${PENG_PEEK}<div class="pop-card" id="kpop-card">${kpopHtml(key)}</div></div>`;
+  document.body.classList.add('modal-open'); void w.offsetWidth; w.classList.add('on');
+  setTimeout(() => { const b = $('#kpop .pop-x'); if (b) b.focus(); }, 60);
+}
+function kpopRefresh() { if (!KPOP.key) return; const c = $('#kpop-card'); if (!c) return; const open = $('#kx', c) && $('#kx', c).classList.contains('on'); const sc = $('.pop-body', c) ? $('.pop-body', c).scrollTop : 0; paint(c, kpopHtml(KPOP.key)); if (open) { $('#kx', c).classList.add('on'); const b = $('[data-act="kpop-fx"]', c); if (b) { b.setAttribute('aria-expanded', 'true'); b.querySelector('span').textContent = 'ซ่อนสูตรคำนวณ'; } } const bd = $('.pop-body', c); if (bd) bd.scrollTop = sc; }
+function kpopClose() { KPOP.key = null; const w = $('#kpop'); if (!w) return; w.classList.remove('on'); w.classList.add('off'); if (!$('#drawer.on') && !$('#modal.on')) document.body.classList.remove('modal-open'); setTimeout(() => { if (!w.classList.contains('on')) w.remove(); }, 420); }
+function kpopFx(btn) { const x = $('#kx'); if (!x) return; const on = !x.classList.contains('on'); x.classList.toggle('on', on); btn.setAttribute('aria-expanded', String(on)); btn.querySelector('span').textContent = on ? 'ซ่อนสูตรคำนวณ' : 'สูตรคำนวณ'; if (on) setTimeout(() => { const b = $('#kpop .pop-body'); if (b) b.scrollTo({ top: b.scrollTop + Math.min(320, x.getBoundingClientRect().top - b.getBoundingClientRect().top - 60), behavior: 'smooth' }); }, 120); }
 VIEWS.strategy = function () {
   const r = range(), ps = shownP(), cur = postsIn(r.from, r.to, ps), prev = r.hasPrev ? postsIn(r.pf, r.pt, ps) : [];
   const A = saAgg(cur), B = saAgg(prev), C = cstats(cur), D = cstats(prev);
@@ -2734,44 +3096,13 @@ VIEWS.strategy = function () {
      <div class="sa-exec-txt"><h3>${ic('spark', 15)} ข้อค้นพบสำคัญ</h3><ul class="sa-list">${exec.map(x => `<li>${x}</li>`).join('')}</ul>
       ${acts.length ? `<h3>${ic('arrow', 15)} สิ่งที่ควรทำต่อ</h3><ol class="sa-acts">${acts.map(x => `<li><span>${x}</span></li>`).join('')}</ol>` : ''}</div></div></section>`;
 
-  // ---------- ตัวชี้วัดตามสูตร (พร้อมแทนค่า) ----------
-  const tile = (name, val, formula, sub, d, tip) => `<div class="sa-k" title="${esc(tip || '')}"><div class="sa-k-top"><span>${name}</span>${d != null && r.hasPrev ? dpill(d) : ''}</div><b>${val}</b><code>${formula}</code>${sub ? `<small>${sub}</small>` : ''}</div>`;
-  const fx = (a, b, res, op = '÷') => `${fnum(a)} ${op} ${fnum(b)} = ${res}`;
-  const erNum = A.erR != null && sa.er === 'reach' ? fx(A.eng, A.reach, pp(A.erR, 2)) : fx(A.eng, A.imp, pp(A.erI, 2));
-  const groups = [
-    ['Awareness', 'target', [
-      (A.reach || A.imp) && tile(LN ? 'ส่งถึง (Reach)' : 'Reach', cnt(A.reach || A.imp, 'k', null, 'sa-r'), 'ผลรวม Reach ของทุกโพสต์', `${fnum(A.n)} โพสต์`, g(A.reach, B.reach)),
-      A.imp && tile(LN ? 'เปิดอ่าน (Impressions)' : 'Impressions', cnt(A.imp, 'k', null, 'sa-i'), 'ผลรวม Impressions', '', g(A.imp, B.imp)),
-      A.freq != null && tile('Frequency', f2(A.freq), 'Impressions ÷ Reach', 'คนเดิมเห็นซ้ำเฉลี่ยกี่ครั้ง', g(A.freq, B.freq)),
-      r.hasPrev && (A.reach || A.imp) && (B.reach || B.imp) && tile('Reach Growth', sgn(g(A.reach || A.imp, B.reach || B.imp)), `(${fk(A.reach || A.imp)} − ${fk(B.reach || B.imp)}) ÷ ${fk(B.reach || B.imp)} × 100`, 'เทียบช่วงก่อนหน้า', null)
-    ]],
-    ['Engagement', 'heart', [
-      A.eng != null && tile('Total Engagement', cnt(A.eng, 'k', null, 'sa-e'), LN ? 'คลิก (LINE)' : 'Like + Comment + Share + Save', '', g(A.eng, B.eng)),
-      A.erR != null && tile('ER by Reach', pp(A.erR, 2), fx(A.eng, A.reach, pp(A.erR, 2)), 'คนที่เห็นแล้วสนใจจริง', g(A.erR, B.erR)),
-      A.erI != null && tile('ER by Impression', pp(A.erI, 2), 'Engagement ÷ Impressions × 100', 'ประสิทธิภาพต่อการแสดงผล', g(A.erI, B.erI)),
-      A.cmtR != null && tile('Comment Rate', pp(A.cmtR, 2), fx(A.comments, A.reach, pp(A.cmtR, 2)), 'กระตุ้นบทสนทนา', g(A.cmtR, B.cmtR)),
-      A.shareR != null && tile('Share Rate', pp(A.shareR, 2), fx(A.shares, A.reach, pp(A.shareR, 2)), 'ความอยากบอกต่อ', g(A.shareR, B.shareR)),
-      A.saveR != null && tile('Save Rate', pp(A.saveR, 2), fx(A.saves, A.reach, pp(A.saveR, 2)), 'คุณค่าจนต้องเก็บไว้', g(A.saveR, B.saveR)),
-      A.clickR != null && tile('Click Rate', pp(A.clickR, 2), fx(A.clicks, A.reach, pp(A.clickR, 2)), 'ดึงคนไปขั้นถัดไป', g(A.clickR, B.clickR))
-    ]],
-    ['Traffic', 'link', [
-      A.ctr != null && tile('CTR', pp(A.ctr, 2), 'Clicks ÷ Impressions × 100', 'กระตุ้นการคลิกดีไหม', g(A.ctr, B.ctr)),
-      A.linkCtr != null && tile('Link CTR', pp(A.linkCtr, 2), fx(A.link, A.imp, pp(A.linkCtr, 2)), 'คลิกลิงก์ออกไปภายนอก', g(A.linkCtr, B.linkCtr))
-    ]],
-    ['Video', 'play', A.vids ? [
-      A.viewRate != null && tile('View Rate', pp(A.viewRate, 1), 'Video Views ÷ Impressions × 100', `${A.vids} วิดีโอ · Hook/ภาพปกดึงดูดไหม`, g(A.viewRate, B.viewRate)),
-      A.completion != null && tile('Completion Rate', pp(A.completion, 1), 'ดูจบ ÷ Video Starts × 100', 'รักษาความสนใจได้ไหม', g(A.completion, B.completion)),
-      A.avgWatch != null && tile('Avg. Watch Time', fdur(A.avgWatch), 'Watch Time รวม ÷ Views', 'คนดูนานเท่าไร', g(A.avgWatch, B.avgWatch))
-    ] : []],
-    ['Brand & Community', 'audience', [
-      folG != null && tile('Follower Growth Rate', sgn(folG), `(${fk(fNow)} − ${fk(fStart)}) ÷ ${fk(fStart)} × 100`, `+${fnum(fNow - fStart)} คน`, folGPrev ? g(folG, folGPrev) : null),
-      C.total && tile('Sentiment Score', f2(((C.by.pos || 0) - (C.by.neg || 0) - (C.by.cmp || 0)) / C.total * 100, 0), `(${C.by.pos || 0} − ${(C.by.neg || 0) + (C.by.cmp || 0)}) ÷ ${C.total} × 100`, 'ช่วง −100 ถึง +100', null),
-      C.total && tile('Response Rate', pp(C.replyRate, 0), 'ความคิดเห็นที่ตอบ ÷ ทั้งหมด × 100', C.avgRT != null ? `ตอบเฉลี่ยใน ${fmins(C.avgRT)}` : '', g(C.replyRate, D.replyRate))
-    ]]
-  ].map(([t, icon, l]) => [t, icon, l.filter(Boolean)]).filter(x => x[2].length);
-  const kpiSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">ตัวชี้วัดตามสูตร</span><h2>KPI ที่คำนวณได้จากข้อมูลของเรา</h2><p>แต่ละช่องแสดงสูตรพร้อมแทนค่าจริง · ป้ายสีเทียบกับช่วงก่อนหน้า</p></div>
+  // ---------- ตัวชี้วัดตามสูตร: การ์ดสรุป กดแล้วเปิดป๊อปอัปพร้อมสูตรแทนค่า ----------
+  const K = saKpiAll(r, ps);
+  const order = { Awareness: ['reach', 'imp', 'freq', 'reachG'], Engagement: ['eng', sa.er === 'reach' ? 'erR' : 'erI', sa.er === 'reach' ? 'erI' : 'erR', 'cmtR', 'shareR', 'saveR', 'clickR'], Traffic: ['ctr', 'linkCtr'], Video: A.vids ? ['viewRate', 'completion', 'avgWatch'] : [], 'Brand & Community': ['folG', 'sent', 'resp'] };
+  const groups = Object.entries(order).map(([t, keys]) => [t, SA_G[t].ic, keys.map(k => saTile(K, k)).filter(Boolean)]).filter(x => x[2].length);
+  const kpiSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">ตัวชี้วัดตามสูตร</span><h2>KPI ที่คำนวณได้จากข้อมูลของเรา</h2><p>${esc(saPeriodLabel(r))} · กดการ์ดเพื่อดูรายละเอียดแยก${SA_UNIT[K.B.u] || ''} และสูตรคำนวณแบบแทนค่า · ป้ายสีเทียบกับช่วงก่อนหน้า</p></div>
     <div class="seg" role="group" aria-label="ฐานของ Engagement Rate"><button data-act="sa-er" data-v="reach" aria-pressed="${sa.er === 'reach'}">ER by Reach</button><button data-act="sa-er" data-v="imp" aria-pressed="${sa.er === 'imp'}">ER by Impression</button></div></div>
-    ${groups.map(([t, icon, l]) => `<div class="sa-group"><h3>${ic(icon, 15)} ${t}</h3><div class="sa-kgrid">${l.join('')}</div></div>`).join('')}
+    ${groups.map(([t, icon, l]) => `<div class="sa-group" style="--gc:${SA_G[t].c}"><h3><span class="sa-g-ic">${ic(icon, 14)}</span> ${t}<small>${SA_G[t].th}</small></h3><div class="sa-kgrid">${l.join('')}</div></div>`).join('')}
     <p class="note" style="margin:10px 0 0">ข้อแนะนำ: อย่าใช้ Engagement Rate สูตรเดียวทั้งองค์กร — Facebook, Instagram, TikTok, LINE และ X นับต่างกัน จึงให้เลือกดูทั้ง ER by Reach และ ER by Impression</p></section>`;
 
   // ---------- ระดับช่องทาง ----------

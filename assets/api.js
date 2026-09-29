@@ -53,6 +53,7 @@
     },
     async logout() { try { await this.call('auth.logout'); } catch (_) {} store.del(TOKEN_KEY); },
     bootstrap() { return this.call('data.bootstrap'); },
+    version() { return this.call('data.version'); },
     savePost(payload) { return this.call('post.save', payload); },
     deletePost(id) { return this.call('post.delete', { id }); },
     recat(id, cat) { return this.call('comment.recat', { id, cat }); },
@@ -134,6 +135,15 @@
       return { status: 'active', token: 'demo', user: clone(u) };
     },
     async logout() { store.del(TOKEN_KEY); },
+    // ลายนิ้วมือของข้อมูลทั้งหมด (โหมดสาธิต) — เปลี่ยนเมื่อข้อมูลใดๆ เปลี่ยน ใช้กับการรีเฟรชเบื้องหลังทุก 3 วินาที
+    async version() {
+      await wait(60); need();
+      const t = JSON.stringify([db().posts, db().audience, db().followers, db().daily, db().users, db().connections || null]);
+      let h = 0; for (let i = 0; i < t.length; i += 7) h = (h * 31 + t.charCodeAt(i)) | 0;
+      return { v: t.length + ':' + h };
+    },
+    /** ใช้ทดสอบ: จำลองว่ามีคนอื่นแก้ข้อมูล (เพิ่ม Reach ของโพสต์ล่าสุด) */
+    _touch(n = 1234) { const p = [...db().posts].sort((a, b) => b.at - a.at)[0]; if (p) { p.m.reach = (p.m.reach || 0) + n; p.m.reactions = (p.m.reactions || 0) + Math.round(n / 20); } return p && p.id; },
     async bootstrap() {
       await wait(700);
       const u = need();

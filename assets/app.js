@@ -309,15 +309,28 @@ function heatmap(list) {
 }
 
 function split(a, la, lb) { const b = 1 - a; return `<div class="split"><div class="split-bar"><span style="width:${a * 100}%;background:var(--accent)">${pct(a, 0)}</span><span style="width:${b * 100}%;background:var(--ink-3)">${pct(b, 0)}</span></div><div class="split-labels"><span><i class="dot" style="background:var(--accent)"></i> ${la}</span><span>${lb} <i class="dot" style="background:var(--ink-3)"></i></span></div></div>`; }
+/* ตัวเลขวิ่งจาก 0 ขึ้นไปยังค่าจริงทุกครั้งที่เปลี่ยนมุมมอง (ลื่นด้วย ease-out) */
+const NUM_SEL = '.bv, .donut-legend b, .plat-stats b, .pc-n, .tc-stats span, .stat b, .m-stat b, .pf-big, .conn-meta b, .react small, .ct-n, td.num, .num-cu';
 function countUp(scope, prev) {
-  const els = $$('[data-count]', scope); if (!els.length) return;
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduce) return;
   const fmt = (el, v) => { const f = el.dataset.fmt; return f === 'pct' ? pct(v, +el.dataset.dec || 0) : f === 'n' ? fnum(v) : fk(v); };
-  const items = els.map(el => { const b = +el.dataset.count; const k = el.dataset.key; const a = prev ? (k && prev[k] != null && isFinite(prev[k]) ? prev[k] : b) : 0; return { el, a, b }; }).filter(x => x.a !== x.b || !prev);
+  const items = $$('[data-count]', scope).map(el => ({ el, b: +el.dataset.count, f: v => fmt(el, v) })).filter(x => isFinite(x.b));
+  // ตัวเลขที่เป็นข้อความธรรมดา: ดึงตัวเลขตัวแรกออกมาวิ่ง แล้วคงหน่วย/ทศนิยม/คอมมาเดิมไว้
+  $$(NUM_SEL, scope).slice(0, 400).forEach(el => {
+    if (el.querySelector('[data-count]') || el.children.length > 2 || el.closest('[data-count]')) return;
+    const node = [...el.childNodes].find(n => n.nodeType === 3 && /\d/.test(n.nodeValue)); if (!node) return;
+    const txt = node.nodeValue, m = txt.match(/-?\d[\d,]*(\.\d+)?/); if (!m) return;
+    const b = parseFloat(m[0].replace(/,/g, '')); if (!isFinite(b) || b === 0) return;
+    const dec = m[1] ? m[1].length - 1 : 0, comma = /,/.test(m[0]) || (b >= 1000 && dec === 0 && !/[KM]/.test(txt.slice(m.index + m[0].length, m.index + m[0].length + 1)));
+    const pre = txt.slice(0, m.index), post = txt.slice(m.index + m[0].length);
+    const f = v => pre + (comma ? v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : v.toFixed(dec)) + post;
+    items.push({ node, b, f, text: true });
+  });
   if (!items.length) return;
-  items.forEach(x => x.el.textContent = fmt(x.el, x.a));
-  const t0 = performance.now(), D = prev ? 820 : 950;
-  const tick = t => { const k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3); items.forEach(x => x.el.textContent = fmt(x.el, x.a + (x.b - x.a) * e)); if (k < 1) requestAnimationFrame(tick); };
+  const set = (x, v) => { const s2 = x.f(v); if (x.text) x.node.nodeValue = s2; else x.el.textContent = s2; };
+  items.forEach(x => { set(x, 0); if (!x.text) x.el.classList.add('cu'); });
+  const t0 = performance.now(), D = 1150, ease = k => k >= 1 ? 1 : 1 - Math.pow(2, -10 * k);
+  const tick = t => { const k = Math.min(1, (t - t0) / D), e = ease(k); items.forEach(x => set(x, x.b * e)); if (k < 1) requestAnimationFrame(tick); else items.forEach(x => { set(x, x.b); if (!x.text) x.el.classList.remove('cu'); }); };
   requestAnimationFrame(tick);
 }
 const cnt = (v, f = 'k', dec, key) => v == null || !isFinite(v) ? '—' : `<span data-count="${v}" data-fmt="${f}"${dec != null ? ` data-dec="${dec}"` : ''}${key ? ` data-key="${key}"` : ''}>${f === 'pct' ? pct(v, dec || 0) : f === 'n' ? fnum(v) : fk(v)}</span>`;
@@ -538,6 +551,7 @@ function renderTop() {
    <div class="title-row"><div><span class="eyebrow-sm">${ic(S.page, 13)} ${esc((PAGES.find(m => m.k === S.page) || {}).sub || '')}</span><h1>${pageTitle()}</h1><p>${pageSub()}</p></div>
     <div class="filters">${['dashboard', 'posts', 'comments', 'audience'].includes(S.page) ? `<button class="btn ghost upd" data-act="refresh" title="ดึงยอดผู้ติดตามล่าสุดและโหลดข้อมูลล่าสุดจากฐานข้อมูล">${ic('refresh', 15)} <span>อัปเดตล่าสุด ${DB.loadedAt ? new Date(DB.loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span></button>` : ''}${S.page === 'posts' && can('add') ? `${PKEYS.some(p => conn(p).connected) ? `<button class="btn" data-act="sync-all">${ic('refresh', 16)} อัปเดตจากแพลตฟอร์ม</button>` : ''}<button class="btn primary" data-act="go-link">${ic('add', 16)} เพิ่มคอนเทนต์</button>` : ''}</div></div>
    ${['dashboard', 'posts', 'comments', 'audience'].includes(S.page) ? filtersBar() : ''}`;
+  syncThumbs($('#topbar'));
 }
 function greet() { const h = new Date().getHours(); return h < 12 ? 'สวัสดีตอนเช้า' : h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น'; }
 function dashInsight() {
@@ -550,13 +564,150 @@ function pageTitle() { return { dashboard: `${greet()}, ${esc(((ME && ME.name) |
 function pageSub() { return { dashboard: dashInsight(), posts: 'ผลลัพธ์รายโพสต์จาก Facebook, Instagram และ TikTok เรียงจากล่าสุดไปเก่าสุด', comments: 'ฟังเสียงผู้ติดตาม จัดหมวดความรู้สึก และติดตามการตอบกลับ', audience: 'ใครติดตามเรา อยู่ที่ไหน และเติบโตแค่ไหน', add: 'วางลิงก์ให้ระบบดึงข้อมูล กรอกเอง หรือนำเข้าไฟล์ CSV', connect: 'เชื่อมต่อเพจและบัญชีของหน่วยงาน เพื่อดึงยอดและความคิดเห็นอัตโนมัติ', admin: `อนุญาตเฉพาะอีเมล @${DOMAIN} · กำหนดเมนูและแพลตฟอร์มที่แต่ละคนเข้าถึงได้` }[S.page]; }
 function filtersBar() {
   const a = allowedP(), r = range(), showPeriod = S.page !== 'audience';
-  return `<div class="filters">
-   <div class="seg" role="group" aria-label="แพลตฟอร์ม">${a.length > 1 ? `<button data-act="fp" data-v="all" aria-pressed="${S.f.platform === 'all'}">ทั้งหมด</button>` : ''}${a.map(p => `<button data-act="fp" data-v="${p}" aria-pressed="${S.f.platform === p || a.length === 1}"><i class="dot" style="background:${PL[p].c}"></i>${PL[p].name}</button>`).join('')}</div>
-   ${showPeriod ? `<div class="seg" role="group" aria-label="ช่วงเวลา">${PERIODS.map(([k, t]) => `<button data-act="per" data-v="${k}" aria-pressed="${S.f.period === k}">${t}</button>`).join('')}</div>
-   ${S.f.period === 'custom' ? `<div class="filters soft"><input class="input" type="date" id="f-from" value="${S.f.from}" max="${iso(TODAY)}" data-change="from" style="width:auto" aria-label="วันที่เริ่ม"><span class="muted">ถึง</span><input class="input" type="date" id="f-to" value="${S.f.to}" max="${iso(TODAY)}" data-change="to" style="width:auto" aria-label="วันที่สิ้นสุด"></div>` : ''}
-   <span class="range-label">${ic('cal', 15)} ${rangeText(r)}</span>` : ''}
+  const days = Math.round((r.to - r.from) / DAY);
+  return `<div class="filters fbar">
+   <div class="seg seg-x" role="group" aria-label="แพลตฟอร์ม" data-seg="pl"><span class="seg-thumb" aria-hidden="true"></span>${a.length > 1 ? `<button data-act="fp" data-v="all" aria-pressed="${S.f.platform === 'all'}"><span class="pl-all" aria-hidden="true">${a.map(p => `<i style="background:${PL[p].c}"></i>`).join('')}</span>ทั้งหมด</button>` : ''}${a.map(p => `<button data-act="fp" data-v="${p}" data-c="${PL[p].c}" aria-pressed="${S.f.platform === p || a.length === 1}"><span class="pl-ico" style="--pc:${PL[p].c}">${PL[p].short}</span>${PL[p].name}</button>`).join('')}</div>
+   ${showPeriod ? `<div class="seg seg-x" role="group" aria-label="ช่วงเวลา" data-seg="per"><span class="seg-thumb" aria-hidden="true"></span>${PERIODS.filter(([k]) => k !== 'custom').map(([k, t]) => `<button data-act="per" data-v="${k}" aria-pressed="${S.f.period === k}">${t}</button>`).join('')}</div>
+   <button class="date-btn${S.f.period === 'custom' ? ' on' : ''}${DP.open ? ' open' : ''}" data-act="dp-open" aria-haspopup="dialog" aria-expanded="${DP.open}" title="เลือกช่วงวันที่เอง">${ic('cal', 16)}<span class="db-t"><b>${rangeText(r)}</b><small>${S.f.period === 'custom' ? 'กำหนดเอง · ' : ''}${days} วัน</small></span><svg class="db-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>` : ''}
   </div>`;
 }
+/* ---------- แถบเลือกแบบเลื่อน (ไฮไลต์ไหลไปยังปุ่มที่เลือก) ---------- */
+const THUMB = {};
+function syncThumbs(root = document, animate = true) {
+  $$('.seg[data-seg]', root).forEach(seg => {
+    const th = seg.querySelector('.seg-thumb'); if (!th) return;
+    const b = seg.querySelector('button[aria-pressed="true"]'); const id = seg.dataset.seg;
+    if (!b) { th.style.opacity = 0; delete THUMB[id]; return; }
+    const g = { x: b.offsetLeft, y: b.offsetTop, w: b.offsetWidth, h: b.offsetHeight }; const old = THUMB[id];
+    const set = q => { th.style.transform = `translate(${q.x}px,${q.y}px)`; th.style.width = q.w + 'px'; th.style.height = q.h + 'px'; };
+    th.style.setProperty('--tc', b.dataset.c || 'transparent');
+    if (old && animate) { th.style.transition = 'none'; set(old); th.style.opacity = 1; void th.offsetWidth; th.style.transition = ''; set(g); }
+    else { th.style.transition = 'none'; set(g); th.style.opacity = 1; void th.offsetWidth; th.style.transition = ''; }
+    THUMB[id] = g;
+  });
+}
+window.addEventListener('resize', () => { syncThumbs(document, false); if (DP.open) dpPlace(); });
+
+/* ---------- ปฏิทินเลือกช่วงวันที่ ---------- */
+const TH_MON = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const TH_WD = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const DP = { open: false, a: null, b: null, hover: null, view: null, marks: null, anchor: null };
+const addMon = (ms, n) => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth() + n, 1).getTime(); };
+const fmtIn = ms => { if (ms == null) return ''; const d = new Date(ms); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + (d.getFullYear() + 543); };
+function parseIn(v) {
+  const ok = t => t != null && new Date(t).getFullYear() >= 2000 ? t : null;
+  v = String(v || '').trim(); let m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/), d, mo, y;
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else { m = v.match(/^(\d{1,2})\D+(\d{1,2})\D+(\d{2,4})$/) || v.replace(/\D/g, '').match(/^(\d{2})(\d{2})(\d{4})$/); if (!m) return null; d = +m[1]; mo = +m[2]; y = +m[3]; }
+  if (y < 100) y = y >= 50 ? 2500 + y : 2000 + y;
+  if (y > 2400) y -= 543;
+  const t = new Date(y, mo - 1, d); if (t.getFullYear() !== y || t.getMonth() !== mo - 1 || t.getDate() !== d) return null;
+  return ok(t.getTime());
+}
+const dpTwo = () => window.innerWidth >= 760;
+function dpMarks() {
+  const ps = activeP(), m = new Set();
+  DB.posts.forEach(x => { if (ps.includes(x.platform)) m.add(sod(x.at)); });
+  (DB.daily || []).forEach(x => { if (ps.includes(x.platform)) m.add(x._t); });
+  return m;
+}
+const PRESETS = [['day', 'วันนี้'], ['week', '7 วันล่าสุด'], ['month', '30 วันล่าสุด'], ['d90', '90 วันล่าสุด'], ['thism', 'เดือนนี้'], ['lastm', 'เดือนที่แล้ว'], ['thisy', 'ปีนี้'], ['year', '365 วันล่าสุด'], ['all', 'ทั้งหมด']];
+function presetRange(k) {
+  const d = new Date(TODAY);
+  if (k === 'd90') return [TODAY - 89 * DAY, TODAY];
+  if (k === 'thism') return [new Date(d.getFullYear(), d.getMonth(), 1).getTime(), TODAY];
+  if (k === 'lastm') return [new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime(), new Date(d.getFullYear(), d.getMonth(), 0).getTime()];
+  if (k === 'thisy') return [new Date(d.getFullYear(), 0, 1).getTime(), TODAY];
+  return null;
+}
+function dpOpen(anchor) {
+  const r = range(); DP.a = r.from; DP.b = Math.min(r.to - DAY, TODAY); DP.hover = null; DP.anchor = anchor; DP.marks = dpMarks();
+  DP.view = dpTwo() ? addMon(DP.b, -1) : addMon(DP.b, 0); if (dpTwo() && new Date(DP.a).getMonth() === new Date(DP.b).getMonth() && new Date(DP.a).getFullYear() === new Date(DP.b).getFullYear()) DP.view = addMon(DP.b, -1);
+  let el = $('#dp'); if (!el) { el = document.createElement('div'); el.id = 'dp'; document.body.appendChild(el); }
+  el.className = 'dp-wrap'; el.innerHTML = dpHtml(); DP.open = true; dpPlace(); void el.offsetWidth; el.classList.add('on');
+  const b = $('.date-btn'); if (b) { b.classList.add('open'); b.setAttribute('aria-expanded', 'true'); }
+  setTimeout(() => { const f = $('#dp .dp-day.start') || $('#dp .dp-day:not([disabled])'); if (f && window.innerWidth > 640) f.focus({ preventScroll: true }); }, 80);
+}
+function dpClose() {
+  if (!DP.open) return; DP.open = false; const el = $('#dp'); if (el) { el.classList.remove('on'); setTimeout(() => { if (!DP.open) el.innerHTML = ''; }, 220); }
+  const b = $('.date-btn'); if (b) { b.classList.remove('open'); b.setAttribute('aria-expanded', 'false'); }
+}
+function dpPlace() {
+  const el = $('#dp'), pop = $('#dp .dp-pop'), an = $('.date-btn'); if (!el || !pop) return;
+  if (window.innerWidth <= 640 || !an) { el.classList.add('sheet'); pop.style.left = pop.style.top = ''; return; }
+  el.classList.remove('sheet'); const r = an.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  let left = Math.min(r.right - w, window.innerWidth - w - 16); left = Math.max(16, left);
+  let top = r.bottom + 10; if (top + h > window.innerHeight - 12 && r.top - h - 10 > 12) top = r.top - h - 10;
+  pop.style.left = left + 'px'; pop.style.top = Math.max(12, top) + 'px';
+}
+function dpMonth(ms, pos) {
+  const d = new Date(ms), y = d.getFullYear(), m = d.getMonth(), first = new Date(y, m, 1).getDay(), n = new Date(y, m + 1, 0).getDate();
+  const lo = DP.a, hi = DP.b != null ? DP.b : (DP.hover != null ? DP.hover : null);
+  const [ra, rb] = hi == null ? [lo, lo] : [Math.min(lo, hi), Math.max(lo, hi)];
+  let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="dp-pad"></span>';
+  for (let k = 1; k <= n; k++) {
+    const t = new Date(y, m, k).getTime(), dis = t > TODAY;
+    const cls = ['dp-day', t === ra ? 'start' : '', t === rb ? 'end' : '', t > ra && t < rb ? 'in' : '', t === TODAY ? 'today' : '', DP.marks && DP.marks.has(t) ? 'mk' : '', DP.b == null && DP.hover != null && t >= ra && t <= rb ? 'preview' : ''].filter(Boolean).join(' ');
+    cells += `<button type="button" class="${cls}" data-act="dp-day" data-v="${t}" ${dis ? 'disabled' : ''} aria-label="${k} ${TH_MON[m]} ${y + 543}" aria-pressed="${t === ra || t === rb}">${k}</button>`;
+  }
+  const canNext = addMon(ms, pos === 'l' && dpTwo() ? 2 : 1) <= TODAY;
+  return `<div class="dp-month"><div class="dp-mhead">${pos !== 'r' ? `<span class="dp-navs"><button type="button" class="dp-nav" data-act="dp-nav" data-v="-12" aria-label="ปีก่อนหน้า">«</button><button type="button" class="dp-nav" data-act="dp-nav" data-v="-1" aria-label="เดือนก่อนหน้า">‹</button></span>` : '<span></span>'}<b>${TH_MON[m]} ${y + 543}</b>${pos !== 'l' || !dpTwo() ? `<span class="dp-navs"><button type="button" class="dp-nav" data-act="dp-nav" data-v="1" aria-label="เดือนถัดไป" ${canNext ? '' : 'disabled'}>›</button><button type="button" class="dp-nav" data-act="dp-nav" data-v="12" aria-label="ปีถัดไป" ${addMon(ms, 12) <= TODAY ? '' : 'disabled'}>»</button></span>` : '<span></span>'}</div>
+    <div class="dp-grid">${TH_WD.map(w => `<span class="dp-wd">${w}</span>`).join('')}${cells}</div></div>`;
+}
+function dpCal() { return `<div class="dp-months">${dpMonth(DP.view, dpTwo() ? 'l' : 'one')}${dpTwo() ? dpMonth(addMon(DP.view, 1), 'r') : ''}</div>`; }
+function dpSum() {
+  if (DP.a == null) return 'เลือกวันเริ่มต้น';
+  if (DP.b == null) return `<b>${fdate(DP.a)}</b> → เลือกวันสิ้นสุด`;
+  const n = Math.round((DP.b - DP.a) / DAY) + 1; return `<b>${DP.a === DP.b ? fdate(DP.a) : `${fds(DP.a)} – ${fdate(DP.b)}`}</b> · ${fnum(n)} วัน`;
+}
+function dpHtml() {
+  return `<div class="dp-bd" data-act="dp-close"></div><div class="dp-pop" role="dialog" aria-modal="false" aria-label="เลือกช่วงวันที่">
+   <aside class="dp-presets"><span class="dp-cap">เลือกเร็ว</span>${PRESETS.map(([k, t]) => `<button type="button" data-act="dp-preset" data-v="${k}" class="${S.f.period === k ? 'on' : ''}">${t}</button>`).join('')}</aside>
+   <div class="dp-main">
+    <div class="dp-inputs"><label class="dp-in"><span>วันเริ่มต้น</span><input id="dp-a" inputmode="numeric" autocomplete="off" placeholder="วว/ดด/ปปปป" value="${fmtIn(DP.a)}" data-input="dp-a" aria-describedby="dp-hint"></label><span class="dp-arrow">${ic('arrow', 16)}</span><label class="dp-in"><span>วันสิ้นสุด</span><input id="dp-b" inputmode="numeric" autocomplete="off" placeholder="วว/ดด/ปปปป" value="${fmtIn(DP.b)}" data-input="dp-b" aria-describedby="dp-hint"></label></div>
+    <p class="dp-hint" id="dp-hint">พิมพ์ตัวเลขต่อกันได้เลย เช่น 01092569 · ใช้ปี พ.ศ. หรือ ค.ศ. ก็ได้ · จุดใต้วันที่ = มีโพสต์หรือข้อมูล</p>
+    <div id="dp-cal">${dpCal()}</div>
+    <div class="dp-foot"><span id="dp-sum">${dpSum()}</span><div class="dp-btns"><button type="button" class="btn ghost" data-act="dp-close">ยกเลิก</button><button type="button" class="btn primary" data-act="dp-apply" ${DP.a == null ? 'disabled' : ''}>ใช้ช่วงวันที่นี้</button></div></div>
+   </div></div>`;
+}
+function dpRefresh(inputsToo) {
+  const c = $('#dp-cal'); if (c) c.innerHTML = dpCal(); const sm = $('#dp-sum'); if (sm) sm.innerHTML = dpSum();
+  const ap = $('#dp [data-act="dp-apply"]'); if (ap) ap.disabled = DP.a == null;
+  if (inputsToo) { const a = $('#dp-a'), b = $('#dp-b'); if (a && document.activeElement !== a) { a.value = fmtIn(DP.a); a.classList.remove('bad'); } if (b && document.activeElement !== b) { b.value = fmtIn(DP.b); b.classList.remove('bad'); } }
+}
+function dpPick(t) {
+  if (DP.a == null || DP.b != null) { DP.a = t; DP.b = null; }
+  else if (t < DP.a) { DP.b = DP.a; DP.a = t; }
+  else DP.b = t;
+  DP.hover = null; dpRefresh(true);
+}
+function dpTyped(which, el, inputType) {
+  if (/\/{2,}/.test(el.value)) el.value = el.value.replace(/\/{2,}/g, '/');
+  const v0 = el.value, digits = v0.replace(/\D/g, '');
+  // พิมพ์ตัวเลขต่อกัน ระบบใส่ / ให้เอง (ถ้าพิมพ์ / เองหรือกำลังลบ จะไม่ไปแก้ให้)
+  const auto = [...v0].every((c, i) => /\d/.test(c) || (c === '/' && (i === 2 || i === 5)));
+  if (auto && !/^delete/.test(inputType || '') && digits.length <= 8) {
+    const f = digits.slice(0, 2) + (digits.length >= 2 && (digits.length > 2 || /\d$/.test(v0)) ? '/' : '') + digits.slice(2, 4) + (digits.length >= 4 ? '/' : '') + digits.slice(4, 8);
+    const g = f.replace(/\/$/, digits.length === 2 || digits.length === 4 ? '/' : '');
+    if (g !== v0) el.value = g;
+  }
+  // ระหว่างพิมพ์ รับเฉพาะปี 4 หลัก (กันปีครึ่งๆ กลางๆ เช่น 20 หรือ 202)
+  const yr = (el.value.match(/(\d+)\D*$/) || [])[1] || ''; const full = /\D/.test(el.value.replace(/^\d+/, '')) ? yr.length >= 4 : digits.length >= 8;
+  const t = full ? parseIn(el.value) : null;
+  el.classList.toggle('bad', full && (!t || t > TODAY)); el.classList.toggle('ok', !!t && t <= TODAY);
+  if (!t || t > TODAY) return;
+  if (which === 'a') { DP.a = t; if (DP.b != null && DP.b < t) { DP.b = t; const b = $('#dp-b'); if (b) b.value = fmtIn(t); } }
+  else { DP.b = t; if (DP.a == null || DP.a > t) { DP.a = t; const a = $('#dp-a'); if (a) a.value = fmtIn(t); } }
+  const v = which === 'a' ? DP.a : DP.b; if (v < DP.view || v >= addMon(DP.view, dpTwo() ? 2 : 1)) DP.view = dpTwo() && which === 'b' ? addMon(v, -1) : addMon(v, 0);
+  dpRefresh(false);
+}
+function dpApply() {
+  if (DP.a == null) return; const b = DP.b == null ? DP.a : DP.b;
+  S.f.period = 'custom'; S.f.from = iso(DP.a); S.f.to = iso(b); dpClose(); refilter();
+}
+document.addEventListener('mousedown', e => { if (DP.open && !e.target.closest('#dp .dp-pop') && !e.target.closest('.date-btn')) dpClose(); });
+document.addEventListener('mouseover', e => { if (!DP.open || DP.a == null || DP.b != null) return; const d = e.target.closest && e.target.closest('#dp .dp-day'); if (!d || d.disabled) return; const t = +d.dataset.v; if (t !== DP.hover) { DP.hover = t; const c = $('#dp-cal'); if (c) c.innerHTML = dpCal(); } });
+window.addEventListener('scroll', () => { if (DP.open) dpPlace(); }, { passive: true });
 const VIEWS = {};
 const AFTER = {};
 let viewSeq = 0;
@@ -582,7 +733,7 @@ function renderView(mode = 'fade') {
 function go(page, tab) {
   if (!can(page)) return;
   if (page === 'add' && (S.page !== 'add' || tab)) { S.catTouched = false; S.editing = null; S.parsed = []; S.img = null; S.addTab = tab || 'link'; if (tab !== 'post') S.prefill = null; }
-  S.page = page; S.person = null; closeDrawer();
+  S.page = page; S.person = null; closeDrawer(); dpClose();
   $$('#side .nav button').forEach(b => b.dataset.v === page ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   renderTop(); renderView('fade'); renderFab(); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1991,6 +2142,12 @@ document.addEventListener('click', async e => {
     case 'copy-code': { const t = $('#su-code').textContent; try { await navigator.clipboard.writeText(t); toast('คัดลอกแล้ว'); } catch (_) { const r = document.createRange(); r.selectNodeContents($('#su-code')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('เลือกข้อความแล้ว กด Ctrl+C เพื่อคัดลอก', 'info'); } break; }
     case 'fp': S.f.platform = v; refilter(); break;
     case 'per': S.f.period = v; refilter(); break;
+    case 'dp-open': if (DP.open) dpClose(); else dpOpen(el); break;
+    case 'dp-close': dpClose(); break;
+    case 'dp-apply': dpApply(); break;
+    case 'dp-day': dpPick(+v); break;
+    case 'dp-nav': { const n = +v; let nv = addMon(DP.view, n); const lastView = addMon(TODAY, dpTwo() ? -1 : 0); if (nv > lastView) nv = lastView; DP.view = nv; dpRefresh(false); break; }
+    case 'dp-preset': { const pr = presetRange(v); dpClose(); if (pr) { S.f.period = 'custom'; S.f.from = iso(pr[0]); S.f.to = iso(pr[1]); } else S.f.period = v; refilter(); break; }
     case 'trend': S.trend = v; $$('[data-act="trend"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); AFTER.dashboard('soft'); break;
     case 'pview': S.pf.view = v; $$('[data-act="pview"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); renderPostList(true); break;
     case 'open': openPost(el.dataset.id); break;
@@ -2103,12 +2260,13 @@ let qt;
 document.addEventListener('input', e => {
   const t = e.target, k = t.dataset.input; if (!k) return;
   if (k === 'page-fol' && S.pimp) S.pimp.followers = t.value;
+  if (k === 'dp-a' || k === 'dp-b') dpTyped(k.slice(3), t, e.inputType);
   if (k === 'pq') { S.pf.q = t.value; clearTimeout(qt); qt = setTimeout(() => renderPostList(false), 120); }
   if (k === 'cq') { S.cf.q = t.value; clearTimeout(qt); qt = setTimeout(renderFeed, 150); }
   if (k === 'acap' && !S.editing && !S.catTouched) { const c = autoCategory(t.value); const sel = $('#a-cat'); if (sel && t.value.trim().length > 8) { sel.value = c; const h = $('#cat-hint'); if (h) h.textContent = 'ระบบแนะนำหมวด “' + CAT[c].t + '” จากข้อความ เปลี่ยนเองได้'; } }
   if (k === 'fx-link') { S.fx.link = t.value; const pl = $('#fx-pl'); if (pl) pl.innerHTML = fxPlIcon(t.value); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#modal.on')) { e.preventDefault(); modalClose(); return; } if (S.openPost) closeDrawer(); } });
+document.addEventListener('keydown', e => { if (DP.open && e.key === 'Enter' && e.target.closest && e.target.closest('#dp input')) { e.preventDefault(); dpApply(); return; } if (e.key === 'Escape') { if (DP.open) { dpClose(); const b = $('.date-btn'); if (b) b.focus(); return; } if ($('#modal.on')) { e.preventDefault(); modalClose(); return; } if (S.openPost) closeDrawer(); } });
 window.addEventListener('beforeunload', e => { if (MODAL.locked) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target;

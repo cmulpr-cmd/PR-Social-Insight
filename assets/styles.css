@@ -4,7 +4,7 @@
   --ink:#1c1823; --ink-2:#554f60; --ink-3:#827c8c;
   --accent:#5b2a86; --accent-ink:#ffffff; --accent-soft:#f0e9f7; --accent-2:#7b4bab;
   --plum-deep:#2a1340; --gold:#e3a93b;
-  --fb:#2a78d6; --ig:#eb6834; --tt:#1baf7a;
+  --fb:#2a78d6; --ig:#eb6834; --tt:#0fa3b8; --lineoa:#06c755; --xpl:#14171a; --xink:#ffffff;
   --good:#1a7f45; --good-soft:#e2f2e8; --bad:#c23b3b; --bad-soft:#f8e3e3; --warn:#9a6200; --warn-soft:#fbefd4;
   --s-pos:#1f9d55; --s-neu:#a09ca8; --s-neg:#d64545; --s-q:#2a78d6; --s-cmp:#b35a1f; --s-int:#7a5af0; --s-buy:#c98500;
   --shadow-sm:0 1px 2px rgba(28,24,35,.05),0 2px 8px rgba(28,24,35,.04);
@@ -25,7 +25,7 @@
     --bg:#121016; --surface:#1a1720; --surface-2:#231e2a; --line:#2e2836; --line-2:#3d3547;
     --ink:#f2eff6; --ink-2:#bdb6c8; --ink-3:#8c8598;
     --accent:#b68ee0; --accent-ink:#1b1224; --accent-soft:#2b2137; --accent-2:#caa9ee;
-    --fb:#3987e5; --ig:#d95926; --tt:#199e70;
+    --fb:#3987e5; --ig:#d95926; --tt:#22b3c6; --lineoa:#1fcf6a; --xpl:#d6dde3; --xink:#0f1419;
     --good:#4cc07e; --good-soft:#16291e; --bad:#ef6b6b; --bad-soft:#341c1d; --warn:#e0a53a; --warn-soft:#30250f;
     --s-pos:#3fb872; --s-neu:#8a8694; --s-neg:#e66767; --s-q:#3987e5; --s-cmp:#d9793b; --s-int:#9085e9; --s-buy:#d9a520;
     --shadow-sm:0 1px 2px rgba(0,0,0,.35);
@@ -38,7 +38,7 @@
   --bg:#121016; --surface:#1a1720; --surface-2:#231e2a; --line:#2e2836; --line-2:#3d3547;
   --ink:#f2eff6; --ink-2:#bdb6c8; --ink-3:#8c8598;
   --accent:#b68ee0; --accent-ink:#1b1224; --accent-soft:#2b2137; --accent-2:#caa9ee;
-  --fb:#3987e5; --ig:#d95926; --tt:#199e70;
+  --fb:#3987e5; --ig:#d95926; --tt:#22b3c6; --lineoa:#1fcf6a; --xpl:#d6dde3; --xink:#0f1419;
   --good:#4cc07e; --good-soft:#16291e; --bad:#ef6b6b; --bad-soft:#341c1d; --warn:#e0a53a; --warn-soft:#30250f;
   --s-pos:#3fb872; --s-neu:#8a8694; --s-neg:#e66767; --s-q:#3987e5; --s-cmp:#d9793b; --s-int:#9085e9; --s-buy:#d9a520;
   --shadow-sm:0 1px 2px rgba(0,0,0,.35);
@@ -1021,3 +1021,15 @@ details.help.alt summary{color:var(--ink-2)}
 .dp-wrap.sheet .dp-btns{width:100%}.dp-wrap.sheet .dp-btns .btn{flex:1;justify-content:center}
 @media (max-width:640px){.seg.seg-x{max-width:100%;overflow-x:auto;flex-wrap:nowrap}.date-btn{width:100%}}
 @media (prefers-reduced-motion:reduce){.seg-thumb,.dp-pop,.db-chev{transition:none}}
+
+/* ============ LINE OA และ X ============ */
+[style*="var(--xpl)"].pl-badge,[style*="var(--xpl)"].pl-ico,.pl-badge[style*="--xpl"]{color:var(--xink)}
+.btn.x-btn{background:var(--xpl);border-color:var(--xpl);color:var(--xink);gap:10px;padding-left:18px;padding-right:20px}
+.btn.x-btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.fb-wait.x{background:color-mix(in srgb,var(--xpl) 6%,var(--surface));border-color:color-mix(in srgb,var(--xpl) 22%,var(--line))}
+.fb-wait.x .m-spin{border-color:color-mix(in srgb,var(--xpl) 20%,transparent);border-top-color:var(--xpl)}
+[data-count]{display:inline-block}
+[data-count].cu{opacity:.92}
+[data-count].cu-done{animation:cu-pop .5s var(--spring)}
+@keyframes cu-pop{0%{transform:translateY(-1px) scale(1.035);opacity:.9}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){[data-count].cu-done{animation:none}}

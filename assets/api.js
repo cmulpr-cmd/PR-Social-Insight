@@ -65,6 +65,8 @@
     connStatus() { return this.call('connect.status'); },
     connectMeta(p) { return this.call('connect.meta', p); },
     metaStart(p) { return this.call('connect.metaStart', p); },
+    connectLine(token) { return this.call('connect.line', { token }); },
+    connectX(p) { return this.call('connect.x', p); },
     metaPick(pageId) { return this.call('connect.metaPick', { pageId }); },
     connectTikTok(p) { return this.call('connect.tiktok', p); },
     disconnect(platform) { return this.call('connect.disconnect', { platform }); },
@@ -158,7 +160,7 @@
     async recat(id, cat) { await wait(250); const u = need('comments'); for (const p of db().posts) { const c = p.comments.find(x => x.id === id); if (c) { c.cat = cat; c.auto = false; log(u.email, 'แก้หมวดความคิดเห็น'); return clone(c); } } throw new ApiError('not_found', 'ไม่พบความคิดเห็นนี้'); },
     async reply(id, text) { await wait(300); const u = need('comments'); for (const p of db().posts) { const c = p.comments.find(x => x.id === id); if (c) { c.thread.push({ from: 'page', text: text || 'ตอบกลับแล้ว', at: Date.now(), by: u.email }); return clone(c); } } throw new ApiError('not_found', 'ไม่พบความคิดเห็นนี้'); },
     // ---- ดึงข้อมูลจากแพลตฟอร์ม (จำลองในโหมดสาธิต) ----
-    _conn() { const d = db(); if (!d.conn) d.conn = { fb: { connected: true, name: 'เพจตัวอย่าง', lastSync: Date.now() - 36e5, error: '' }, ig: { connected: true, name: '@example.page', lastSync: Date.now() - 36e5, error: '' }, tt: { connected: false, name: '', hasApp: false, lastSync: null, error: '' }, autoSync: true, lastAuto: Date.now() - 20 * 6e4, redirectUri: 'https://script.google.com/macros/s/…/exec' }; return d.conn; },
+    _conn() { const d = db(); if (!d.conn) d.conn = { fb: { connected: true, name: 'เพจตัวอย่าง', lastSync: Date.now() - 36e5, error: '' }, ig: { connected: true, name: '@example.page', lastSync: Date.now() - 36e5, error: '' }, tt: { connected: false, name: '', hasApp: false, lastSync: null, error: '' }, line: { connected: true, name: 'สำนักหอสมุด มช.', basicId: '@cmulib', lastSync: Date.now() - 36e5, error: '' }, x: { connected: false, name: '', hasApp: false, clientId: '', lastSync: null, error: '' }, autoSync: true, lastAuto: Date.now() - 20 * 6e4, redirectUri: 'https://script.google.com/macros/s/…/exec' }; return d.conn; },
     _fake(platform, key) {
       let h = 0; for (const ch of String(key)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; const r = n => { h = (h * 1103515245 + 12345) >>> 0; return h % n; };
       const reach = 8000 + r(60000), reacts = Math.round(reach * (.02 + r(50) / 1000));
@@ -166,15 +168,17 @@
       const names = ['ศิริพร ท.', 'Kittipat J.', 'ปวีณา ม.', 'Mint Chanida', 'ธนกร ว.', 'Ploy Wannisa'], texts = ['สวยมากค่ะ', 'จัดที่ไหนครับ', 'อยากไปมากก', 'ราคาเท่าไหร่คะ', 'ภูมิใจมากค่ะ', 'เว็บสมัครล่มค่ะ'];
       const n = platform === 'tt' ? 0 : 3 + r(5);
       const comments = platform === 'tt' ? null : Array.from({ length: n }, (_, i) => ({ externalId: key + '_c' + i, author: (platform === 'ig' ? '@' : '') + names[(i + r(6)) % 6], text: texts[(i + r(6)) % 6], at: Date.now() - (n - i) * 36e5, thread: i % 2 ? [{ from: 'page', text: 'ขอบคุณค่ะ', at: Date.now() - (n - i) * 36e5 + 6e5 }] : [] }));
-      const type = platform === 'tt' ? 'Short Video' : r(3) === 0 ? 'Reel' : 'Photo';
+      const type = platform === 'tt' ? 'Short Video' : platform === 'x' ? (r(2) ? 'Photo' : 'Text Post') : r(3) === 0 ? 'Reel' : 'Photo';
+      if (platform === 'x') { const im = reach * 1.4 | 0; return { platform, externalId: String(key), at: Date.now() - (1 + r(20)) * DAYMS, caption: 'Open House 2026 เปิดบ้านให้น้อง ม.ปลาย #CMU', img: null, type, m: { impressions: im, reactions: Math.round(im * .02), comments: 3 + r(20), shares: Math.round(im * .004), saves: Math.round(im * .002), linkClicks: Math.round(im * .006), profileVisits: Math.round(im * .004) }, v: null, reactionsBreakdown: null, comments: null }; }
       return { platform, externalId: String(key), at: Date.now() - (1 + r(20)) * DAYMS, caption: ['Open House 2026 เปิดบ้านให้น้อง ม.ปลาย', 'ภาพหมอกยามเช้าที่ดอยสุเทพ', 'POV: เย็นวันศุกร์ที่อ่างแก้ว', 'ประกาศวันหยุดชดเชย'][r(4)], img: null, type,
         m: { reactions: reacts, comments: comments ? comments.length : 40 + r(120), shares: Math.round(reach * .006), saves: platform === 'ig' ? Math.round(reach * .01) : null, reach: platform === 'tt' ? null : reach, impressions: Math.round(reach * 1.5), clicks: platform === 'fb' ? Math.round(reach * .03) : null, profileVisits: platform === 'ig' ? Math.round(reach * .006) : null, newFollowers: platform === 'ig' ? Math.round(reach * .001) : null, linkClicks: null },
         v: type === 'Photo' ? null : { videoViews: Math.round(reach * 1.3), s3: Math.round(reach * 1.3), avgWatch: 6 + r(10), totalWatch: Math.round(reach * 12), duration: 15 + r(45) }, reactionsBreakdown: rb, comments };
     },
     async fetchPost(p) {
       await wait(p.save ? 700 : 1100); const u = need('add');
-      const platform = p.platform || (/facebook|fb\./i.test(p.link) ? 'fb' : /instagram/i.test(p.link) ? 'ig' : /tiktok/i.test(p.link) ? 'tt' : null);
-      if (!platform) throw new ApiError('invalid', 'ลิงก์นี้ไม่ใช่ Facebook, Instagram หรือ TikTok');
+      const platform = p.platform || (/facebook|fb\./i.test(p.link) ? 'fb' : /instagram/i.test(p.link) ? 'ig' : /tiktok/i.test(p.link) ? 'tt' : /\/\/(www\.)?(x|twitter)\.com\//i.test(p.link) ? 'x' : null);
+      if (!platform) throw new ApiError('invalid', 'ลิงก์นี้ไม่ใช่ Facebook, Instagram, TikTok หรือ X');
+      if (platform === 'line') throw new ApiError('invalid', 'LINE OA ไม่มีลิงก์ข้อความให้ดึง ใช้การกรอกเองหรือนำเข้า CSV');
       if (!this._conn()[platform].connected) throw new ApiError('not_connected', { fb: 'Facebook', ig: 'Instagram', tt: 'TikTok' }[platform] + ' ยังไม่ได้เชื่อมต่อ — กรอกข้อมูลเองได้ หรือให้แอดมินเชื่อมต่อที่เมนู “เชื่อมต่อบัญชี”');
       const key = p.externalId || String(p.link).replace(/[?#].*$/, '');
       const d = this._fake(platform, key); d.link = p.link || ('https://example.com/' + key);
@@ -209,6 +213,16 @@
     },
     async connStatus() { await wait(300); return clone(this._conn()); },
     async connectMeta(p) { await wait(900); need('admin'); if (!p.token || p.token.length < 8) throw new ApiError('api', 'โทเคนไม่ถูกต้องหรือหมดอายุ ลองสร้างใหม่จาก Graph API Explorer'); const c = this._conn(); c.fb = { connected: true, name: 'เพจตัวอย่าง', lastSync: null, error: '' }; c.ig = { connected: true, name: '@example.page', lastSync: null, error: '' }; return clone(c); },
+    async connectLine(token) {
+      await wait(1400); need('admin'); if (token.length < 40) throw new ApiError('invalid', 'โทเคนไม่ถูกต้อง'); const c = this._conn();
+      c.line = { connected: true, name: 'สำนักหอสมุด มช.', basicId: '@cmulib', lastSync: Date.now(), error: '' }; return clone(c);
+    },
+    async connectX(p) {
+      await wait(700); need('admin'); const c = this._conn(); if (!p.clientId && !(c.x && c.x.clientId)) throw new ApiError('invalid', 'ใส่ Client ID');
+      const since = (c.x && c.x.connectedAt) || 0; c.x = Object.assign({}, c.x, { clientId: p.clientId || c.x.clientId, hasApp: true, loginError: '' });
+      setTimeout(() => { c.x = Object.assign({}, c.x, { connected: true, name: '@cmu_pr', connectedAt: Date.now(), lastSync: Date.now(), error: '' }); }, 3000);
+      return { authUrl: 'about:blank', redirectUri: c.redirectUri, since };
+    },
     async metaStart(p) {
       await wait(700); need('admin'); const c = this._conn();
       if (p.appId) c.metaApp = { appId: p.appId, hasSecret: true, configId: p.configId || '' };

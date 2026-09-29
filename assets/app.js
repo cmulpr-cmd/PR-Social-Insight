@@ -32,11 +32,20 @@ const sod = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.get
 const n0 = v => (v == null || !isFinite(v) ? 0 : v);
 
 /* ================= vocab ================= */
-const PL = { fb: { name: 'Facebook', short: 'FB', c: 'var(--fb)' }, ig: { name: 'Instagram', short: 'IG', c: 'var(--ig)' }, tt: { name: 'TikTok', short: 'TT', c: 'var(--tt)' } };
-const PKEYS = ['fb', 'ig', 'tt'];
-const TYPES = ['Photo', 'Album', 'Reel', 'Short Video', 'Long Video', 'Story', 'Infographic', 'Announcement', 'Live', 'Link Post'];
+const PL = { fb: { name: 'Facebook', short: 'FB', c: 'var(--fb)' }, ig: { name: 'Instagram', short: 'IG', c: 'var(--ig)' }, tt: { name: 'TikTok', short: 'TT', c: 'var(--tt)' }, line: { name: 'LINE OA', short: 'LN', c: 'var(--lineoa)' }, x: { name: 'X', short: 'X', c: 'var(--xpl)' } };
+const PKEYS = ['fb', 'ig', 'tt', 'line', 'x'];
+const TYPES = ['Photo', 'Album', 'Reel', 'Short Video', 'Long Video', 'Story', 'Infographic', 'Announcement', 'Live', 'Link Post', 'Broadcast', 'Rich Message', 'Card Message', 'Text Post', 'Thread'];
+/* ชื่อตัวชี้วัดตามแพลตฟอร์ม (LINE และ X นับคนละแบบกับ Facebook) */
+const ML_BASE = { reach: 'Reach', impressions: 'Impressions / Views', reactions: 'Likes / Reactions', comments: 'Comments', shares: 'Shares', saves: 'Saves', clicks: 'Clicks', profileVisits: 'Profile Visits', newFollowers: 'New Followers', linkClicks: 'Link Clicks' };
+const ML_PL = {
+  line: { reach: 'ส่งถึง (Delivered)', impressions: 'เปิดอ่าน (Unique opens)', clicks: 'คนที่คลิก (Unique clicks)', linkClicks: 'คลิกลิงก์ทั้งหมด', newFollowers: 'เพื่อนใหม่จากข้อความนี้' },
+  x: { impressions: 'Impressions', reactions: 'Likes', comments: 'Replies', shares: 'Reposts + Quotes', saves: 'Bookmarks', profileVisits: 'Profile clicks', linkClicks: 'Link clicks' }
+};
+// ตัวชี้วัดที่แพลตฟอร์มนั้นมีจริง (ใช้บอกว่า “ไม่มีข้อมูล” เฉพาะช่องที่เกี่ยวข้อง)
+const MREL = { line: ['reach', 'impressions', 'clicks', 'linkClicks', 'newFollowers'], x: ['impressions', 'reactions', 'comments', 'shares', 'saves', 'linkClicks', 'profileVisits'] };
+const ML = (p, k) => (ML_PL[p] && ML_PL[p][k]) || ML_BASE[k] || k;
 const VIDEO = new Set(['Reel', 'Short Video', 'Long Video', 'Story', 'Live']);
-const PTYPES = { fb: ['Photo', 'Album', 'Reel', 'Long Video', 'Story', 'Infographic', 'Announcement', 'Live', 'Link Post'], ig: ['Photo', 'Album', 'Reel', 'Story', 'Infographic', 'Announcement', 'Live'], tt: ['Short Video', 'Long Video', 'Photo', 'Story', 'Live'] };
+const PTYPES = { fb: ['Photo', 'Album', 'Reel', 'Long Video', 'Story', 'Infographic', 'Announcement', 'Live', 'Link Post'], ig: ['Photo', 'Album', 'Reel', 'Story', 'Infographic', 'Announcement', 'Live'], tt: ['Short Video', 'Long Video', 'Photo', 'Story', 'Live'], line: ['Broadcast', 'Rich Message', 'Card Message', 'Photo', 'Short Video', 'Link Post', 'Announcement'], x: ['Text Post', 'Photo', 'Album', 'Short Video', 'Long Video', 'Thread', 'Link Post', 'Live'] };
 const CATS = [{ k: 'news', t: 'ข่าวประชาสัมพันธ์', c: '#3d5a80' }, { k: 'knowledge', t: 'Knowledge', c: '#2f7d6d' }, { k: 'ent', t: 'Entertainment', c: '#b0476e' }, { k: 'promo', t: 'Promotion', c: '#b8621c' }, { k: 'event', t: 'Event', c: '#6a4c93' }, { k: 'bts', t: 'Behind the scenes', c: '#4f5d75' }, { k: 'ugc', t: 'User Generated Content', c: '#6f7d2f' }, { k: 'engage', t: 'Engagement Post', c: '#b8473a' }, { k: 'edu', t: 'Educational', c: '#1f6f9c' }];
 const CAT = Object.fromEntries(CATS.map(c => [c.k, c]));
 const SENT = [{ k: 'pos', t: 'Positive', th: 'เชิงบวก', c: 'var(--s-pos)' }, { k: 'neu', t: 'Neutral', th: 'ทั่วไป', c: 'var(--s-neu)' }, { k: 'neg', t: 'Negative', th: 'เชิงลบ', c: 'var(--s-neg)' }, { k: 'q', t: 'Question', th: 'คำถาม', c: 'var(--s-q)' }, { k: 'cmp', t: 'Complaint', th: 'ร้องเรียน', c: 'var(--s-cmp)' }, { k: 'int', t: 'Interested', th: 'สนใจ', c: 'var(--s-int)' }, { k: 'buy', t: 'Purchase intent', th: 'ตั้งใจซื้อ', c: 'var(--s-buy)' }];
@@ -97,7 +106,7 @@ const S = {
   ct: 'overview', cf: { cat: '', unreplied: false, q: '' }, cpSort: 'comments', ppSort: 'count', person: null,
   addTab: 'post', editing: null, parsed: [], img: null,
   openPost: null, drawerCat: '', delPost: false, adminEdit: null, confirmDel: null, replyOpen: null, csv: null,
-  fx: { link: '', cat: 'news' }, fbLogin: null, pimp: null, pdm: 'views', recent: {}, recentPl: null, connForm: null, metaChoose: null, ttAuth: null, confirmDisc: null, prefill: null
+  fx: { link: '', cat: 'news' }, fbLogin: null, xLogin: null, pimp: null, pdm: 'views', recent: {}, recentPl: null, connForm: null, metaChoose: null, ttAuth: null, confirmDisc: null, prefill: null
 };
 const root = () => $('#root');
 const me = () => (S.acting ? DB.users.find(u => u.email === S.acting) : ME) || ME;
@@ -138,9 +147,11 @@ function rangeText(r) { const a = fdate(r.from), b = fdate(r.to - 1); return a =
 const postsOf = ps => DB.posts.filter(x => ps.includes(x.platform));
 const postsIn = (from, to, ps = activeP()) => DB.posts.filter(x => ps.includes(x.platform) && x.at >= from && x.at < to);
 const eng = m => n0(m.reactions) + n0(m.comments) + n0(m.shares) + n0(m.saves);
+// LINE OA ไม่มีถูกใจ/แชร์ ใช้จำนวนคนที่คลิกเป็นการมีส่วนร่วมแทน
+const engP = p => p.platform === 'line' ? n0(p.m.clicks) : eng(p.m);
 function agg(list) {
   const a = { n: list.length, reach: 0, impressions: 0, reactions: 0, comments: 0, shares: 0, saves: 0, clicks: 0, profileVisits: 0, newFollowers: 0, linkClicks: 0, videoViews: 0, eng: 0 };
-  list.forEach(p => { for (const k in p.m) if (k in a) a[k] += n0(p.m[k]); a.eng += eng(p.m); if (p.v) a.videoViews += n0(p.v.videoViews); });
+  list.forEach(p => { for (const k in p.m) if (k in a) a[k] += n0(p.m[k]); a.eng += engP(p); if (p.v) a.videoViews += n0(p.v.videoViews); });
   a.er = a.reach ? a.eng / a.reach : null; return a;
 }
 function cstats(list) {
@@ -296,7 +307,7 @@ function heatmap(list) {
   const days = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'], dayFull = ['วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์', 'วันอาทิตย์'];
   const blocks = [[6, 9, '06–09'], [9, 12, '09–12'], [12, 15, '12–15'], [15, 18, '15–18'], [18, 21, '18–21'], [21, 24, '21–24'], [0, 6, '00–06']];
   const cell = days.map(() => blocks.map(() => ({ n: 0, e: 0, r: 0 })));
-  list.forEach(p => { const d = new Date(p.at); const di = (d.getDay() + 6) % 7, h = d.getHours(); const bi = blocks.findIndex(b => h >= b[0] && h < b[1]); if (bi < 0) return; const c = cell[di][bi]; c.n++; c.e += eng(p.m); c.r += n0(p.m.reach); });
+  list.forEach(p => { const d = new Date(p.at); const di = (d.getDay() + 6) % 7, h = d.getHours(); const bi = blocks.findIndex(b => h >= b[0] && h < b[1]); if (bi < 0) return; const c = cell[di][bi]; c.n++; c.e += engP(p); c.r += n0(p.m.reach); });
   const val = c => c.n ? (c.r ? c.e / c.r : null) : null;
   let max = 0, best = null;
   cell.forEach((row, di) => row.forEach((c, bi) => { const v = val(c); if (v != null && v > max) { max = v; best = { di, bi, v, n: c.n }; } }));
@@ -309,30 +320,48 @@ function heatmap(list) {
 }
 
 function split(a, la, lb) { const b = 1 - a; return `<div class="split"><div class="split-bar"><span style="width:${a * 100}%;background:var(--accent)">${pct(a, 0)}</span><span style="width:${b * 100}%;background:var(--ink-3)">${pct(b, 0)}</span></div><div class="split-labels"><span><i class="dot" style="background:var(--accent)"></i> ${la}</span><span>${lb} <i class="dot" style="background:var(--ink-3)"></i></span></div></div>`; }
-/* ตัวเลขวิ่งจาก 0 ขึ้นไปยังค่าจริงทุกครั้งที่เปลี่ยนมุมมอง (ลื่นด้วย ease-out) */
-const NUM_SEL = '.bv, .donut-legend b, .plat-stats b, .pc-n, .tc-stats span, .stat b, .m-stat b, .pf-big, .conn-meta b, .react small, .ct-n, td.num, .num-cu';
-function countUp(scope, prev) {
+/* ตัวเลขวิ่งจาก 0 ขึ้นไปยังค่าจริงทุกครั้งที่ตัวเลขถูกแสดงใหม่ — เร็วตอนต้น แล้วค่อยๆ ชะลอเมื่อใกล้ถึง */
+const NUM_SEL = '.bv, .donut-legend b, .plat-stats b, .pc-n, .tc-stats span, .stat b, .m-stat b, .pf-big, .conn-meta b, .react small, .ct-n, td.num, .metric-grid b, .pc-mid .big, .num-cu, .pf-mid .pf-big';
+const CU_SKIP = '.m-prog, #dp, input, select, textarea, [contenteditable], .no-cu';
+const cuEase = k => k >= 1 ? 1 : 1 - Math.pow(2, -10 * k) * (1 - k * .15);   // ease-out แบบเอ็กซ์โพเนนเชียล ชะลอนุ่มช่วงท้าย
+function countUp(scope) {
+  if (!scope || !scope.isConnected) return;
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduce) return;
   const fmt = (el, v) => { const f = el.dataset.fmt; return f === 'pct' ? pct(v, +el.dataset.dec || 0) : f === 'n' ? fnum(v) : fk(v); };
-  const items = $$('[data-count]', scope).map(el => ({ el, b: +el.dataset.count, f: v => fmt(el, v) })).filter(x => isFinite(x.b));
-  // ตัวเลขที่เป็นข้อความธรรมดา: ดึงตัวเลขตัวแรกออกมาวิ่ง แล้วคงหน่วย/ทศนิยม/คอมมาเดิมไว้
-  $$(NUM_SEL, scope).slice(0, 400).forEach(el => {
+  const pickAll = sel => { const l = $$(sel, scope); if (scope.matches && scope.matches(sel)) l.unshift(scope); return l.filter(el => !el._cu && !el.closest(CU_SKIP)); };
+  const items = pickAll('[data-count]').map(el => ({ el, b: +el.dataset.count, f: v => fmt(el, v) })).filter(x => isFinite(x.b) && x.b !== 0);
+  // ตัวเลขที่เป็นข้อความธรรมดา: ดึงตัวเลขตัวแรกออกมาวิ่ง แล้วคงหน่วย / ทศนิยม / คอมมาเดิมไว้
+  pickAll(NUM_SEL).slice(0, 500).forEach(el => {
     if (el.querySelector('[data-count]') || el.children.length > 2 || el.closest('[data-count]')) return;
     const node = [...el.childNodes].find(n => n.nodeType === 3 && /\d/.test(n.nodeValue)); if (!node) return;
     const txt = node.nodeValue, m = txt.match(/-?\d[\d,]*(\.\d+)?/); if (!m) return;
     const b = parseFloat(m[0].replace(/,/g, '')); if (!isFinite(b) || b === 0) return;
-    const dec = m[1] ? m[1].length - 1 : 0, comma = /,/.test(m[0]) || (b >= 1000 && dec === 0 && !/[KM]/.test(txt.slice(m.index + m[0].length, m.index + m[0].length + 1)));
+    if (/\d{1,2}:\d{2}|[ก-ฮ]\.[ก-ฮ]\./.test(txt)) return; // ข้ามเวลาและวันที่
+    const dec = m[1] ? m[1].length - 1 : 0, comma = /,/.test(m[0]) || (b >= 1000 && dec === 0);
     const pre = txt.slice(0, m.index), post = txt.slice(m.index + m[0].length);
     const f = v => pre + (comma ? v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : v.toFixed(dec)) + post;
-    items.push({ node, b, f, text: true });
+    items.push({ el, node, b, f, text: true, fin: txt });
   });
   if (!items.length) return;
-  const set = (x, v) => { const s2 = x.f(v); if (x.text) x.node.nodeValue = s2; else x.el.textContent = s2; };
-  items.forEach(x => { set(x, 0); if (!x.text) x.el.classList.add('cu'); });
-  const t0 = performance.now(), D = 1150, ease = k => k >= 1 ? 1 : 1 - Math.pow(2, -10 * k);
-  const tick = t => { const k = Math.min(1, (t - t0) / D), e = ease(k); items.forEach(x => set(x, x.b * e)); if (k < 1) requestAnimationFrame(tick); else items.forEach(x => { set(x, x.b); if (!x.text) x.el.classList.remove('cu'); }); };
+  const tok = {}; const set = (x, v) => { const s2 = x.f(v); if (x.text) x.node.nodeValue = s2; else x.el.textContent = s2; };
+  items.forEach(x => { x.el._cu = tok; set(x, 0); x.el.classList.add('cu'); x.el.classList.remove('cu-done'); });
+  const D = Math.min(1900, 1150 + Math.log10(1 + Math.max(...items.map(x => Math.abs(x.b)))) * 90);
+  const t0 = performance.now();
+  const tick = t => {
+    const k = Math.min(1, (t - t0) / D), e = cuEase(k); let alive = false;
+    items.forEach(x => { if (x.el._cu !== tok) return; alive = true; set(x, x.b * e); });
+    if (k < 1 && alive) requestAnimationFrame(tick);
+    else items.forEach(x => { if (x.el._cu !== tok) return; if (x.text) x.node.nodeValue = x.fin; else set(x, x.b); x.el._cu = null; x.el.classList.remove('cu'); void x.el.offsetWidth; x.el.classList.add('cu-done'); });
+  };
   requestAnimationFrame(tick);
 }
+/* เฝ้าดูทุกครั้งที่มีตัวเลขใหม่ถูกวาดบนหน้า (สลับหน้า ตัวกรอง แท็บ ลิ้นชักโพสต์ ป๊อปอัป) แล้วเล่นแอนิเมชันให้อัตโนมัติ */
+const CU_Q = { set: new Set(), raf: 0 };
+const cuObs = new MutationObserver(ms => {
+  ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) CU_Q.set.add(n); }));
+  if (!CU_Q.raf && CU_Q.set.size) CU_Q.raf = requestAnimationFrame(() => { CU_Q.raf = 0; const list = [...CU_Q.set]; CU_Q.set.clear(); list.filter(n => !list.some(o => o !== n && o.contains(n))).forEach(n => countUp(n)); });
+});
+if (document.body) cuObs.observe(document.body, { childList: true, subtree: true });
 const cnt = (v, f = 'k', dec, key) => v == null || !isFinite(v) ? '—' : `<span data-count="${v}" data-fmt="${f}"${dec != null ? ` data-dec="${dec}"` : ''}${key ? ` data-key="${key}"` : ''}>${f === 'pct' ? pct(v, dec || 0) : f === 'n' ? fnum(v) : fk(v)}</span>`;
 
 /* ================= small renderers ================= */
@@ -724,7 +753,7 @@ function renderView(mode = 'fade') {
     v.innerHTML = VIEWS[S.page]();
     stagger(v);
     if (AFTER[S.page]) AFTER[S.page](mode === 'soft' ? 'soft' : mode === 'none' ? false : 'draw');
-    if (mode !== 'none') { countUp(v, mode === 'soft' ? prev : null); setTimeout(() => { if (my === viewSeq) v.classList.remove('anim', 'soft'); }, 1600); }
+    if (mode !== 'none') setTimeout(() => { if (my === viewSeq) v.classList.remove('anim', 'soft'); }, 1600);
   };
   if (mode === 'fade' && v.childElementCount) { v.classList.add('leaving'); setTimeout(doRender, 150); }
   else if (mode === 'soft' && v.childElementCount) { v.classList.add('dim'); setTimeout(doRender, 210); }
@@ -761,13 +790,18 @@ const PAGE_M = [
   { k: 'linkClicks', t: 'การคลิกลิงก์', en: 'Link clicks', ic: 'link' },
   { k: 'visits', t: 'การเข้าชมเพจ', en: 'Visits', ic: 'target' },
   { k: 'follows', t: 'การติดตามใหม่', en: 'Follows', ic: 'add' },
-  { k: 'unfollows', t: 'การเลิกติดตาม', en: 'Unfollows', ic: 'x' }
+  { k: 'unfollows', t: 'การเลิกติดตาม', en: 'Unfollows', ic: 'x' },
+  { k: 'targetedReaches', t: 'กลุ่มเป้าหมายที่ส่งถึงได้', en: 'Targeted reaches (LINE)', ic: 'target', last: true },
+  { k: 'delivered', t: 'ข้อความที่ส่งออก', en: 'Messages delivered (LINE)', ic: 'mail' },
+  { k: 'blocks', t: 'จำนวนที่บล็อก (สะสม)', en: 'Blocks (LINE)', ic: 'lock', last: true }
 ];
 const PM = Object.fromEntries(PAGE_M.map(m => [m.k, m]));
 const PAGE_GUESS = [['unfollows', /เลิกติดตาม|unfollow/i], ['follows', /ติดตาม|follow/i], ['linkClicks', /คลิกลิงก์|link.?click/i], ['visits', /เข้าชม|visit/i], ['interactions', /โต้ตอบ|interaction|engagement|มีส่วนร่วม/i], ['viewers', /ผู้ชม|viewer|reach|เข้าถึง/i], ['views', /ยอดดู|view|impression|การดู/i]];
 const guessPageMetric = t => (PAGE_GUESS.find(([, re]) => re.test(t || '')) || [null])[0];
 const dailyIn = (from, to, ps) => DB.daily.filter(d => ps.includes(d.platform) && d._t >= from && d._t < to);
 const dsum = (l, k) => l.some(d => d[k] != null) ? l.reduce((s, d) => s + n0(d[k]), 0) : null;
+// ค่าสะสม (เช่น กลุ่มเป้าหมาย LINE, จำนวนบล็อก) ใช้ค่าล่าสุดในช่วง ไม่รวมทุกวัน
+const dval = (l, k) => { if (!(PM[k] && PM[k].last)) return dsum(l, k); const by = {}; l.forEach(d => { if (d[k] != null && (!by[d.platform] || by[d.platform]._t < d._t)) by[d.platform] = d; }); const v = Object.values(by); return v.length ? v.reduce((s, d) => s + d[k], 0) : null; };
 function pageSection(r, ps, fol) {
   const all = DB.daily.filter(d => ps.includes(d.platform)); if (!all.length) return '';
   const have = PAGE_M.filter(m => all.some(d => d[m.k] != null)); if (!have.length) return '';
@@ -775,7 +809,7 @@ function pageSection(r, ps, fol) {
   const cur = dailyIn(r.from, r.to, ps), prev = r.hasPrev ? dailyIn(r.pf, r.pt, ps) : [];
   const minT = Math.min(...all.map(d => d._t)), maxT = Math.max(...all.map(d => d._t));
   const days = [...new Set(cur.map(d => d.date))].length;
-  const tiles = have.map(m => { const v = dsum(cur, m.k), pv = dsum(prev, m.k); const d = v != null && pv != null ? delta(v, pv) : null;
+  const tiles = have.map(m => { const v = dval(cur, m.k), pv = dval(prev, m.k); const d = v != null && pv != null ? delta(v, pv) : null;
     return `<button class="pm-tile" type="button" data-act="pdm" data-v="${m.k}" aria-pressed="${S.pdm === m.k}"><span class="pm-l">${ic(m.ic, 14)}<span>${m.t}<small>${m.en}</small></span></span><b>${cnt(v, 'k', null, 'pm-' + m.k)}</b>${d != null ? dpill(d) : ''}</button>`; }).join('');
   const folTile = fol ? `<div class="pm-tile static"><span class="pm-l">${ic('audience', 14)}<span>ผู้ติดตามทั้งหมด<small>Followers</small></span></span><b>${cnt(fol.v, 'k', null, 'pm-fol')}</b>${fol.src || ''}</div>` : '';
   const multi = [...new Set(all.map(d => d.platform))].length > 1;
@@ -792,7 +826,7 @@ function mountPageChart(animate) {
   if (B.u === 'hour') B = buckets(to - 14 * DAY, to);
   const k = S.pdm, m = PM[k];
   const tips = B.b.map(b => B.u === 'day' ? fdate(b.s) : B.u === 'week' ? `${fds(b.s)} – ${fdate(b.e - 1)}` : b.l);
-  const series = ps.map(p => ({ name: `${m.t} · ${PL[p].name}`, color: ps.length > 1 ? PL[p].c : 'var(--accent)', values: B.b.map(b => n0(dsum(dailyIn(b.s, b.e, [p]), k))) }));
+  const series = ps.map(p => ({ name: `${m.t} · ${PL[p].name}`, color: ps.length > 1 ? PL[p].c : 'var(--accent)', values: B.b.map(b => n0(dval(dailyIn(b.s, b.e, [p]), k))) }));
   mountChart('ch-page', { labels: B.b.map(b => b.l), tips, series, fmt: fnum, aria: 'กราฟ ' + m.t + ' รายวัน' }, animate);
 }
 VIEWS.dashboard = function () {
@@ -806,15 +840,16 @@ VIEWS.dashboard = function () {
   const sp = {
     fol: BK.map(b => n0(sumFol(ps, Math.min(b.e, TODAY + DAY) - DAY))),
     reach: per(l => l.reduce((s, x) => s + n0(x.m.reach), 0)), imp: per(l => l.reduce((s, x) => s + n0(x.m.impressions), 0)),
-    eng: per(l => l.reduce((s, x) => s + eng(x.m), 0)), er: per(l => agg(l).er || 0), rep: per(l => n0(cstats(l).replyRate))
+    eng: per(l => l.reduce((s, x) => s + engP(x), 0)), er: per(l => agg(l).er || 0), rep: per(l => n0(cstats(l).replyRate))
   };
   const k = (key, icon, label, en, val, d, sub, series) => `<article class="kcard"><div class="kc-top"><span class="kc-ic">${ic(icon, 16)}</span><span class="k-label">${label}<small>${en}</small></span>${r.hasPrev ? dpill(d) : ''}</div><div class="k-val">${val}</div><div class="kc-foot"><span class="k-sub">${sub || ''}</span>${spark(series, 'var(--accent)', 92, 30)}</div></article>`;
+  const LN = ps.length === 1 && ps[0] === 'line';
   const tiles = [
     fNow != null && k('kpi-fol', 'audience', 'ผู้ติดตามทั้งหมด', 'Followers', cnt(fNow, 'k', null, 'kpi-fol'), delta(gain, gainPrev), gain ? `+${fk(gain)} ในช่วงนี้` : 'ยอดล่าสุด', sp.fol),
-    A_.reach > 0 && k('kpi-reach', 'target', 'การเข้าถึง', 'Reach', cnt(A_.reach, 'k', null, 'kpi-reach'), delta(A_.reach, B.reach), `จาก ${A_.n} โพสต์`, sp.reach),
-    A_.impressions > 0 && k('kpi-imp', 'eye', 'การมองเห็น', 'Views', cnt(A_.impressions, 'k', null, 'kpi-imp'), delta(A_.impressions, B.impressions), r.hasPrev ? 'เทียบช่วงก่อนหน้า' : 'ทั้งหมด', sp.imp),
-    A_.eng > 0 && k('kpi-eng', 'heart', 'การมีส่วนร่วม', 'Engagement', cnt(A_.eng, 'k', null, 'kpi-eng'), delta(A_.eng, B.eng), 'ถูกใจ ความคิดเห็น แชร์ บันทึก', sp.eng),
-    A_.er > 0 && k('kpi-er', 'percent', 'อัตราการมีส่วนร่วม', 'Engagement rate', cnt(A_.er, 'pct', 2, 'kpi-er'), delta(A_.er, B.er), 'ต่อการเข้าถึง', sp.er),
+    A_.reach > 0 && k('kpi-reach', 'target', LN ? 'ส่งถึง' : 'การเข้าถึง', LN ? 'Delivered' : 'Reach', cnt(A_.reach, 'k', null, 'kpi-reach'), delta(A_.reach, B.reach), `จาก ${A_.n} โพสต์`, sp.reach),
+    A_.impressions > 0 && k('kpi-imp', 'eye', LN ? 'เปิดอ่าน' : 'การมองเห็น', LN ? 'Unique opens' : 'Views', cnt(A_.impressions, 'k', null, 'kpi-imp'), delta(A_.impressions, B.impressions), r.hasPrev ? 'เทียบช่วงก่อนหน้า' : 'ทั้งหมด', sp.imp),
+    A_.eng > 0 && k('kpi-eng', 'heart', LN ? 'คนที่คลิก' : 'การมีส่วนร่วม', LN ? 'Unique clicks' : 'Engagement', cnt(A_.eng, 'k', null, 'kpi-eng'), delta(A_.eng, B.eng), LN ? 'คลิกลิงก์หรือปุ่มในข้อความ' : ps.includes('line') ? 'ถูกใจ ความคิดเห็น แชร์ บันทึก (LINE นับคลิก)' : 'ถูกใจ ความคิดเห็น แชร์ บันทึก', sp.eng),
+    A_.er > 0 && k('kpi-er', 'percent', LN ? 'อัตราคลิก' : 'อัตราการมีส่วนร่วม', LN ? 'Click rate' : 'Engagement rate', cnt(A_.er, 'pct', 2, 'kpi-er'), delta(A_.er, B.er), 'ต่อการเข้าถึง', sp.er),
     C.total > 0 && k('kpi-rep', 'reply', 'อัตราการตอบกลับ', 'Response rate', cnt(C.replyRate, 'pct', 0, 'kpi-rep'), delta(C.replyRate, D.replyRate), C.avgRT != null ? `ตอบเฉลี่ยใน ${fmins(C.avgRT)}` : `${fnum(C.total)} ความคิดเห็น`, sp.rep)
   ].filter(Boolean);
   const kp = tiles.length ? `<section class="kgrid n${tiles.length}" aria-label="ตัวชี้วัดหลัก" data-stagger>${tiles.join('')}</section>` : '';
@@ -842,9 +877,10 @@ VIEWS.dashboard = function () {
   }).join('')}</section>`;
 
   const sentSeg = SENT.map(s => ({ l: s.t + ' · ' + s.th, v: C.by[s.k], c: s.c }));
-  const row2 = `<div class="${C.total ? 'grid-main' : 'stack'}" data-stagger>
-    <section class="panel"><div class="panel-head"><div><h2>องค์ประกอบของการมีส่วนร่วม</h2><p>ถูกใจ ความคิดเห็น แชร์ และบันทึก ในแต่ละช่วงเวลา</p></div></div>
-      <div class="chart" id="ch-eng"></div><div class="legend">${ENG_PARTS.map(x => `<span><i style="background:${x.c}"></i>${x.t}</span>`).join('')}</div></section>
+  const hasEngParts = cur.some(x => ENG_PARTS.some(e2 => n0(x.m[e2.k]) > 0));
+  const row2 = !hasEngParts && !C.total ? '' : `<div class="${C.total && hasEngParts ? 'grid-main' : 'stack'}" data-stagger>
+    ${hasEngParts ? `<section class="panel"><div class="panel-head"><div><h2>องค์ประกอบของการมีส่วนร่วม</h2><p>ถูกใจ ความคิดเห็น แชร์ และบันทึก ในแต่ละช่วงเวลา</p></div></div>
+      <div class="chart" id="ch-eng"></div><div class="legend">${ENG_PARTS.map(x => `<span><i style="background:${x.c}"></i>${x.t}</span>`).join('')}</div></section>` : ''}
     ${C.total ? `<section class="panel"><div class="panel-head"><div><h2>ความรู้สึกจากความคิดเห็น</h2><p>${fnum(C.total)} ความคิดเห็น จัดหมวดอัตโนมัติ</p></div>${can('comments') ? `<button class="btn sm" data-act="nav" data-v="comments">ดูทั้งหมด</button>` : ''}</div>
       ${donut(sentSeg, { centerHtml: cnt(C.posRate, 'pct', 0, 'd-pos'), sub: 'เชิงบวก', fmt: fnum })}</section>` : ''}
    </div>`;
@@ -869,9 +905,9 @@ VIEWS.dashboard = function () {
   const perf = `<div class="grid-2" data-stagger><section class="panel"><div class="panel-head"><div><h2>รูปแบบคอนเทนต์ที่ได้ผลดี</h2><p>อัตราการมีส่วนร่วมเฉลี่ย · (จำนวนโพสต์)</p></div></div>${barList(byType, { fmt: v => pct(v, 2) })}</section>
    <section class="panel"><div class="panel-head"><div><h2>หมวดหมู่คอนเทนต์</h2><p>การเข้าถึงรวม และอัตราการมีส่วนร่วมของแต่ละหมวด</p></div></div>${barList(byCat)}</section></div>`;
 
-  const top = [...cur].sort((a, b) => eng(b.m) - eng(a.m)).slice(0, 5);
+  const top = [...cur].sort((a, b) => engP(b) - engP(a)).slice(0, 5);
   const topRow = `<section class="panel"><div class="panel-head"><div><h2>โพสต์ที่โดดเด่น</h2><p>5 อันดับตามการมีส่วนร่วมในช่วงที่เลือก</p></div>${can('posts') ? `<button class="btn sm" data-act="nav" data-v="posts">ดูคอนเทนต์ทั้งหมด</button>` : ''}</div>
-    ${top.length ? `<div class="top-grid" data-stagger>${top.map((p, i) => `<button class="top-card" data-act="open" data-id="${p.id}"><span class="rank">${i + 1}</span>${thumb(p)}<div class="tc-body"><div class="tc-meta"><i class="dot" style="background:${PL[p.platform].c}"></i>${PL[p.platform].name} · ${fds(p.at)}</div><p>${esc(p.caption)}</p><div class="tc-stats"><span>${ic('heart', 12)} ${fk(eng(p.m))}</span><span>${ic('target', 12)} ${fk(p.m.reach)}</span><span>${p.m.reach ? pct(eng(p.m) / p.m.reach, 1) : '—'}</span></div></div></button>`).join('')}</div>` : emptyState('ยังไม่มีโพสต์ในช่วงนี้', 'ลองเปลี่ยนช่วงเวลาด้านบน หรือเพิ่มคอนเทนต์ใหม่')}
+    ${top.length ? `<div class="top-grid" data-stagger>${top.map((p, i) => `<button class="top-card" data-act="open" data-id="${p.id}"><span class="rank">${i + 1}</span>${thumb(p)}<div class="tc-body"><div class="tc-meta"><i class="dot" style="background:${PL[p.platform].c}"></i>${PL[p.platform].name} · ${fds(p.at)}</div><p>${esc(p.caption)}</p><div class="tc-stats"><span>${ic('heart', 12)} ${fk(engP(p))}</span><span>${ic('target', 12)} ${fk(p.m.reach)}</span><span>${p.m.reach ? pct(engP(p) / p.m.reach, 1) : '—'}</span></div></div></button>`).join('')}</div>` : emptyState('ยังไม่มีโพสต์ในช่วงนี้', 'ลองเปลี่ยนช่วงเวลาด้านบน หรือเพิ่มคอนเทนต์ใหม่')}
     ${C.needs.length && can('comments') ? `<div class="callout warn" style="margin-top:14px">${ic('clock', 18)}<div><b>${C.needs.length} ความคิดเห็นรอการตอบกลับ</b> — คำถาม เรื่องร้องเรียน และผู้ที่สนใจซื้อ ที่เพจยังไม่ได้ตอบ <button class="linkbtn" data-act="goto-unreplied">เปิดรายการ</button></div></div>` : ''}</section>`;
   const hasPosts = DB.posts.some(x => ps.includes(x.platform));
   const onlyFol = !hasPosts && tiles.length === 1 && fNow != null && DB.daily.some(d => ps.includes(d.platform));
@@ -897,7 +933,7 @@ AFTER.dashboard = function (animate) {
   const r = range(), ps = shownP(); const B = buckets(r.from, r.to); const k = S.trend;
   const series = ps.map(p => ({ name: PL[p].name, color: PL[p].c, values: B.b.map(b => {
     if (k === 'newFollowers' && B.u !== 'hour') { const a = folAt(p, Math.min(b.e, TODAY + DAY) - DAY), z = folAt(p, b.s - DAY); return a != null && z != null ? Math.max(0, a - z) : 0; }
-    const l = postsIn(b.s, b.e, [p]); return k === 'eng' ? l.reduce((s, x) => s + eng(x.m), 0) : l.reduce((s, x) => s + n0(x.m[k]), 0);
+    const l = postsIn(b.s, b.e, [p]); return k === 'eng' ? l.reduce((s, x) => s + engP(x), 0) : l.reduce((s, x) => s + n0(x.m[k]), 0);
   }) }));
   const tips = B.b.map(b => B.u === 'hour' ? b.l : B.u === 'day' ? fdate(b.s) : B.u === 'week' ? `${fds(b.s)} – ${fdate(b.e - 1)}` : b.l);
   mountChart('ch-trend', { labels: B.b.map(b => b.l), tips, series, aria: 'กราฟแนวโน้ม ' + k }, animate);
@@ -923,7 +959,7 @@ AFTER.posts = () => renderPostList(true);
 function filteredPosts() {
   const r = range(), pf = S.pf, q = pf.q.trim().toLowerCase();
   const l = postsIn(r.from, r.to).filter(p => (!pf.type || p.type === pf.type) && (!pf.cat || p.cat === pf.cat) && (!q || p.caption.toLowerCase().includes(q) || p.link.toLowerCase().includes(q)));
-  const s = { new: (a, b) => b.at - a.at, old: (a, b) => a.at - b.at, reach: (a, b) => n0(b.m.reach) - n0(a.m.reach), eng: (a, b) => eng(b.m) - eng(a.m), cmt: (a, b) => n0(b.m.comments) - n0(a.m.comments) }[pf.sort];
+  const s = { new: (a, b) => b.at - a.at, old: (a, b) => a.at - b.at, reach: (a, b) => n0(b.m.reach) - n0(a.m.reach), eng: (a, b) => engP(b) - engP(a), cmt: (a, b) => n0(b.m.comments) - n0(a.m.comments) }[pf.sort];
   return l.sort(s);
 }
 function renderPostList(animate) {
@@ -937,10 +973,10 @@ function renderPostList(animate) {
   }
   if (S.pf.view === 'grid') {
     el.innerHTML = `<div class="post-grid" data-stagger>${l.map(p => `<button class="post-card" data-act="open" data-id="${p.id}"><div class="thumb-wrap">${thumb(p)}</div><div class="pc-body"><div class="pc-meta">${platChip(p.platform)}${catChip(p.cat)}<span class="pc-date">${fdate(p.at)}</span></div><p>${esc(p.caption)}</p>
-      <div class="pc-metrics"><div><small>Reach</small><b>${fk(p.m.reach)}</b></div><div><small>${p.v ? 'Views' : 'Impr.'}</small><b>${fk(p.v ? p.v.videoViews : p.m.impressions)}</b></div><div><small>Eng.</small><b>${fk(eng(p.m))}</b></div><div><small>คอมเมนต์</small><b>${fk(p.m.comments)}</b></div></div>${postSrc(p)}</div></button>`).join('')}</div>`;
+      <div class="pc-metrics"><div><small>Reach</small><b>${fk(p.m.reach)}</b></div><div><small>${p.v ? 'Views' : 'Impr.'}</small><b>${fk(p.v ? p.v.videoViews : p.m.impressions)}</b></div><div><small>Eng.</small><b>${fk(engP(p))}</b></div><div><small>คอมเมนต์</small><b>${fk(p.m.comments)}</b></div></div>${postSrc(p)}</div></button>`).join('')}</div>`;
   } else {
     el.innerHTML = `<div class="tbl-wrap post-list"><table class="tbl"><thead><tr><th>โพสต์</th><th>แพลตฟอร์ม</th><th>ประเภท</th><th>หมวดหมู่</th><th>วันที่</th><th class="r">Reach</th><th class="r">Impr./Views</th><th class="r">Reactions</th><th class="r">Comments</th><th class="r">Shares</th><th class="r">Saves</th><th class="r">ER</th></tr></thead><tbody data-stagger>
-    ${l.map(p => `<tr class="click" data-act="open" data-id="${p.id}"><td><div class="cell-post">${thumb(p, 1)}<p style="white-space:normal">${esc(p.caption)}</p></div></td><td>${platChip(p.platform)}</td><td>${esc(p.type)}</td><td>${catChip(p.cat)}</td><td>${fdt(p.at)}</td><td class="r num">${fk(p.m.reach)}</td><td class="r num">${fk(p.v ? p.v.videoViews : p.m.impressions)}</td><td class="r num">${fk(p.m.reactions)}</td><td class="r num">${fk(p.m.comments)}</td><td class="r num">${fk(p.m.shares)}</td><td class="r num">${fk(p.m.saves)}</td><td class="r num">${p.m.reach ? pct(eng(p.m) / p.m.reach, 2) : '—'}</td></tr>`).join('')}
+    ${l.map(p => `<tr class="click" data-act="open" data-id="${p.id}"><td><div class="cell-post">${thumb(p, 1)}<p style="white-space:normal">${esc(p.caption)}</p></div></td><td>${platChip(p.platform)}</td><td>${esc(p.type)}</td><td>${catChip(p.cat)}</td><td>${fdt(p.at)}</td><td class="r num">${fk(p.m.reach)}</td><td class="r num">${fk(p.v ? p.v.videoViews : p.m.impressions)}</td><td class="r num">${fk(p.m.reactions)}</td><td class="r num">${fk(p.m.comments)}</td><td class="r num">${fk(p.m.shares)}</td><td class="r num">${fk(p.m.saves)}</td><td class="r num">${p.m.reach ? pct(engP(p) / p.m.reach, 2) : '—'}</td></tr>`).join('')}
     </tbody></table></div>`;
   }
   stagger(el);
@@ -951,6 +987,11 @@ function postSrc(p, long) {
   return `<span class="src man">${ic(p.source === 'csv' ? 'file' : 'edit', 11)} ${p.source === 'csv' ? 'นำเข้า CSV' : 'กรอกเอง'}</span>`;
 }
 /* ================= post drawer ================= */
+const LINK_PH = { fb: 'https://www.facebook.com/…', ig: 'https://www.instagram.com/p/…', tt: 'https://www.tiktok.com/@…/video/…', line: 'เว้นว่างได้ — หรือวางลิงก์ LINE VOOM / ลิงก์ในข้อความ', x: 'https://x.com/บัญชี/status/…' };
+function plNote(p) {
+  return p === 'line' ? 'LINE OA: ดูตัวเลขได้ที่ LINE OA Manager → วิเคราะห์ → ข้อความ · ช่อง “ส่งถึง” “เปิดอ่าน” “คลิก” คือหลักของ LINE ส่วนถูกใจ/แชร์/บันทึก ไม่มีใน LINE ให้เว้นว่าง'
+    : p === 'x' ? 'X: ดูได้ที่ Post analytics ของแต่ละโพสต์ · Reposts + Quotes รวมกันในช่อง Shares · Bookmarks ใส่ช่อง Saves' : '';
+}
 const MROWS = [['reach', 'Reach'], ['impressions', 'Impressions / Views'], ['reactions', 'Likes / Reactions'], ['comments', 'Comments'], ['shares', 'Shares'], ['saves', 'Saves'], ['clicks', 'Clicks'], ['profileVisits', 'Profile Visits'], ['newFollowers', 'New Followers'], ['linkClicks', 'Link Clicks']];
 function openPost(id) {
   S.openPost = id; S.drawerCat = ''; S.delPost = false;
@@ -965,9 +1006,10 @@ function renderDrawer(animate) {
   const af = p.apiFields || []; const apiTag = k => af.includes(k) ? '<i class="api-dot" title="ดึงจาก API"></i>' : '';
   const mRows = MROWS.filter(([k]) => p.m[k] != null && p.m[k] !== 0);
   const vRows = v ? [['Video Views', v.videoViews, fnum], ['Average Watch Time', v.avgWatch, fdur], ['Total Watch Time', v.totalWatch, fdur], ['Completion Rate', v.completion, x => pct(x, 1)]].filter(([, x]) => x != null && x !== 0) : [];
-  const missing = MROWS.filter(([k]) => !(p.m[k] != null && p.m[k] !== 0)).map(([, t]) => t);
-  const mg = mRows.map(([k, t]) => `<div><small>${t}${apiTag(k)}</small><b>${fnum(p.m[k])}</b></div>`).join('') +
-    (p.m.reach ? `<div><small>Engagement rate</small><b>${pct(eng(p.m) / p.m.reach, 2)}</b></div>` : '') +
+  const missing = MROWS.filter(([k]) => (!MREL[p.platform] || MREL[p.platform].includes(k)) && !(p.m[k] != null && p.m[k] !== 0)).map(([k]) => ML(p.platform, k));
+  const mg = mRows.map(([k]) => `<div><small>${ML(p.platform, k)}${apiTag(k)}</small><b>${fnum(p.m[k])}</b></div>`).join('') +
+    (p.platform === 'line' ? (p.m.reach && p.m.impressions ? `<div><small>อัตราเปิดอ่าน</small><b>${pct(p.m.impressions / p.m.reach, 1)}</b></div>` : '') + (p.m.impressions && p.m.clicks ? `<div><small>อัตราคลิก (CTR)</small><b>${pct(p.m.clicks / p.m.impressions, 1)}</b></div>` : '')
+      : p.m.reach ? `<div><small>Engagement rate</small><b>${pct(engP(p) / p.m.reach, 2)}</b></div>` : p.platform === 'x' && p.m.impressions ? `<div><small>Engagement rate</small><b>${pct(engP(p) / p.m.impressions, 2)}</b></div>` : '') +
     vRows.map(([t, x, f]) => `<div><small>${t}</small><b>${f(x)}</b></div>`).join('');
   const base = v && Math.max(n0(v.s3), n0(v.videoViews));
   const ret = v && base ? [['3-second views', v.s3], ['5-second views', v.s5], ['10-second views', v.s10], ['ดูถึง 25%', v.p25], ['ดูถึง 50%', v.p50], ['ดูถึง 75%', v.p75], ['ดูจบ 100%', v.p100]].filter(([, x]) => x != null).map(([l, x]) => ({ l, v: x, ext: pct(x / base, 0) })) : null;
@@ -984,11 +1026,11 @@ function renderDrawer(animate) {
     <section><div class="panel-head"><div><h2>ตัวชี้วัดของโพสต์</h2>${af.length ? `<p><i class="api-dot"></i> ดึงจาก API · ช่องที่เหลือมาจากการกรอกเอง</p>` : ''}</div></div><div class="metric-grid">${mg}</div>${missing.length ? `<p class="note" style="margin:8px 0 0">ไม่มีข้อมูล: ${missing.join(', ')}</p>` : ''}</section>
     ${p.reactionsBreakdown ? (() => { const rb = p.reactionsBreakdown, tot = REACTIONS.reduce((s, x) => s + n0(rb[x.k]), 0); return tot ? `<section class="panel"><div class="panel-head"><div><h2>ความรู้สึกที่ผู้ติดตามกด</h2><p>${fnum(tot)} ครั้ง แยกตามอิโมจิ</p></div></div><div class="react-row">${REACTIONS.map(x => `<div class="react"><span class="re">${x.e}</span><b>${fnum(rb[x.k])}</b><small>${x.t} · ${pct(n0(rb[x.k]) / tot, 0)}</small></div>`).join('')}</div></section>` : ''; })() : ''}
     ${ret ? `<section class="panel"><div class="panel-head"><div><h2>การรับชมวิดีโอ (Retention)</h2><p>สัดส่วนเทียบกับยอดรับชมทั้งหมด</p></div></div>${barList(ret, { c: PL[p.platform].c, fmt: fnum })}</section>` : ''}
-    <section class="panel"><div class="panel-head"><div><h2>ความคิดเห็นของโพสต์นี้</h2><p>${C.total} ความคิดเห็นหลัก · ตอบกลับ ${pct(C.replyRate, 0)} · บทสนทนาต่อเนื่อง ${pct(C.convoRate, 0)} · ตอบเฉลี่ยใน ${fmins(C.avgRT)}</p></div></div>
+    ${p.platform === 'line' ? `<div class="callout">${ic('comments', 16)}<div>LINE OA เป็นข้อความส่งถึงเพื่อนแบบตัวต่อตัว ไม่มีความคิดเห็นสาธารณะ · ดูการตอบกลับได้ที่แชทใน LINE OA Manager</div></div>` : `<section class="panel"><div class="panel-head"><div><h2>ความคิดเห็นของโพสต์นี้</h2><p>${C.total} ความคิดเห็นหลัก · ตอบกลับ ${pct(C.replyRate, 0)} · บทสนทนาต่อเนื่อง ${pct(C.convoRate, 0)} · ตอบเฉลี่ยใน ${fmins(C.avgRT)}</p></div></div>
      ${stack100(C.by)}
      <div class="filters" style="margin-top:16px"><button class="chip" data-act="dcat" data-v="" aria-pressed="${!S.drawerCat}">ทั้งหมด ${p.comments.length}</button>${SENT.filter(s => C.by[s.k]).map(s => `<button class="chip" data-act="dcat" data-v="${s.k}" aria-pressed="${S.drawerCat === s.k}"><i class="dot" style="background:${s.c}"></i>${s.t} ${C.by[s.k]}</button>`).join('')}</div>
      <div style="margin-top:6px" id="dlist">${list.map(c => cmtItem(c)).join('') || emptyState(p.comments.length ? 'ไม่มีความคิดเห็นในหมวดนี้' : 'ยังไม่มีความคิดเห็น', p.comments.length ? 'เลือกหมวดอื่นด้านบน' : p.platform === 'tt' && p.source === 'api' ? 'TikTok ไม่เปิดให้ดึงรายการความคิดเห็น เพิ่มเองได้จากปุ่ม “แก้ไข”' : canSync(p) ? 'กด “ดึงข้อมูล” ด้านบนเพื่อดึงความคิดเห็นทั้งหมด หรือเพิ่มเองจากปุ่ม “แก้ไข”' : 'เพิ่มความคิดเห็นได้จากปุ่ม “แก้ไข” แล้ววางข้อความทีละบรรทัด')}</div>
-    </section>
+    </section>`}
    </div>`;
   stagger(d);
 }
@@ -1115,16 +1157,20 @@ VIEWS.audience = function () {
     <section class="panel"><div class="panel-head"><div><h2>เพศ (Gender)</h2></div></div>${audBars(g, 'var(--accent)')}${nm('gender')}</section>
     <section class="panel"><div class="panel-head"><div><h2>ช่วงอายุ (Age range)</h2></div></div>${audBars(a, 'var(--accent)')}${nm('age')}</section>
    </div>
-   <div class="grid-3">
-    <section class="panel"><div class="panel-head"><div><h2>ประเทศ</h2></div></div>${audBars(mergeAud(ps, 'country'), 'var(--accent-2)')}${nm('country')}</section>
-    <section class="panel"><div class="panel-head"><div><h2>จังหวัด</h2>${ps.some(p => audOf(p).source === 'csv' && audOf(p).city) ? '<p>รวมจากเมืองยอดนิยมในไฟล์</p>' : ''}</div></div>${audBars(prov, 'var(--accent-2)')}${nm('province')}</section>
-    <section class="panel"><div class="panel-head"><div><h2>เมือง / อำเภอ</h2></div></div>${audBars(city, 'var(--accent-2)')}${nm('city')}</section>
-   </div>
-   <div class="grid-3">
-    <section class="panel"><div class="panel-head"><div><h2>ภาษา</h2></div></div>${audBars(mergeAud(ps, 'lang'), 'var(--accent-2)')}${nm('lang')}</section>
-    <section class="panel"><div class="panel-head"><div><h2>ผู้ชมใหม่ / ผู้ชมเดิม</h2><p>New vs Returning audience</p></div></div>${newA != null ? split(newA, 'ผู้ชมใหม่', 'กลับมาดูซ้ำ') : '<div class="empty">ไม่มีข้อมูล</div>'}</section>
-    <section class="panel"><div class="panel-head"><div><h2>ผู้ติดตาม / ไม่ใช่ผู้ติดตาม</h2><p>สัดส่วนของ Reach</p></div></div>${fo != null ? split(fo, 'ผู้ติดตาม', 'ไม่ใช่ผู้ติดตาม') : '<div class="empty">ไม่มีข้อมูล</div>'}</section>
-   </div>
+   ${(() => { const co = mergeAud(ps, 'country'), la = mergeAud(ps, 'lang');
+     const P = [co && `<section class="panel"><div class="panel-head"><div><h2>ประเทศ</h2></div></div>${audBars(co, 'var(--accent-2)')}${nm('country')}</section>`,
+      prov && `<section class="panel"><div class="panel-head"><div><h2>จังหวัด</h2>${ps.some(p => audOf(p).source === 'csv' && audOf(p).city) ? '<p>รวมจากเมืองยอดนิยมในไฟล์</p>' : ''}</div></div>${audBars(prov, 'var(--accent-2)')}${nm('province')}</section>`,
+      city && `<section class="panel"><div class="panel-head"><div><h2>เมือง / อำเภอ</h2></div></div>${audBars(city, 'var(--accent-2)')}${nm('city')}</section>`,
+      la && `<section class="panel"><div class="panel-head"><div><h2>ภาษา</h2></div></div>${audBars(la, 'var(--accent-2)')}${nm('lang')}</section>`,
+      newA != null && `<section class="panel"><div class="panel-head"><div><h2>ผู้ชมใหม่ / ผู้ชมเดิม</h2><p>New vs Returning audience</p></div></div>${split(newA, 'ผู้ชมใหม่', 'กลับมาดูซ้ำ')}</section>`,
+      fo != null && `<section class="panel"><div class="panel-head"><div><h2>ผู้ติดตาม / ไม่ใช่ผู้ติดตาม</h2><p>สัดส่วนของ Reach</p></div></div>${split(fo, 'ผู้ติดตาม', 'ไม่ใช่ผู้ติดตาม')}</section>`].filter(Boolean);
+     const miss = [!co && 'ประเทศ', !prov && 'จังหวัด', !city && 'เมือง', !la && 'ภาษา', newA == null && 'ผู้ชมใหม่/เดิม', fo == null && 'สัดส่วนผู้ติดตามใน Reach'].filter(Boolean);
+     let out = ''; for (let q = 0; q < P.length; q += 3) { const g = P.slice(q, q + 3); out += `<div class="${g.length === 3 ? 'grid-3' : g.length === 2 ? 'grid-2' : 'stack'}">${g.join('')}</div>`; }
+     return out + (miss.length && hasAny ? `<p class="note" style="margin:0">ยังไม่มีข้อมูล: ${miss.join(' · ')} — แพลตฟอร์มไม่เปิดเผย หรือยังไม่ได้บันทึก</p>` : ''); })()}
+   ${(() => { const at = mergeAud(ps, 'appType'), tn = mergeAud(ps, 'tenure'); if (!at && !tn) return ''; const order = ['ไม่ถึง 7 วัน', '7–30 วัน', '1–3 เดือน', '3–6 เดือน', '6–12 เดือน', 'มากกว่า 1 ปี', 'ไม่ทราบ'];
+     const tnList = tn ? order.filter(k => tn[k] != null).map(k => ({ l: k, v: tn[k], c: 'var(--lineoa)' })) : [];
+     return `<div class="grid-2"><section class="panel"><div class="panel-head"><div><h2>ระบบปฏิบัติการ</h2><p>LINE OA · สัดส่วนเพื่อนที่ใช้ iOS / Android</p></div></div>${at ? audBars(at, 'var(--lineoa)') : '<div class="empty">ไม่มีข้อมูล</div>'}</section>
+      <section class="panel"><div class="panel-head"><div><h2>ระยะเวลาที่เป็นเพื่อน</h2><p>LINE OA · ช่วยดูว่าเพื่อนใหม่หรือเพื่อนเก่าเป็นกลุ่มหลัก</p></div></div>${tnList.length ? barList(tnList, { fmt: v => pct(v, 1) }) : '<div class="empty">ไม่มีข้อมูล</div>'}</section></div>`; })()}
    <p class="note">ข้อมูลผู้ชมเป็นภาพรวม ณ วันที่บันทึกล่าสุด${asOf ? ` (${fdate(asOf)})` : ''} ไม่เปลี่ยนตามช่วงเวลา</p>
   </div>`;
 };
@@ -1168,16 +1214,17 @@ VIEWS.add = function () {
      <div class="field"><label for="a-date">วันและเวลาที่โพสต์</label><input class="input" type="datetime-local" id="a-date" value="${localDT(e ? e.at : Date.now())}"></div>
      <div class="field"><label for="a-type">ประเภทโพสต์</label><select class="input" id="a-type" data-change="atype">${TYPES.map(t => `<option ${ty === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
      <div class="field"><label for="a-cat">หมวดหมู่คอนเทนต์</label><select class="input" id="a-cat">${CATS.map(c => `<option value="${c.k}" ${e && e.cat === c.k ? 'selected' : ''}>${c.t}</option>`).join('')}</select><span class="hint" id="cat-hint">${e ? '' : 'พิมพ์ข้อความโพสต์แล้วระบบจะแนะนำหมวดให้'}</span></div>
-     <div class="field wide"><label for="a-link">ลิงก์โพสต์</label><input class="input" type="url" id="a-link" placeholder="https://www.facebook.com/..." value="${esc(e ? e.link : pf ? pf.link : '')}"><span class="err-msg" id="err-link" hidden>ใส่ลิงก์ที่ขึ้นต้นด้วย https:// เช่น ลิงก์ที่คัดลอกจากปุ่มแชร์ของโพสต์</span></div>
+     <div class="field wide"><label for="a-link">${pl === 'line' ? 'ลิงก์ (ไม่บังคับสำหรับ LINE OA)' : 'ลิงก์โพสต์'}</label><input class="input" type="url" id="a-link" placeholder="${LINK_PH[pl] || 'https://'}" value="${esc(e ? e.link : pf ? pf.link : '')}"><span class="err-msg" id="err-link" hidden>ใส่ลิงก์ที่ขึ้นต้นด้วย https:// เช่น ลิงก์ที่คัดลอกจากปุ่มแชร์ของโพสต์</span></div>
      <div class="field wide"><label for="a-cap">ข้อความโพสต์ / ชื่อโพสต์</label><input class="input" id="a-cap" data-input="acap" placeholder="เช่น Open House 2026 เปิดบ้านให้น้อง ม.ปลาย" value="${esc(e ? e.caption : '')}"><span class="err-msg" id="err-cap" hidden>ใส่ชื่อหรือข้อความโพสต์เพื่อใช้ค้นหาภายหลัง</span></div>
      <div class="field wide"><span class="lbl">ภาพโพสต์</span><label class="upload" for="a-img" id="drop">${img ? `<img src="${esc(img)}" alt="ภาพโพสต์ที่เลือก" referrerpolicy="no-referrer">` : ic('upload', 28)}<div><b>${img ? 'เปลี่ยนภาพ' : 'อัปโหลดภาพหรือภาพหน้าปกวิดีโอ'}</b><div class="note">JPG, PNG หรือ WEBP · ลากไฟล์มาวางหรือคลิกเพื่อเลือก${API.demo ? '' : ' · เก็บไว้ใน Google Drive'}</div></div></label><input type="file" id="a-img" accept="image/*" data-change="aimg" class="sr"></div>
     </div></section>
    <section class="form-sec"><h3><span class="n">2</span>ตัวชี้วัดของโพสต์</h3><p>คัดลอกจาก Meta Business Suite หรือ TikTok Studio · เว้นว่างได้หากแพลตฟอร์มไม่มีข้อมูล</p>
-    <div class="fgrid">${num('m-reach', 'Reach', val('reach'))}${num('m-impressions', 'Impressions / Views', val('impressions'))}${num('m-reactions', 'Likes / Reactions', val('reactions'))}${num('m-comments', 'Comments', val('comments'), 'เว้นว่างเพื่อนับจากความคิดเห็นที่บันทึก')}${num('m-shares', 'Shares', val('shares'))}${num('m-saves', 'Saves', val('saves'))}${num('m-clicks', 'Clicks', val('clicks'))}${num('m-profileVisits', 'Profile Visits', val('profileVisits'))}${num('m-newFollowers', 'New Followers', val('newFollowers'))}${num('m-linkClicks', 'Link Clicks', val('linkClicks'))}</div></section>
+    <div class="fgrid">${MROWS.map(([k]) => num('m-' + k, `<span data-ml="${k}">${ML(pl, k)}</span>`, val(k), k === 'comments' && pl !== 'line' ? 'เว้นว่างเพื่อนับจากความคิดเห็นที่บันทึก' : '').replace('<div class="field">', `<div class="field" data-mk="${k}"${MREL[pl] && !MREL[pl].includes(k) && !val(k) ? ' hidden' : ''}>`)).join('')}</div>
+    <p class="note" id="pl-note" style="margin:10px 0 0">${plNote(pl)}</p></section>
    <div class="collapse${isV ? '' : ' closed'}" id="vid-sec"><div><section class="form-sec"><h3><span class="n">3</span>ตัวชี้วัดวิดีโอ</h3><p>แสดงเมื่อเลือกประเภท Reel, Short Video, Long Video, Story หรือ Live</p>
     <div class="fgrid">${num('v-duration', 'ความยาววิดีโอ (วินาที)', vv('duration'))}${num('v-videoViews', 'Video Views', vv('videoViews'))}${num('v-avgWatch', 'Average Watch Time (วินาที)', vv('avgWatch'))}${num('v-totalWatch', 'Total Watch Time (วินาที)', vv('totalWatch'), 'เว้นว่างเพื่อคำนวณ Views × Avg')}${num('v-completion', 'Completion Rate (%)', e && e.v && e.v.completion != null ? (e.v.completion * 100).toFixed(1) : '', 'เว้นว่างเพื่อคำนวณจาก 100% ÷ 3 วินาที')}
      ${num('v-s3', '3-second views', vv('s3'))}${num('v-s5', '5-second views', vv('s5'))}${num('v-s10', '10-second views', vv('s10'))}${num('v-p25', 'ดูถึง 25%', vv('p25'))}${num('v-p50', 'ดูถึง 50%', vv('p50'))}${num('v-p75', 'ดูถึง 75%', vv('p75'))}${num('v-p100', 'ดูจบ 100%', vv('p100'))}</div></section></div></div>
-   <section class="form-sec"><h3><span class="n">${isV ? 4 : 3}</span>ความคิดเห็น</h3><p>วางความคิดเห็นทีละบรรทัดในรูปแบบ <span class="kbd">ชื่อ: ข้อความ</span> ระบบจะจัดหมวดให้อัตโนมัติ แล้วแก้หมวดเองได้ก่อนบันทึก${e ? ` · โพสต์นี้มี ${e.comments.length} ความคิดเห็นอยู่แล้ว รายการใหม่จะเพิ่มต่อท้าย` : ''}</p>
+   <section class="form-sec" id="cmt-sec"${pl === 'line' ? ' hidden' : ''}><h3><span class="n">${isV ? 4 : 3}</span>ความคิดเห็น</h3><p>วางความคิดเห็นทีละบรรทัดในรูปแบบ <span class="kbd">ชื่อ: ข้อความ</span> ระบบจะจัดหมวดให้อัตโนมัติ แล้วแก้หมวดเองได้ก่อนบันทึก${e ? ` · โพสต์นี้มี ${e.comments.length} ความคิดเห็นอยู่แล้ว รายการใหม่จะเพิ่มต่อท้าย` : ''}</p>
     <textarea class="input" id="a-cmts" placeholder="ศิริพร ท.: สมัครได้ถึงวันไหนคะ&#10;Kittipat J.: เสื้อมีไซซ์ XL ไหมครับ จะสั่ง 2 ตัว&#10;ณัฐธิดา ส.: ภูมิใจมากค่ะ"></textarea>
     <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center"><button type="button" class="btn" data-act="parse">${ic('spark', 15)} จัดหมวดความคิดเห็น</button><span class="note" id="parsed-n">${S.parsed.length ? `${S.parsed.length} รายการพร้อมบันทึก` : ''}</span></div>
     <div id="parsed">${parsedTable()}</div></section>
@@ -1253,18 +1300,18 @@ const CSV_GUESS = [
   ['duration', [/duration|ความยาว|^length|^ระยะเวลา/]],
   ['videoViews', [/video views?|การดูวิดีโอ|ยอดดูวิดีโอ|video plays?/]],
   ['link', [/permalink|post link|video link|^link$|^url$|ลิงก์โพสต์|ลิงก์วิดีโอ|^ลิงก์$/, /link|url|ลิงก์/], /click|คลิก/],
-  ['at', [/publish(ed)? ?(time|date)|เวลา(ที่)?เผยแพร่|วันที่เผยแพร่|วันที่โพสต์|เวลาโพสต์|post(ed)? ?(time|date|on)|create(d| time)/, /^date|^วันที่|time$/]],
-  ['caption', [/^description$|caption|message|^คำอธิบาย$|^คำบรรยาย$|^ข้อความโพสต์$/]],
+  ['at', [/วันที่ส่ง|เวลาที่ส่ง|sent (date|time|at)|delivery date|publish(ed)? ?(time|date)|เวลา(ที่)?เผยแพร่|วันที่เผยแพร่|วันที่โพสต์|เวลาโพสต์|post(ed)? ?(time|date|on)|create(d| time)/, /^date|^วันที่|time$/]],
+  ['caption', [/post text|tweet text|^ข้อความ$|ชื่อข้อความ|message title|^description$|caption|message|^คำอธิบาย$|^คำบรรยาย$|^ข้อความโพสต์$/]],
   ['title', [/^title$|^ชื่อ$|^ชื่อโพสต์$|video title|^ชื่อวิดีโอ$/]],
   ['type', [/post type|content type|media type|^ประเภทโพสต์$/, /^type$|^ประเภท$/]],
-  ['reach', [/reach|การเข้าถึง|เข้าถึง/]],
-  ['impressions', [/impression|การแสดงผล|ยอดดู|ยอดวิว|(^|total |post )views?$|^views|การดู$/]],
+  ['reach', [/delivered|ส่งถึง|ส่งสำเร็จ|จำนวนผู้รับ|recipients?/, /reach|การเข้าถึง|เข้าถึง/]],
+  ['impressions', [/unique impressions?|เปิดอ่าน|ผู้เปิด|^opened$|^opens?$/, /impression|การแสดงผล|ยอดดู|ยอดวิว|(^|total |post )views?$|^views|การดู$/]],
   ['reactions', [/reaction|likes?$|ถูกใจ|รีแอค|ความรู้สึก|^likes/]],
-  ['comments', [/(^|total |post )comments?$|^ความคิดเห็น$|จำนวนความคิดเห็น|comment count/]],
-  ['shares', [/(^|total |post )shares?$|^การแชร์$|^แชร์$|จำนวนแชร์|share count/]],
-  ['saves', [/saves?$|บันทึก|favou?rites?|บุ๊กมาร์ก/]],
-  ['clicks', [/total clicks|^clicks?$|คลิกทั้งหมด|^คลิก$|post clicks/]],
-  ['profileVisits', [/profile (visit|view)|เยี่ยมชมโปรไฟล์|เข้าชมโปรไฟล์/]],
+  ['comments', [/^replies$|(^|total |post )comments?$|^ความคิดเห็น$|จำนวนความคิดเห็น|comment count/]],
+  ['shares', [/(^|total |post )shares?$|^การแชร์$|^แชร์$|จำนวนแชร์|share count/, /reposts?$|retweets?$|รีโพสต์/]],
+  ['saves', [/saves?$|bookmarks?$|บันทึก|favou?rites?|บุ๊กมาร์ก/]],
+  ['clicks', [/unique clicks?|ผู้ใช้ที่คลิก|คนที่คลิก|total clicks|^clicks?$|คลิกทั้งหมด|^คลิก$|post clicks/]],
+  ['profileVisits', [/profile (visit|view|click)|เยี่ยมชมโปรไฟล์|เข้าชมโปรไฟล์/]],
   ['newFollowers', [/new follow|follows$|followers gained|ผู้ติดตามใหม่|การติดตาม/]]
 ];
 function csvGuess(headers, nz) {
@@ -1328,7 +1375,7 @@ function mapType(v, platform, link) {
   if (/photo|image|รูป|ภาพ/.test(s)) return 'Photo'; if (/status|text|ข้อความ/.test(s)) return 'Announcement';
   return null;
 }
-const detectPl = l => /facebook\.com|fb\.watch|fb\.com/i.test(l) ? 'fb' : /instagram\.com/i.test(l) ? 'ig' : /tiktok\.com/i.test(l) ? 'tt' : null;
+const detectPl = l => /facebook\.com|fb\.watch|fb\.com/i.test(l) ? 'fb' : /instagram\.com/i.test(l) ? 'ig' : /tiktok\.com/i.test(l) ? 'tt' : /\/\/(www\.|mobile\.)?(x|twitter)\.com\//i.test(l) ? 'x' : /manager\.line\.biz|lin\.ee|line\.me/i.test(l) ? 'line' : null;
 function csvBuild() {
   const c = S.csv; const ap = allowedP();
   const idx = f => (c.map[f] == null || c.map[f] === '' ? -1 : +c.map[f]); const get = (r, f) => { const i = idx(f); return i < 0 ? '' : (r[i] == null ? '' : r[i]); };
@@ -1347,7 +1394,7 @@ function csvBuild() {
       if (c.retention) { const curve = c.retention.map(i => toNum(r[i])).filter(x => x != null && x > 0); if (curve.length > 4 && vv.videoViews) { const n = curve.length - 1, at = f => Math.round(curve[Math.round(n * f)] * vv.videoViews); vv.p25 = at(.25); vv.p50 = at(.5); vv.p75 = at(.75); vv.p100 = at(1); if (vv.completion == null) vv.completion = curve[n]; } }
       if (Object.values(vv).some(x => x != null)) v = vv;
     }
-    const err = !/^https?:\/\/\S+\.\S+/.test(link) ? 'ไม่มีลิงก์โพสต์' : !at ? 'อ่านวันที่ไม่ได้' : !ap.includes(platform) ? 'ไม่มีสิทธิ์แพลตฟอร์มนี้' : null;
+    const err = !/^https?:\/\/\S+\.\S+/.test(link) && !(platform === 'line' && link === '') ? 'ไม่มีลิงก์โพสต์' : !at ? 'อ่านวันที่ไม่ได้' : !ap.includes(platform) ? 'ไม่มีสิทธิ์แพลตฟอร์มนี้' : null;
     const caption = (String(get(r, 'caption')).trim() || String(get(r, 'title')).trim()).slice(0, 2000);
     const cat = c.defCat === 'auto' ? autoCategory(caption) : c.defCat;
     return { err, post: { platform, at, type, typeFromFile: !!mapped, cat, recat: !!c.recat, caption, link, m, v } };
@@ -1444,7 +1491,7 @@ function loadPostRows(name, rows, announce) {
 /* ---------- ไฟล์ข้อมูลเพจ (Meta Business Suite → ข้อมูลเชิงลึก → ส่งออก) ---------- */
 const oneCell = r => r.filter(c => String(c).trim()).length === 1;
 const AUD_SEC = { country: /ประเทศยอดนิยม|top countries|^countries$|^ประเทศ$/i, ageGender: /อายุและเพศ|age\s*(and|&)\s*gender/i, city: /เมืองยอดนิยม|top cities|towns?\/cities|^cities$|^เมือง$/i };
-const plOfText = t => /instagram/i.test(t) ? 'ig' : /tiktok/i.test(t) ? 'tt' : /facebook/i.test(t) ? 'fb' : null;
+const plOfText = t => /instagram/i.test(t) ? 'ig' : /tiktok/i.test(t) ? 'tt' : /facebook/i.test(t) ? 'fb' : /\bline\b|ไลน์/i.test(t) ? 'line' : /\bX\b|twitter/.test(t) ? 'x' : null;
 function parsePageFile(name, rows) {
   const txt = r => String(r[0] || '').trim();
   if (rows.some(r => oneCell(r) && Object.values(AUD_SEC).some(re => re.test(txt(r))))) { const a = parseAudFile(name, rows); return a ? [a] : null; }
@@ -1792,7 +1839,7 @@ async function testSetup() {
 
 /* ================= smart fetch (วางลิงก์แล้วดึงข้อมูล) ================= */
 const conn = p => ((DB.connections || {})[p] || {});
-const canSync = p => can('add') && conn(p.platform).connected && !!(p.link || p.externalId);
+const canSync = p => can('add') && conn(p.platform).connected && (p.platform === 'line' ? !!p.externalId : !!(p.link || p.externalId));
 function connPill(p) { const c = conn(p); return `<span class="conn-pill${c.connected ? ' on' : ''}"><span class="pl-badge xs" style="background:${PL[p].c}">${PL[p].short}</span>${PL[p].name}<em>${c.connected ? esc(c.name || 'เชื่อมต่อแล้ว') : 'ยังไม่เชื่อมต่อ · กรอกเองได้'}</em></span>`; }
 const FX_METRICS = [['reactions', 'ถูกใจ / ความรู้สึก'], ['comments', 'ความคิดเห็น'], ['shares', 'แชร์'], ['saves', 'บันทึก'], ['reach', 'การเข้าถึง'], ['impressions', 'การมองเห็น'], ['clicks', 'คลิก'], ['profileVisits', 'เข้าชมโปรไฟล์'], ['newFollowers', 'ผู้ติดตามใหม่']];
 function linkView() {
@@ -1921,7 +1968,9 @@ async function refreshAll(btn) {
 const CAPS_TXT = {
   fb: { ok: ['ยอดความรู้สึกแยก 7 อิโมจิ', 'จำนวนแชร์', 'ความคิดเห็นทั้งหมด พร้อมการตอบกลับของเพจ', 'การมองเห็น การเข้าถึง และคลิก (เท่าที่ Meta ยังเปิดให้)', 'ยอดผู้ติดตามเพจ'], no: ['จำนวนบันทึก (Saves)', 'ข้อมูลผู้ชมเพจ (Meta ปิดแล้ว)'] },
   ig: { ok: ['ยอดถูกใจ และความคิดเห็นทั้งหมด', 'Reach, Views, Saves, Shares', 'เข้าชมโปรไฟล์ และผู้ติดตามใหม่', 'เวลาดู Reels', 'ผู้ติดตาม + เพศ อายุ ประเทศ เมือง'], no: ['แยกอิโมจิ (Instagram มีแค่ถูกใจ)', 'จังหวัด และภาษา'] },
-  tt: { ok: ['ยอดวิว ถูกใจ ความคิดเห็น แชร์', 'ความยาววิดีโอ', 'ยอดผู้ติดตาม'], no: ['รายการความคิดเห็น', 'Reach และเวลาดู (นำเข้า CSV จาก TikTok Studio ได้)'] }
+  tt: { ok: ['ยอดวิว ถูกใจ ความคิดเห็น แชร์', 'ความยาววิดีโอ', 'ยอดผู้ติดตาม'], no: ['รายการความคิดเห็น', 'Reach และเวลาดู (นำเข้า CSV จาก TikTok Studio ได้)'] },
+  line: { ok: ['จำนวนเพื่อน รายวัน (ย้อนหลังได้)', 'กลุ่มเป้าหมายที่ส่งถึงได้ และจำนวนบล็อก', 'จำนวนข้อความที่ส่งออก รายวัน', 'เพศ อายุ จังหวัด iOS/Android และระยะเวลาที่เป็นเพื่อน', 'ส่งถึง เปิดอ่าน คลิก ของข้อความที่ส่งผ่าน API'], no: ['สถิติข้อความที่ส่งจาก LINE OA Manager (นำเข้า CSV)', 'ถูกใจ / แชร์ / ความคิดเห็น (LINE ไม่มี)', 'LINE VOOM'] },
+  x: { ok: ['Impressions, Likes, Replies, Reposts, Quotes, Bookmarks', 'คลิกลิงก์ และคลิกโปรไฟล์ (โพสต์ไม่เกิน 30 วัน)', 'ยอดดูวิดีโอ และการดูถึง 25/50/75/100%', 'ยอดผู้ติดตาม'], no: ['ข้อมูลผู้ชม เพศ อายุ (X ไม่เปิด API)', 'รายการความคิดเห็น (มีค่าใช้จ่ายสูง)'] }
 };
 /* ---------- เข้าสู่ระบบด้วย Facebook (OAuth) ---------- */
 let FBW = null, FBPOLL = null;
@@ -1974,6 +2023,39 @@ async function fbDone(c) {
   toast(`เชื่อมต่อ ${c.fb.name || 'Facebook'}${c.ig && c.ig.connected ? ' และ ' + c.ig.name : ''} แล้ว`);
   try { mergeFollowers(await API.syncFollowers()); renderView('none'); } catch (_) {}
 }
+/* ---------- เข้าสู่ระบบด้วย X (OAuth 2.0) ---------- */
+let XW = null, XPOLL = null;
+function xLoginView() {
+  const L = S.xLogin; if (!L) return '';
+  if (L.phase === 'wait') return `<div class="fb-wait soft x"><span class="m-spin"></span><div><b>รอการอนุญาตในหน้าต่าง X…</b><p>เข้าสู่ระบบด้วยบัญชี X ของหน่วยงาน แล้วกด “Authorize app” ระบบจะรับข้อมูลและปิดหน้าต่างให้เอง</p><div class="fb-wait-actions"><button class="btn sm" type="button" data-act="x-reopen">${ic('ext', 14)} เปิดหน้าต่าง X อีกครั้ง</button><button class="btn sm ghost" type="button" data-act="x-cancel">ยกเลิก</button></div></div></div>`;
+  return `<div class="callout warn soft" style="margin-top:12px">${ic('clock', 16)}<div><b>เชื่อมต่อไม่สำเร็จ</b><br>${esc(L.msg)}<div style="margin-top:8px"><button class="btn sm" type="button" data-act="x-cancel">ปิดข้อความนี้</button></div></div></div>`;
+}
+function renderXLogin() { const el = $('#x-login'); if (el) el.innerHTML = xLoginView(); }
+async function xLoginStart() {
+  const err = $('#x-err'); err.hidden = true; const cx = (DB.connections || {}).x || {};
+  const clientId = $('#x-id').value.trim(), clientSecret = $('#x-sec').value.trim();
+  if (!clientId && !cx.clientId) { err.textContent = 'ใส่ OAuth 2.0 Client ID ของแอป X'; err.hidden = false; return; }
+  XW = API.demo ? null : fbPopup('');
+  try { if (XW) XW.document.write('<p style="font-family:Tahoma,sans-serif;padding:60px 20px;text-align:center;color:#554f60">กำลังเปิดหน้าเข้าสู่ระบบ X…</p>'); } catch (_) {}
+  try {
+    const r = await busy($('#x-go'), () => API.connectX({ clientId, clientSecret }));
+    if (!API.demo) { if (XW && !XW.closed) XW.location.href = r.authUrl; else XW = fbPopup(r.authUrl); }
+    S.xLogin = { phase: 'wait', since: r.since || 0, url: r.authUrl, t0: Date.now() }; renderXLogin(); xPoll();
+  } catch (e) { if (XW && !XW.closed) XW.close(); err.textContent = e.message; err.hidden = false; }
+}
+function xPoll() {
+  clearTimeout(XPOLL);
+  XPOLL = setTimeout(async () => {
+    const L = S.xLogin; if (!L || L.phase !== 'wait') return;
+    if (Date.now() - L.t0 > 15 * 60e3) { S.xLogin = { phase: 'error', msg: 'หมดเวลารอการอนุญาต ลองใหม่อีกครั้ง' }; renderXLogin(); return; }
+    try {
+      const c = await API.connStatus(); const x = c.x || {};
+      if (x.connected && (x.connectedAt || 0) !== (L.since || 0)) { if (XW && !XW.closed) XW.close(); S.xLogin = null; S.connForm = null; DB.connections = c; renderSide(); renderView('none'); toast(`เชื่อมต่อ X ${x.name} แล้ว`); try { mergeFollowers(await API.syncFollowers()); renderView('none'); } catch (_) {} return; }
+      if (x.loginError) { if (XW && !XW.closed) XW.close(); S.xLogin = { phase: 'error', msg: x.loginError }; renderXLogin(); return; }
+    } catch (e) { console.warn(e); }
+    xPoll();
+  }, 2500);
+}
 VIEWS.connect = function () {
   const cs = DB.connections || {};
   const card = p => {
@@ -1985,12 +2067,12 @@ VIEWS.connect = function () {
       ${c.error ? `<div class="callout warn" style="font-size:12.5px">${ic('clock', 15)}<div>${esc(c.error)}</div></div>` : ''}
       <ul class="caps">${cap.ok.map(t => `<li class="ok">${ic('check', 13)} ${t}</li>`).join('')}${cap.no.map(t => `<li class="no">${ic('edit', 13)} ${t} — กรอกเอง</li>`).join('')}</ul>
       <footer>${c.connected ? `<button class="btn sm" data-act="sync-fol">${ic('refresh', 14)} ดึงข้อมูลตอนนี้</button>${p === 'fb' ? `<button class="btn sm ghost" data-act="conn-form" data-v="meta">${ic('plug', 14)} เปลี่ยนเพจ</button>` : ''}${S.confirmDisc === p ? `<button class="btn sm danger" data-act="disc-yes" data-v="${p}">ยืนยันยกเลิก</button><button class="btn sm ghost" data-act="disc-no">ไม่ใช่</button>` : `<button class="btn sm ghost" data-act="disc" data-v="${p}">ยกเลิกการเชื่อมต่อ</button>`}`
-        : `<button class="btn sm primary" data-act="conn-form" data-v="${p === 'tt' ? 'tt' : 'meta'}">${ic('plug', 14)} เชื่อมต่อ</button>`}</footer>
+        : `<button class="btn sm primary" data-act="conn-form" data-v="${p === 'fb' || p === 'ig' ? 'meta' : p}">${ic('plug', 14)} เชื่อมต่อ</button>`}</footer>
      </article>`;
   };
   const mc = S.metaChoose;
   return `<div class="stack" data-stagger>
-    <div class="callout">${ic('lock', 18)}<div><b>ดึงข้อมูลได้เฉพาะบัญชีของหน่วยงานที่เชื่อมต่อ</b> ผ่าน API ทางการของ Meta และ TikTok สิทธิ์เข้าถึงเก็บไว้ที่ระบบหลังบ้าน ไม่แสดงบนหน้าเว็บ ส่วนที่แพลตฟอร์มไม่เปิดให้ ระบบจะใช้ข้อมูลที่กรอกเองหรือนำเข้า CSV และแสดงเวลาอัปเดตล่าสุดทุกจุด</div></div>
+    <div class="callout">${ic('lock', 18)}<div><b>ดึงข้อมูลได้เฉพาะบัญชีของหน่วยงานที่เชื่อมต่อ</b> ผ่าน API ทางการของ Meta, TikTok, LINE และ X สิทธิ์เข้าถึงเก็บไว้ที่ระบบหลังบ้าน ไม่แสดงบนหน้าเว็บ ส่วนที่แพลตฟอร์มไม่เปิดให้ ระบบจะใช้ข้อมูลที่กรอกเองหรือนำเข้า CSV และแสดงเวลาอัปเดตล่าสุดทุกจุด</div></div>
     <div class="grid-3">${PKEYS.map(card).join('')}</div>
     <section class="panel auto-row"><div><h2>อัปเดตอัตโนมัติ</h2><p class="note" style="margin:2px 0 0">ดึงยอดผู้ติดตาม และตัวเลขของโพสต์ 30 วันล่าสุด ทุกชั่วโมง${cs.lastAuto ? ` · ทำงานล่าสุด ${ago(cs.lastAuto)}` : ''}</p></div>
       <label class="switch"><input type="checkbox" id="auto-sync" data-change="autosync" ${cs.autoSync ? 'checked' : ''}><span></span><em>${cs.autoSync ? 'เปิดอยู่' : 'ปิดอยู่'}</em></label></section>
@@ -2018,6 +2100,28 @@ VIEWS.connect = function () {
         <div class="field wide"><label for="mt-tok">User หรือ Page Access Token</label><input class="input" id="mt-tok" type="password" autocomplete="off"></div>
         ${mc ? `<div class="field wide"><label for="mt-page">เลือกเพจของหน่วยงาน</label><select class="input" id="mt-page">${mc.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></div>` : ''}
        </div><span class="err-msg" id="mt-err" hidden></span><div><button class="btn" type="submit" id="mt-go">${ic('plug', 15)} ${mc ? 'เชื่อมต่อเพจที่เลือก' : 'ตรวจสอบและเชื่อมต่อ'}</button></div></form></details></section>
+    <section class="panel" id="line-form"${S.connForm === 'line' ? '' : ' hidden'}><div class="panel-head"><div><h2>${ic('plug', 16)} เชื่อมต่อ LINE Official Account</h2><p>ใช้ Messaging API ของบัญชี LINE OA · วางโทเคนครั้งเดียว ใช้ได้ไม่หมดอายุ</p></div></div>
+      <details class="help" open><summary>วิธีรับ Channel access token (ประมาณ 3 นาที)</summary><ol>
+       <li>LINE OA Manager → <b>ตั้งค่า → Messaging API</b> → กด <b>“เปิดใช้งาน Messaging API”</b> (เลือก/สร้าง Provider)</li>
+       <li>ไปที่ <b>developers.line.biz</b> → เลือก Provider → Channel ของบัญชี → แท็บ <b>Messaging API</b></li>
+       <li>เลื่อนลงล่างสุด ที่ <b>Channel access token (long-lived)</b> กด <b>Issue</b> แล้วคัดลอกมาวางด้านล่าง</li>
+       <li>ระบบจะดึงจำนวนเพื่อนย้อนหลัง 30 วัน และข้อมูลประชากรของเพื่อนให้ทันที (ข้อมูลประชากรต้องมีเพื่อนที่ส่งข้อความถึงได้ 20 คนขึ้นไป)</li></ol></details>
+      <form id="f-line" class="stack" style="gap:12px" novalidate><div class="field"><label for="ln-tok">Channel access token (long-lived)</label><input class="input" id="ln-tok" type="password" autocomplete="off" placeholder="วางโทเคนยาวประมาณ 170 ตัวอักษร"></div>
+       <span class="err-msg" id="ln-err" hidden></span><div class="fb-row"><button class="btn primary" type="submit" id="ln-go" style="background:#06c755;border-color:#06c755">${ic('plug', 15)} ตรวจสอบและเชื่อมต่อ LINE OA</button><button class="btn ghost" type="button" data-act="conn-form" data-v="">ยกเลิก</button></div></form></section>
+    <section class="panel" id="x-form"${S.connForm === 'x' ? '' : ' hidden'}><div class="panel-head"><div><h2>${ic('plug', 16)} เชื่อมต่อ X</h2><p>เข้าสู่ระบบด้วยบัญชี X ของหน่วยงาน (OAuth 2.0) · X คิดค่าใช้จ่ายตามการใช้งาน ต้องมีเครดิตในบัญชีนักพัฒนา</p></div></div>
+      <div class="callout warn" style="margin-bottom:14px">${ic('clock', 16)}<div><b>ค่าใช้จ่ายของ X API</b> — ตั้งแต่ ก.พ. 2569 X ใช้ระบบจ่ายตามการใช้งาน การอ่านโพสต์ของบัญชีตัวเองประมาณ 0.001 USD ต่อโพสต์ต่อวัน (โพสต์เดิมที่อ่านซ้ำในวันเดียวกันคิดครั้งเดียว) · 30 โพสต์ อัปเดตทุกวัน ≈ 1 USD/เดือน</div></div>
+      <details class="help"${(cs.x || {}).clientId ? '' : ' open'}><summary>ตั้งค่าแอป X ครั้งแรก (ประมาณ 5 นาที)</summary><ol>
+       <li>ไปที่ <b>console.x.com</b> (X Developer Console) → สร้าง Project / App และเติมเครดิต</li>
+       <li>ที่แอป → <b>User authentication settings</b> → เปิด OAuth 2.0 · App type: <b>Web App (Confidential client)</b> · สิทธิ์ Read</li>
+       <li>ช่อง <b>Callback URI / Redirect URL</b> วางลิงก์ด้านล่าง · Website URL ใส่เว็บของหน่วยงาน</li>
+       <li>คัดลอก <b>OAuth 2.0 Client ID</b> และ <b>Client Secret</b> มาวาง แล้วกด “เข้าสู่ระบบด้วย X”</li></ol>
+       <div class="code"><span id="x-redirect">${esc(cs.redirectUri || 'ต้อง Deploy ระบบหลังบ้านก่อน')}</span><button class="btn sm" type="button" data-act="copy-el" data-v="x-redirect">${ic('copy', 14)} คัดลอก</button></div></details>
+      <form id="f-x" class="stack" style="gap:12px;margin-top:14px" novalidate><div class="fgrid">
+       <div class="field"><label for="x-id">OAuth 2.0 Client ID</label><input class="input" id="x-id" autocomplete="off" value="${esc((cs.x || {}).clientId || '')}"></div>
+       <div class="field"><label for="x-sec">Client Secret</label><input class="input" id="x-sec" type="password" autocomplete="off" placeholder="${(cs.x || {}).hasApp ? 'บันทึกไว้แล้ว — เว้นว่างได้' : ''}"></div></div>
+       <span class="err-msg" id="x-err" hidden></span>
+       <div class="fb-row"><button class="btn x-btn lg" type="submit" id="x-go"><b aria-hidden="true" style="font-size:17px">𝕏</b> เข้าสู่ระบบด้วย X</button><button class="btn ghost" type="button" data-act="conn-form" data-v="">ยกเลิก</button></div></form>
+      <div id="x-login">${xLoginView()}</div></section>
     <section class="panel" id="tt-form"${S.connForm === 'tt' ? '' : ' hidden'}><div class="panel-head"><div><h2>${ic('plug', 16)} เชื่อมต่อ TikTok</h2><p>ใช้ TikTok for Developers · Login Kit + scope user.info.basic, user.info.stats, video.list</p></div></div>
       <details class="help"><summary>ขั้นตอนตั้งค่าแอป TikTok</summary><ol>
        <li>ไปที่ developers.tiktok.com → Manage apps → Connect an app</li>
@@ -2124,10 +2228,12 @@ document.addEventListener('click', async e => {
     case 'sync-post': { const id = el.dataset.id; await syncPostIds([id], el, 'กำลังดึง'); renderDrawer(false); if (S.page === 'posts') renderPostList(false); break; }
     case 'sync-all': { const ids = filteredPosts().filter(canSync).map(p => p.id); await syncPostIds(ids, el); renderView('soft'); break; }
     case 'sync-fol': { try { const r = await busy(el, () => API.syncFollowers()); mergeFollowers(r); renderSide(); renderView('none'); toast('ดึงยอดผู้ติดตามล่าสุดแล้ว'); } catch (_) {} break; }
+    case 'x-reopen': if (S.xLogin && S.xLogin.url && !API.demo) XW = fbPopup(S.xLogin.url); break;
+    case 'x-cancel': clearTimeout(XPOLL); if (XW && !XW.closed) XW.close(); S.xLogin = null; renderXLogin(); break;
     case 'fb-reopen': if (S.fbLogin && S.fbLogin.url && !API.demo) { FBW = fbPopup(S.fbLogin.url); } break;
     case 'fb-cancel': fbStopPoll(); if (FBW && !FBW.closed) FBW.close(); S.fbLogin = null; renderFbLogin(); break;
     case 'fb-pick-go': { const L = S.fbLogin; if (!L || !L.pick) break; try { const c = await busy(el, () => API.metaPick(L.pick)); await fbDone(c); } catch (e2) { S.fbLogin = { phase: 'error', msg: e2.message }; renderFbLogin(); } break; }
-    case 'conn-form': fbStopPoll(); S.fbLogin = null; S.connForm = v || null; S.metaChoose = null; S.ttAuth = null; renderView('none'); if (v) setTimeout(() => { const f = $('#' + (v === 'tt' ? 'tt' : 'meta') + '-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); break;
+    case 'conn-form': fbStopPoll(); clearTimeout(XPOLL); S.xLogin = null; S.fbLogin = null; S.connForm = v || null; S.metaChoose = null; S.ttAuth = null; renderView('none'); if (v) setTimeout(() => { const f = $('#' + (v === 'tt' ? 'tt' : 'meta') + '-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); break;
     case 'conn-check': { try { DB.connections = await busy(el, () => API.connStatus()); if (conn('tt').connected) { S.connForm = null; S.ttAuth = null; toast('เชื่อมต่อ TikTok แล้ว'); try { mergeFollowers(await API.syncFollowers()); } catch (_) {} } else toast('ยังไม่พบการอนุญาตจาก TikTok ลองอีกครั้งหลังกดยืนยันในหน้า TikTok', 'info'); renderSide(); renderView('none'); } catch (_) {} break; }
     case 'disc': S.confirmDisc = v; renderView('none'); break;
     case 'disc-no': S.confirmDisc = null; renderView('none'); break;
@@ -2218,7 +2324,7 @@ document.addEventListener('change', async e => {
       break;
     }
     case 'atype': $('#vid-sec').classList.toggle('closed', !VIDEO.has(t.value)); break;
-    case 'aplat': { const ty = $('#a-type'); if (!PTYPES[t.value].includes(ty.value)) { ty.value = PTYPES[t.value][0]; $('#vid-sec').classList.toggle('closed', !VIDEO.has(ty.value)); } break; }
+    case 'aplat': { $$('[data-ml]').forEach(l => l.textContent = ML(t.value, l.dataset.ml)); $$('[data-mk]').forEach(f => { f.hidden = !!(MREL[t.value] && !MREL[t.value].includes(f.dataset.mk)); }); const cs2 = $('#cmt-sec'); if (cs2) cs2.hidden = t.value === 'line'; const pn = $('#pl-note'); if (pn) pn.textContent = plNote(t.value); const lk = $('#a-link'); if (lk) { lk.placeholder = LINK_PH[t.value] || 'https://'; const lb = $('label[for="a-link"]'); if (lb) lb.textContent = t.value === 'line' ? 'ลิงก์ (ไม่บังคับสำหรับ LINE OA)' : 'ลิงก์โพสต์'; } const ty = $('#a-type'); if (!PTYPES[t.value].includes(ty.value)) { ty.value = PTYPES[t.value][0]; $('#vid-sec').classList.toggle('closed', !VIDEO.has(ty.value)); } break; }
     case 'aimg': { const f = t.files && t.files[0]; if (f) readImage(f); break; }
     case 'csv-file': { const fs = Array.from(t.files || []); if (fs.length) readFiles(fs); t.value = ''; break; }
     case 'page-metric': { const f = S.pimp.files.find(x => x.id === t.dataset.id); if (f) f.metric = t.value || null; renderCsv(false); break; }
@@ -2278,6 +2384,14 @@ document.addEventListener('submit', async e => {
     return fxFetch({ link });
   }
   if (f.id === 'f-meta-login') { fbLoginStart(); return; }
+  if (f.id === 'f-x') { xLoginStart(); return; }
+  if (f.id === 'f-line') {
+    const err = $('#ln-err'); err.hidden = true; const token = $('#ln-tok').value.trim();
+    if (token.length < 40) { err.textContent = 'วาง Channel access token (long-lived) ให้ครบ — ยาวประมาณ 170 ตัวอักษร'; err.hidden = false; return; }
+    try { const c = await busy($('#ln-go'), () => API.connectLine(token)); DB.connections = c; S.connForm = null; renderSide(); renderView('none'); toast(`เชื่อมต่อ LINE OA ${c.line.name || ''} แล้ว · ดึงข้อมูลย้อนหลัง 30 วัน`); try { load(await API.bootstrap()); renderView('none'); } catch (_) {} }
+    catch (e2) { err.textContent = e2.message; err.hidden = false; }
+    return;
+  }
   if (f.id === 'f-meta') {
     const err = $('#mt-err'); err.hidden = true;
     const payload = { appId: $('#mt-app').value.trim(), appSecret: $('#mt-sec').value.trim(), token: $('#mt-tok').value.trim(), pageId: $('#mt-page') ? $('#mt-page').value : undefined };
@@ -2331,7 +2445,7 @@ document.addEventListener('submit', async e => {
   }
   if (f.id === 'post-form') {
     const link = $('#a-link').value.trim(), cap = $('#a-cap').value.trim();
-    const okLink = /^https?:\/\/\S+\.\S+/.test(link);
+    const okLink = /^https?:\/\/\S+\.\S+/.test(link) || ($('#a-plat').value === 'line' && !link);
     $('#err-link').hidden = okLink; $('#a-link').classList.toggle('err', !okLink);
     $('#err-cap').hidden = !!cap; $('#a-cap').classList.toggle('err', !cap);
     if (!okLink || !cap) { const bad = okLink ? $('#a-cap') : $('#a-link'); bad.focus(); bad.classList.remove('shake'); void bad.offsetWidth; bad.classList.add('shake'); toast('กรอกข้อมูลที่จำเป็นให้ครบก่อนบันทึก', 'error'); return; }

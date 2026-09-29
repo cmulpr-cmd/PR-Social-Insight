@@ -8,5 +8,7 @@ window.APP_CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzi1_mqrs-sjs4Oy5I3cMaSx8ZbgFjHw7OR5ZAkxdgOKrX8mCNSCY0d_nmgbUag9m9_xw/exec',
   DOMAIN: 'cmu.ac.th',
   APP_NAME: 'CMUL PR Social Insight',
-  ORG_NAME: 'หน่วยสื่อสารองค์กร'
+  ORG_NAME: 'หน่วยสื่อสารองค์กร',  
+  LOGO_URL: 'assets/logo.png',  
+  LOGO_TEXT: 'PR'
 };

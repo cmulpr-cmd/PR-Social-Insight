@@ -50,13 +50,14 @@ const CATS = [{ k: 'news', t: 'ข่าวประชาสัมพันธ�
 const CAT = Object.fromEntries(CATS.map(c => [c.k, c]));
 const SENT = [{ k: 'pos', t: 'Positive', th: 'เชิงบวก', c: 'var(--s-pos)' }, { k: 'neu', t: 'Neutral', th: 'ทั่วไป', c: 'var(--s-neu)' }, { k: 'neg', t: 'Negative', th: 'เชิงลบ', c: 'var(--s-neg)' }, { k: 'q', t: 'Question', th: 'คำถาม', c: 'var(--s-q)' }, { k: 'cmp', t: 'Complaint', th: 'ร้องเรียน', c: 'var(--s-cmp)' }, { k: 'int', t: 'Interested', th: 'สนใจ', c: 'var(--s-int)' }, { k: 'buy', t: 'Purchase intent', th: 'ตั้งใจซื้อ', c: 'var(--s-buy)' }];
 const SE = Object.fromEntries(SENT.map(s => [s.k, s]));
-const MENUS = [{ k: 'dashboard', t: 'ภาพรวม', sub: 'Overview' }, { k: 'posts', t: 'คอนเทนต์', sub: 'Content' }, { k: 'comments', t: 'ความคิดเห็น', sub: 'Conversations' }, { k: 'audience', t: 'ผู้ติดตาม', sub: 'Audience' }, { k: 'add', t: 'เพิ่มคอนเทนต์', sub: 'Add content' }, { k: 'admin', t: 'ทีมและสิทธิ์', sub: 'Team & access' }];
+const MENUS = [{ k: 'dashboard', t: 'ภาพรวม', sub: 'Overview' }, { k: 'posts', t: 'คอนเทนต์', sub: 'Content' }, { k: 'comments', t: 'ความคิดเห็น', sub: 'Conversations' }, { k: 'audience', t: 'ผู้ติดตาม', sub: 'Audience' }, { k: 'strategy', t: 'วิเคราะห์เชิงกลยุทธ์', sub: 'Strategic insight' }, { k: 'add', t: 'เพิ่มคอนเทนต์', sub: 'Add content' }, { k: 'admin', t: 'ทีมและสิทธิ์', sub: 'Team & access' }];
 const PAGES = MENUS.concat([{ k: 'connect', t: 'เชื่อมต่อบัญชี', sub: 'Integrations' }]);
-const NAV_GROUPS = [['วิเคราะห์', ['dashboard', 'posts', 'comments', 'audience']], ['จัดการ', ['add', 'connect', 'admin']]];
-const ROLES = { 'Super Admin': { menus: MENUS.map(m => m.k), platforms: PKEYS }, 'Editor': { menus: ['dashboard', 'posts', 'comments', 'audience', 'add'], platforms: PKEYS }, 'Analyst': { menus: ['dashboard', 'posts', 'comments', 'audience'], platforms: PKEYS }, 'Viewer': { menus: ['dashboard'], platforms: PKEYS } };
+const NAV_GROUPS = [['วิเคราะห์', ['dashboard', 'posts', 'comments', 'audience', 'strategy']], ['จัดการ', ['add', 'connect', 'admin']]];
+const ROLES = { 'Super Admin': { menus: MENUS.map(m => m.k), platforms: PKEYS }, 'Editor': { menus: ['dashboard', 'posts', 'comments', 'audience', 'strategy', 'add'], platforms: PKEYS }, 'Analyst': { menus: ['dashboard', 'posts', 'comments', 'audience', 'strategy'], platforms: PKEYS }, 'Viewer': { menus: ['dashboard'], platforms: PKEYS } };
 const AGES = ['13–17', '18–24', '25–34', '35–44', '45–54', '55+'];
 
 const ICON = {
+  strategy: '<path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><circle cx="12" cy="12" r="2"/><path d="m13.5 10.5 7-7M17 3.5h3.5V7"/>',
   dashboard: '<path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/>',
   posts: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
   comments: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>',
@@ -646,8 +647,8 @@ function renderTop() {
   $('#topbar').innerHTML = `
    ${S.acting ? `<div class="impersonate">${ic('eye', 16)} กำลังดูตัวอย่างมุมมองของ <b>${esc(u.email)}</b> (${esc(u.role)}) — เมนูและแพลตฟอร์มแสดงตามสิทธิ์ของผู้ใช้นี้<button class="btn sm" data-act="stop-acting">กลับเป็นมุมมองของฉัน</button></div>` : ''}
    <div class="title-row"><div><span class="eyebrow-sm">${ic(S.page, 13)} ${esc((PAGES.find(m => m.k === S.page) || {}).sub || '')}</span><h1>${pageTitle()}</h1><p>${pageSub()}</p></div>
-    <div class="filters">${['dashboard', 'posts', 'comments', 'audience'].includes(S.page) ? `<button class="btn ghost upd" data-act="refresh" title="ดึงยอดผู้ติดตามล่าสุดและโหลดข้อมูลล่าสุดจากฐานข้อมูล">${ic('refresh', 15)} <span>อัปเดตล่าสุด ${DB.loadedAt ? new Date(DB.loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span></button>` : ''}${S.page === 'posts' && can('add') ? `${PKEYS.some(p => conn(p).connected) ? `<button class="btn" data-act="sync-all">${ic('refresh', 16)} อัปเดตจากแพลตฟอร์ม</button>` : ''}<button class="btn primary" data-act="go-link">${ic('add', 16)} เพิ่มคอนเทนต์</button>` : ''}</div></div>
-   ${['dashboard', 'posts', 'comments', 'audience'].includes(S.page) ? filtersBar() : ''}`;
+    <div class="filters">${['dashboard', 'posts', 'comments', 'audience', 'strategy'].includes(S.page) ? `<button class="btn ghost upd" data-act="refresh" title="ดึงยอดผู้ติดตามล่าสุดและโหลดข้อมูลล่าสุดจากฐานข้อมูล">${ic('refresh', 15)} <span>อัปเดตล่าสุด ${DB.loadedAt ? new Date(DB.loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span></button>` : ''}${S.page === 'posts' && can('add') ? `${PKEYS.some(p => conn(p).connected) ? `<button class="btn" data-act="sync-all">${ic('refresh', 16)} อัปเดตจากแพลตฟอร์ม</button>` : ''}<button class="btn primary" data-act="go-link">${ic('add', 16)} เพิ่มคอนเทนต์</button>` : ''}</div></div>
+   ${['dashboard', 'posts', 'comments', 'audience', 'strategy'].includes(S.page) ? filtersBar() : ''}`;
   syncThumbs($('#topbar'));
 }
 function greet() { const h = new Date().getHours(); return h < 12 ? 'สวัสดีตอนเช้า' : h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น'; }
@@ -657,8 +658,8 @@ function dashInsight() {
   if (!DB.posts.length) return day + ' · เริ่มเพิ่มคอนเทนต์เพื่อดูภาพรวมทุกแพลตฟอร์ม';
   return day + ' · ' + (d != null ? `การเข้าถึงช่วงนี้${d >= 0 ? 'เพิ่มขึ้น' : 'ลดลง'} ${Math.abs(d * 100).toFixed(0)}% จากช่วงก่อนหน้า (${a.n} โพสต์)` : `${a.n} โพสต์ในช่วงที่เลือก`);
 }
-function pageTitle() { return { dashboard: `${greet()}, ${esc(((ME && ME.name) || '').split(/\s+/)[0])}`, posts: 'คอนเทนต์ทั้งหมด', comments: 'ความคิดเห็น', audience: 'ผู้ติดตาม', add: S.editing ? 'แก้ไขคอนเทนต์' : 'เพิ่มคอนเทนต์', connect: 'เชื่อมต่อบัญชี', admin: 'ทีมและสิทธิ์การใช้งาน' }[S.page]; }
-function pageSub() { return { dashboard: dashInsight(), posts: 'ผลลัพธ์รายโพสต์จาก Facebook, Instagram และ TikTok เรียงจากล่าสุดไปเก่าสุด', comments: 'ฟังเสียงผู้ติดตาม จัดหมวดความรู้สึก และติดตามการตอบกลับ', audience: 'ใครติดตามเรา อยู่ที่ไหน และเติบโตแค่ไหน', add: 'วางลิงก์ให้ระบบดึงข้อมูล กรอกเอง หรือนำเข้าไฟล์ CSV', connect: 'เชื่อมต่อเพจและบัญชีของหน่วยงาน เพื่อดึงยอดและความคิดเห็นอัตโนมัติ', admin: `อนุญาตเฉพาะอีเมล @${DOMAIN} · กำหนดเมนูและแพลตฟอร์มที่แต่ละคนเข้าถึงได้` }[S.page]; }
+function pageTitle() { return { dashboard: `${greet()}, ${esc(((ME && ME.name) || '').split(/\s+/)[0])}`, posts: 'คอนเทนต์ทั้งหมด', comments: 'ความคิดเห็น', audience: 'ผู้ติดตาม', strategy: 'วิเคราะห์เชิงกลยุทธ์', add: S.editing ? 'แก้ไขคอนเทนต์' : 'เพิ่มคอนเทนต์', connect: 'เชื่อมต่อบัญชี', admin: 'ทีมและสิทธิ์การใช้งาน' }[S.page]; }
+function pageSub() { return { strategy: 'ใช้สูตร KPI มาตรฐานด้าน Social & Content กับข้อมูลในฐานข้อมูล พร้อมสรุประดับผู้บริหาร ช่องทาง คอนเทนต์ และโพสต์', dashboard: dashInsight(), posts: 'ผลลัพธ์รายโพสต์จาก Facebook, Instagram และ TikTok เรียงจากล่าสุดไปเก่าสุด', comments: 'ฟังเสียงผู้ติดตาม จัดหมวดความรู้สึก และติดตามการตอบกลับ', audience: 'ใครติดตามเรา อยู่ที่ไหน และเติบโตแค่ไหน', add: 'วางลิงก์ให้ระบบดึงข้อมูล กรอกเอง หรือนำเข้าไฟล์ CSV', connect: 'เชื่อมต่อเพจและบัญชีของหน่วยงาน เพื่อดึงยอดและความคิดเห็นอัตโนมัติ', admin: `อนุญาตเฉพาะอีเมล @${DOMAIN} · กำหนดเมนูและแพลตฟอร์มที่แต่ละคนเข้าถึงได้` }[S.page]; }
 function filtersBar() {
   const a = allowedP(), r = range(), showPeriod = S.page !== 'audience';
   const days = Math.round((r.to - r.from) / DAY);
@@ -2316,6 +2317,10 @@ document.addEventListener('click', async e => {
     case 'copy-code': { const t = $('#su-code').textContent; try { await navigator.clipboard.writeText(t); toast('คัดลอกแล้ว'); } catch (_) { const r = document.createRange(); r.selectNodeContents($('#su-code')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('เลือกข้อความแล้ว กด Ctrl+C เพื่อคัดลอก', 'info'); } break; }
     case 'fp': S.f.platform = v; refilter(); break;
     case 'per': S.f.period = v; refilter(); break;
+    case 'sa-er': S.sa.er = v; renderView('soft'); break;
+    case 'sa-obj': S.sa.obj = v; renderView('soft'); break;
+    case 'sa-catalog': modalOpen(saCatalogView(), { wide: true }); break;
+    case 'sa-copy': { const t = S.saText || ''; try { await navigator.clipboard.writeText(t); toast('คัดลอกสรุปแล้ว วางในอีเมลหรือแชทได้เลย'); } catch (_) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('คัดลอกสรุปแล้ว'); } catch (__) { toast('คัดลอกไม่สำเร็จ', 'error'); } ta.remove(); } break; }
     case 'dp-open': if (DP.open) dpClose(); else dpOpen(el); break;
     case 'dp-close': dpClose(); break;
     case 'dp-apply': dpApply(); break;
@@ -2560,5 +2565,283 @@ async function boot() {
     }
   } else showAuth();
 }
+/* ================= วิเคราะห์เชิงกลยุทธ์ (Strategic insight) ================= */
+/* ใช้สูตร KPI ด้าน Social / Content Marketing กับข้อมูลที่ระบบมีจริง และบอกชัดว่าสูตรไหนยังใช้ไม่ได้เพราะขาดข้อมูลอะไร */
+const SA_DOW = ['วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์', 'วันอาทิตย์'];
+const SA_SLOT = [[6, 9, '06:00–09:00'], [9, 12, '09:00–12:00'], [12, 15, '12:00–15:00'], [15, 18, '15:00–18:00'], [18, 21, '18:00–21:00'], [21, 24, '21:00–24:00'], [0, 6, '00:00–06:00']];
+const saDiv = (a, b) => a != null && b ? a / b : null;
+const saSum = (l, f) => { let s = 0, any = false; l.forEach(x => { const v = f(x); if (v != null && isFinite(v)) { s += v; any = true; } }); return any ? s : null; };
+const saMean = l => { const v = l.filter(x => x != null && isFinite(x)); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+const saMedian = l => { const v = l.filter(x => x != null && isFinite(x)).sort((a, b) => a - b); if (!v.length) return null; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+const saGrowth = (cur, prev) => cur != null && prev ? (cur - prev) / prev : null;
+const f2 = (v, d = 2) => v == null || !isFinite(v) ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const pp = (v, d = 1) => v == null || !isFinite(v) ? '—' : (v * 100).toFixed(d) + '%';
+const sgn = v => v == null ? '' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+
+/** อัตราต่างๆ ของโพสต์เดียว (ไม่มีข้อมูล = null ไม่ใช่ 0) */
+function saRates(p) {
+  const m = p.m || {}, v = p.v || {}, R = m.reach || null, I = m.impressions || null, E = engP(p);
+  const starts = v.s3 || v.videoViews || null;
+  return {
+    R, I, E,
+    freq: p.platform === 'line' ? null : saDiv(I, R),
+    erR: R ? E / R : null, erI: I ? E / I : null,
+    likeR: saDiv(m.reactions, R || I), cmtR: saDiv(m.comments, R || I), shareR: saDiv(m.shares, R || I), saveR: saDiv(m.saves, R || I),
+    clickR: saDiv(m.clicks, R), ctr: saDiv(m.clicks != null ? m.clicks : m.linkClicks, I), linkCtr: saDiv(m.linkClicks, I),
+    pvR: saDiv(m.profileVisits, R || I), folR: saDiv(m.newFollowers, R || I),
+    viewRate: VIDEO.has(p.type) || p.v ? saDiv(v.videoViews, I) : null,
+    completion: v.completion != null ? v.completion : saDiv(v.p100, starts),
+    avgWatch: v.avgWatch != null ? v.avgWatch : saDiv(v.totalWatch, v.videoViews),
+    ret: starts ? { s3: 1, s10: saDiv(v.s10, starts), p25: saDiv(v.p25, starts), p50: saDiv(v.p50, starts), p75: saDiv(v.p75, starts), p100: saDiv(v.p100, starts) } : null
+  };
+}
+/** รวมตัวเลขของกลุ่มโพสต์ (อัตรารวมคิดจากผลรวม = ถ่วงน้ำหนักตามขนาด) */
+function saAgg(list) {
+  const s = k => saSum(list, p => p.m && p.m[k]);
+  const reach = s('reach'), imp = s('impressions'), eng = saSum(list, p => engP(p)), clicks = s('clicks'), link = s('linkClicks');
+  const vids = list.filter(p => p.v && (p.v.videoViews || p.v.s3));
+  const vv = saSum(vids, p => p.v.videoViews), vImp = saSum(vids, p => p.m.impressions);
+  const starts = saSum(vids, p => p.v.s3 || p.v.videoViews), done = saSum(vids, p => p.v.p100);
+  const reachOf = l => saSum(l, p => p.m.reach);
+  const withReach = list.filter(p => p.m.reach), wImp = list.filter(p => p.m.impressions);
+  const rateBy = (k, base) => { const l = list.filter(p => p.m[k] != null && p.m[base]); return l.length ? saSum(l, p => p.m[k]) / saSum(l, p => p.m[base]) : null; };
+  return {
+    n: list.length, reach, imp, eng, clicks, link, shares: s('shares'), saves: s('saves'), comments: s('comments'), reactions: s('reactions'), pv: s('profileVisits'), fol: s('newFollowers'),
+    freq: (() => { const l = list.filter(p => p.platform !== 'line' && p.m.reach && p.m.impressions); return l.length ? saSum(l, p => p.m.impressions) / saSum(l, p => p.m.reach) : null; })(),
+    erR: withReach.length ? saSum(withReach, p => engP(p)) / reachOf(withReach) : null,
+    erI: wImp.length ? saSum(wImp, p => engP(p)) / saSum(wImp, p => p.m.impressions) : null,
+    likeR: rateBy('reactions', 'reach'), cmtR: rateBy('comments', 'reach'), shareR: rateBy('shares', 'reach'), saveR: rateBy('saves', 'reach'), clickR: rateBy('clicks', 'reach'),
+    ctr: rateBy('clicks', 'impressions') != null ? rateBy('clicks', 'impressions') : rateBy('linkClicks', 'impressions'), linkCtr: rateBy('linkClicks', 'impressions'),
+    viewRate: vv != null && vImp ? vv / vImp : null, completion: starts && done != null ? done / starts : null,
+    avgWatch: (() => { const l = vids.filter(p => p.v.totalWatch && p.v.videoViews); return l.length ? saSum(l, p => p.v.totalWatch) / saSum(l, p => p.v.videoViews) : saMean(vids.map(p => p.v.avgWatch)); })(),
+    vids: vids.length, vv, starts,
+    meanER: saMean(list.map(p => saRates(p).erR != null ? saRates(p).erR : saRates(p).erI))
+  };
+}
+/** คะแนนโพสต์: แปลงแต่ละอัตราเป็นเปอร์เซ็นไทล์ (0–100) เทียบกับโพสต์ในแพลตฟอร์มเดียวกัน แล้วถ่วงน้ำหนักตามวัตถุประสงค์ */
+const SA_OBJ = {
+  overall: { t: 'Post Performance Score', th: 'คะแนนรวม', w: { likeR: 10, cmtR: 20, shareR: 25, saveR: 20, clickR: 25 }, f: 'Like 10% + Comment 20% + Share 25% + Save 20% + Click 25%' },
+  awareness: { t: 'Awareness Score', th: 'การรับรู้', w: { reachIdx: 40, viewRate: 30, shareR: 30 }, f: 'Reach เทียบค่ากลาง 40% + View Rate 30% + Share Rate 30%' },
+  engagement: { t: 'Engagement Score', th: 'การมีส่วนร่วม', w: { likeR: 20, cmtR: 25, shareR: 30, saveR: 25 }, f: 'Like 20% + Comment 25% + Share 30% + Save 25%' },
+  action: { t: 'Action Score', th: 'การพาไปต่อ', w: { ctr: 40, linkCtr: 30, pvR: 15, folR: 15 }, f: 'CTR 40% + Link CTR 30% + Profile visit 15% + New follower 15% (ใช้แทน Conversion Score)' }
+};
+function saScores(list) {
+  const out = new Map(); const byPl = {};
+  list.forEach(p => (byPl[p.platform] = byPl[p.platform] || []).push(p));
+  Object.values(byPl).forEach(group => {
+    const rates = group.map(p => Object.assign(saRates(p), { p }));
+    const med = saMedian(rates.map(r => r.R || r.I));
+    rates.forEach(r => { r.reachIdx = med ? (r.R || r.I) / med : null; });
+    const keys = ['likeR', 'cmtR', 'shareR', 'saveR', 'clickR', 'reachIdx', 'viewRate', 'ctr', 'linkCtr', 'pvR', 'folR'];
+    const sorted = {}; keys.forEach(k => { sorted[k] = rates.map(r => r[k]).filter(x => x != null && isFinite(x)).sort((a, b) => a - b); });
+    const pr = (k, v) => { const a = sorted[k]; if (v == null || !a.length) return null; if (a.length === 1) return 60; let lo = 0; while (lo < a.length && a[lo] < v) lo++; let hi = lo; while (hi < a.length && a[hi] === v) hi++; return ((lo + hi) / 2) / a.length * 100; };
+    rates.forEach(r => {
+      const sc = {};
+      Object.entries(SA_OBJ).forEach(([ok, o]) => { let tw = 0, ts = 0; Object.entries(o.w).forEach(([k, w]) => { const x = pr(k, r[k]); if (x != null) { tw += w; ts += w * x; } }); sc[ok] = tw >= 30 ? ts / tw : null; sc[ok + '_cov'] = tw; });
+      out.set(r.p.id, { rates: r, sc });
+    });
+  });
+  return out;
+}
+/** คะแนนสุขภาพโซเชียล (0–100): เทียบกับช่วงก่อนหน้าที่ยาวเท่ากัน — เท่ากับช่วงก่อน = 70 คะแนน */
+function saHealth(A, B, C, D, folG, folGPrev, ps) {
+  const fromRatio = (c, p) => c == null || !p ? null : Math.max(0, Math.min(100, 70 * c / p));
+  const parts = [
+    { k: 'awareness', t: 'การรับรู้ (Awareness)', w: 25, v: fromRatio(A.reach || A.imp, B.reach || B.imp), why: 'Reach รวม เทียบช่วงก่อนหน้า' },
+    { k: 'engagement', t: 'การมีส่วนร่วม (Engagement)', w: 25, v: fromRatio(A.erR != null ? A.erR : A.erI, B.erR != null ? B.erR : B.erI), why: 'ER by Reach เทียบช่วงก่อนหน้า' },
+    { k: 'action', t: 'การพาไปต่อ (Action)', w: 20, v: fromRatio(A.ctr, B.ctr), why: 'CTR เทียบช่วงก่อนหน้า' },
+    { k: 'community', t: 'ชุมชน & ความรู้สึก', w: 15, v: C.total ? Math.round(((((C.by.pos || 0) - (C.by.neg || 0) - (C.by.cmp || 0)) / C.total + 1) / 2 * 100 + n0(C.replyRate) * 100) / 2) : null, why: 'Sentiment Score + อัตราการตอบกลับ' },
+    { k: 'growth', t: 'การเติบโต (Growth)', w: 15, v: folG == null ? null : folGPrev ? fromRatio(Math.max(0, folG), Math.max(1e-9, folGPrev)) : Math.max(0, Math.min(100, 50 + folG * 2500)), why: 'Follower Growth Rate เทียบช่วงก่อนหน้า' }
+  ];
+  const have = parts.filter(x => x.v != null); const tw = have.reduce((s, x) => s + x.w, 0);
+  return { score: tw ? have.reduce((s, x) => s + x.v * x.w, 0) / tw : null, parts };
+}
+const saLevel = v => v == null ? ['—', 'var(--ink-3)'] : v >= 80 ? ['ดีมาก', 'var(--good)'] : v >= 65 ? ['ดี', '#3b8f5a'] : v >= 50 ? ['พอใช้', 'var(--warn)'] : ['ต้องปรับปรุง', 'var(--bad)'];
+
+/* ----- แคตตาล็อกสูตร: ใช้ได้กับฐานข้อมูลนี้หรือไม่ ----- */
+const SA_CATALOG = [
+  ['Awareness', [['Reach', 'จำนวนบัญชีที่เห็นโพสต์อย่างน้อย 1 ครั้ง', 'ok'], ['Impressions', 'จำนวนครั้งที่แสดงทั้งหมด', 'ok'], ['Frequency', 'Impressions ÷ Reach', 'ok'], ['Reach Growth', '(Reach ช่วงนี้ − ช่วงก่อน) ÷ ช่วงก่อน × 100', 'ok']]],
+  ['Engagement', [['Total Engagement', 'Like + Comment + Share + Save (LINE ใช้คลิก)', 'ok'], ['ER by Reach', 'Engagement ÷ Reach × 100', 'ok'], ['ER by Impression', 'Engagement ÷ Impressions × 100', 'ok'], ['Comment Rate', 'Comments ÷ Reach × 100', 'ok'], ['Share Rate', 'Shares ÷ Reach × 100', 'ok'], ['Save Rate', 'Saves ÷ Reach × 100', 'ok'], ['Click Rate', 'Clicks ÷ Reach × 100', 'ok']]],
+  ['Traffic', [['CTR', 'Clicks ÷ Impressions × 100', 'ok'], ['Landing Page Rate', 'Landing Page Views ÷ Link Clicks × 100', 'no', 'ต้องมีข้อมูล Google Analytics / Pixel'], ['Bounce Rate', 'Sessions ที่ออกทันที ÷ Sessions × 100', 'no', 'ต้องมีข้อมูลเว็บไซต์']]],
+  ['Video', [['View Rate', 'Video Views ÷ Impressions × 100', 'ok'], ['Completion Rate', 'ดูจบ ÷ Video Starts × 100', 'ok'], ['Avg. Watch Time', 'Watch Time รวม ÷ Views', 'ok'], ['Retention 3s/10s/25–100%', 'ผู้ชม ณ จุดนั้น ÷ Video Starts × 100', 'ok']]],
+  ['Brand & Community', [['Follower Growth Rate', 'ผู้ติดตามที่เพิ่ม ÷ ผู้ติดตามต้นงวด × 100', 'ok'], ['Sentiment Score', '(Positive − Negative) ÷ ความคิดเห็นทั้งหมด × 100', 'part', 'ใช้ความคิดเห็นบนโพสต์ของเราแทน Mention ทั้งตลาด'], ['Response Rate', 'ความคิดเห็นที่เพจตอบ ÷ ความคิดเห็นทั้งหมด × 100', 'ok'], ['Share of Voice', 'Mention ของเรา ÷ Mention ทั้งตลาด × 100', 'no', 'ต้องมีเครื่องมือ Social Listening']]],
+  ['คะแนนและรูปแบบ', [['Post Performance Score', 'Like 10% + Comment 20% + Share 25% + Save 20% + Click 25%', 'ok'], ['Awareness / Engagement Score', 'ถ่วงน้ำหนักตามวัตถุประสงค์', 'ok'], ['Conversion Score', 'CTR + Conversion + CPA + Revenue', 'part', 'ใช้ Action Score (CTR, Link CTR, Profile visit, New follower) แทน'], ['Average ER by Content Type', 'ΣER ÷ จำนวนโพสต์ แยกหมวด/รูปแบบ', 'ok'], ['Best Posting Pattern', 'ค่าเฉลี่ย ER / CTR / Reach ตามวัน × ช่วงเวลา', 'ok'], ['WoW / MoM / YoY', '(ช่วงนี้ − ช่วงก่อน) ÷ ช่วงก่อน × 100', 'ok'], ['Moving Average 7/30 วัน', 'ค่าเฉลี่ยเคลื่อนที่ของ Engagement รายวัน', 'ok'], ['Funnel', 'Impression → Reach → Engagement → Click → Link click → Follow', 'part', 'ขั้นหลังคลิก (Visit / Lead / Purchase) ต้องมีข้อมูลเว็บและยอดขาย'], ['Social Health Score', 'Awareness 25% + Engagement 25% + Action 20% + Community 15% + Growth 15%', 'part', 'ปรับจาก Marketing Health Score ให้ใช้ข้อมูลโซเชียลแทนรายได้']]],
+  ['Lead & Sales', [['Lead Conversion Rate', 'Leads ÷ Visitors × 100', 'no'], ['CPL', 'ค่าโฆษณา ÷ Leads', 'no'], ['Conversion Rate', 'Orders ÷ Visitors × 100', 'no'], ['CPA / CAC', 'ต้นทุน ÷ Conversion / ลูกค้าใหม่', 'no'], ['AOV / Revenue per Visitor', 'Revenue ÷ Orders / Visitors', 'no']]],
+  ['Profitability & Customer', [['ROAS / ROI / MER', 'Revenue ÷ Ad spend / (กำไร − ต้นทุน) ÷ ต้นทุน', 'no'], ['Repeat / Retention / Churn', 'ลูกค้าซื้อซ้ำ / คงอยู่ / หาย ÷ ลูกค้าต้นงวด', 'no'], ['CLV / LTV:CAC', 'AOV × Frequency × Lifespan ÷ CAC', 'no'], ['RFM / Cohort / Attribution / Customer 360°', 'ต้องมี Customer ID และคำสั่งซื้อ', 'no']]]
+];
+const SA_NEED = 'ต้องมีข้อมูลค่าใช้จ่ายโฆษณา ผู้เข้าชมเว็บไซต์ ลีด ยอดขาย หรือรหัสลูกค้า — ระบบนี้เก็บเฉพาะข้อมูลโซเชียล จึงยังคำนวณไม่ได้';
+function saCatalogView() {
+  const tot = SA_CATALOG.reduce((s, [, l]) => s + l.length, 0), ok = SA_CATALOG.reduce((s, [, l]) => s + l.filter(x => x[2] === 'ok').length, 0), part = SA_CATALOG.reduce((s, [, l]) => s + l.filter(x => x[2] === 'part').length, 0);
+  const tag = st => st === 'ok' ? `<span class="sa-tag ok">${ic('check', 12)} ใช้ได้</span>` : st === 'part' ? `<span class="sa-tag part">◐ ปรับใช้</span>` : `<span class="sa-tag no">${ic('lock', 11)} ต้องมีข้อมูลเพิ่ม</span>`;
+  return `${mHead(ic('strategy', 22), 'สูตรที่ใช้ได้กับฐานข้อมูลของเรา', `ใช้ได้ทันที ${ok} สูตร · ปรับใช้ ${part} สูตร · ต้องมีข้อมูลเพิ่ม ${tot - ok - part} สูตร`)}
+   <div class="sa-cat">${SA_CATALOG.map(([g, l]) => `<section><h3>${g}</h3>${l.map(([n, f, st, why]) => `<div class="sa-cat-row ${st}"><div><b>${n}</b><code>${esc(f)}</code>${why || st === 'no' ? `<small>${esc(why || SA_NEED)}</small>` : ''}</div>${tag(st)}</div>`).join('')}</section>`).join('')}</div>
+   <div class="m-actions"><button class="btn primary" data-act="modal-close" data-focus>ปิด</button></div>`;
+}
+
+/* ----- หน้าจอ ----- */
+VIEWS.strategy = function () {
+  const r = range(), ps = shownP(), cur = postsIn(r.from, r.to, ps), prev = r.hasPrev ? postsIn(r.pf, r.pt, ps) : [];
+  const A = saAgg(cur), B = saAgg(prev), C = cstats(cur), D = cstats(prev);
+  const sa = S.sa || (S.sa = { er: 'reach', obj: 'overall' });
+  const endMs = Math.min(r.to - 1, Date.now());
+  const fNow = sumFol(ps, endMs), fStart = sumFol(ps, r.from - DAY), fPrevStart = sumFol(ps, r.pf - DAY);
+  const folG = fNow != null && fStart ? (fNow - fStart) / fStart : null, folGPrev = r.hasPrev && fStart != null && fPrevStart ? (fStart - fPrevStart) / fPrevStart : null;
+  const H = saHealth(A, B, C, D, folG, folGPrev, ps);
+  if (!cur.length) return `<div class="stack">${emptyState('ยังไม่มีโพสต์ในช่วงที่เลือก', 'เลือกช่วงเวลาหรือแพลตฟอร์มอื่นด้านบน แล้วระบบจะคำนวณสูตรให้ทันที', `<button class="btn" data-act="per" data-v="all">ดูทุกช่วงเวลา</button>`)}</div>`;
+  const SC = saScores(cur); const ER = sa.er === 'reach' ? 'erR' : 'erI';
+  const LN = ps.length === 1 && ps[0] === 'line';
+
+  // ---------- ระดับผู้บริหาร ----------
+  const [lvT, lvC] = saLevel(H.score);
+  const gauge = v => { const R = 54, Cc = 2 * Math.PI * R, a = v == null ? 0 : v / 100; return `<svg viewBox="0 0 140 140" class="sa-gauge"><circle cx="70" cy="70" r="${R}" class="g-bg"/><circle cx="70" cy="70" r="${R}" class="g-fg" style="stroke:${lvC};stroke-dasharray:${(Cc * a).toFixed(1)} ${Cc.toFixed(1)}"/></svg><div class="sa-gauge-c"><b>${v == null ? '—' : cnt(v, 'n', null, 'sa-h')}</b><span style="color:${lvC}">${lvT}</span></div>`; };
+  const plStats = ps.map(p => ({ p, a: saAgg(cur.filter(x => x.platform === p)), c: cstats(cur.filter(x => x.platform === p)) })).filter(x => x.a.n);
+  const pillar = CATS.map(c => { const l = cur.filter(x => x.cat === c.k); return { k: c.k, t: c.t, c: c.c, n: l.length, a: saAgg(l) }; }).filter(x => x.n);
+  const fmt = TYPES.map(t => { const l = cur.filter(x => x.type === t); return { t, n: l.length, a: saAgg(l) }; }).filter(x => x.n);
+  const best = (list, key, min = 2) => list.filter(x => x.n >= min && x.a[key] != null).sort((a, b) => b.a[key] - a.a[key])[0];
+  const worst = (list, key, min = 2) => list.filter(x => x.n >= min && x.a[key] != null).sort((a, b) => a.a[key] - b.a[key])[0];
+  // ช่วงเวลาที่ดีที่สุด (แยกตามวัตถุประสงค์)
+  const slots = {}; cur.forEach(p => { const d = new Date(p.at), di = (d.getDay() + 6) % 7, h = d.getHours(), bi = SA_SLOT.findIndex(b => h >= b[0] && h < b[1]); const k = di + '-' + bi; const sr = SC.get(p.id); (slots[k] = slots[k] || { di, bi, l: [] }).l.push({ er: sr.rates[ER] != null ? sr.rates[ER] : sr.rates.erI, ctr: sr.rates.ctr, idx: sr.rates.reachIdx }); });
+  const slotBest = key => Object.values(slots).map(s => ({ s, v: saMean(s.l.map(x => x[key])), n: s.l.filter(x => x[key] != null).length })).filter(x => x.v != null && x.n >= 2).sort((a, b) => b.v - a.v)[0];
+  const bE = slotBest('er'), bC = slotBest('ctr'), bR = slotBest('idx');
+  const slotTxt = x => x ? `${SA_DOW[x.s.di]} ${SA_SLOT[x.s.bi][2]} น.` : '—';
+  const needs = C.needs.length;
+  const g = (a, b) => saGrowth(a, b);
+  const bestPl = plStats.length > 1 ? [...plStats].filter(x => x.a[ER] != null).sort((a, b) => b.a[ER] - a.a[ER])[0] : null;
+  const topReachPl = plStats.length > 1 ? [...plStats].sort((a, b) => n0(b.a.reach || b.a.imp) - n0(a.a.reach || a.a.imp))[0] : null;
+  const bp = best(pillar, 'meanER'), wp = worst(pillar, 'meanER'), bSave = best(pillar, 'saveR'), bShare = best(pillar, 'shareR'), bf = best(fmt, 'meanER');
+  const exec = [
+    H.score != null && `สุขภาพโซเชียลโดยรวม <b>${Math.round(H.score)} คะแนน (${lvT})</b>${r.hasPrev ? ' เทียบกับช่วงก่อนหน้าที่ยาวเท่ากัน' : ''}`,
+    (A.reach || A.imp) && `${LN ? 'ส่งถึง' : 'เข้าถึง'} <b>${fk(A.reach || A.imp)}</b>${r.hasPrev && g(A.reach || A.imp, B.reach || B.imp) != null ? ` (${sgn(g(A.reach || A.imp, B.reach || B.imp))} จากช่วงก่อน)` : ''} จาก ${fnum(A.n)} โพสต์ · ${sa.er === 'reach' ? 'ER by Reach' : 'ER by Impression'} <b>${pp(A[ER], 2)}</b>${r.hasPrev && B[ER] ? ` (${sgn(g(A[ER], B[ER]))})` : ''}`,
+    bestPl && `ช่องทางที่ผู้ชมมีส่วนร่วมดีที่สุดคือ <b>${PL[bestPl.p].name}</b> (${pp(bestPl.a[ER], 2)})${topReachPl && topReachPl.p !== bestPl.p ? ` ขณะที่ <b>${PL[topReachPl.p].name}</b> เข้าถึงคนมากที่สุด` : ''}`,
+    bp && `คอนเทนต์หมวด <b>${bp.t}</b> ได้ ER เฉลี่ยสูงสุด (${pp(bp.a.meanER, 2)})${bSave && bSave.k !== bp.k ? ` · หมวด <b>${bSave.t}</b> ถูกบันทึกเก็บมากที่สุด (Save ${pp(bSave.a.saveR, 2)})` : ''}`,
+    bE && `ช่วงเวลาที่ได้ Engagement ดีที่สุดคือ <b>${slotTxt(bE)}</b>${bC && (bC.s.di !== bE.s.di || bC.s.bi !== bE.s.bi) ? ` แต่ช่วงที่คนคลิกมากที่สุดคือ <b>${slotTxt(bC)}</b>` : ''}`,
+    C.total && `ความรู้สึกสุทธิ (Sentiment Score) <b>${f2(((C.by.pos || 0) - (C.by.neg || 0) - (C.by.cmp || 0)) / C.total * 100, 0)}</b> · ตอบกลับ ${pp(C.replyRate, 0)}${needs ? ` · <b style="color:var(--bad)">ค้างตอบ ${needs} รายการ</b>` : ''}`
+  ].filter(Boolean);
+  const acts = [
+    bf && fmt.length > 1 && `เพิ่มสัดส่วนรูปแบบ <b>${bf.t}</b> ซึ่งได้ ER เฉลี่ยสูงสุด (${pp(bf.a.meanER, 2)}, ${bf.n} โพสต์)`,
+    bE && `ตั้งเวลาโพสต์หลักไว้ช่วง <b>${slotTxt(bE)}</b>${bC && (bC.s.di !== bE.s.di || bC.s.bi !== bE.s.bi) ? ` และโพสต์ที่ต้องการให้คลิกลิงก์ไว้ช่วง <b>${slotTxt(bC)}</b>` : ''}`,
+    wp && wp.k !== (bp && bp.k) && `หมวด <b>${wp.t}</b> มี ER ต่ำสุด (${pp(wp.a.meanER, 2)}) — ลองเปลี่ยน Hook ภาพปก หรือรูปแบบเป็น ${bf ? bf.t : 'วิดีโอสั้น'}`,
+    bShare && `ใช้แนวทางของหมวด <b>${bShare.t}</b> เมื่ออยากให้คนบอกต่อ (Share Rate ${pp(bShare.a.shareR, 2)})`,
+    needs && `ตอบคำถาม/ข้อร้องเรียน/ผู้สนใจที่ยังค้าง <b>${needs} รายการ</b> เพื่อรักษาความรู้สึกเชิงบวก`,
+    A.completion != null && A.completion < .15 && `วิดีโอดูจบเฉลี่ยเพียง ${pp(A.completion, 1)} — ใส่ประเด็นสำคัญใน 3 วินาทีแรกและตัดให้สั้นลง`,
+    folG != null && folG <= 0 && 'ผู้ติดตามไม่เพิ่มในช่วงนี้ — เพิ่มคอนเทนต์ที่ชวนติดตาม (ซีรีส์ / Engagement Post) และใส่ CTA ให้กดติดตาม'
+  ].filter(Boolean).slice(0, 5);
+  const summaryText = [`สรุปวิเคราะห์เชิงกลยุทธ์ · ${rangeText(r)} · ${ps.map(p => PL[p].name).join(', ')}`, ...exec.map(x => '• ' + x.replace(/<[^>]+>/g, '')), 'สิ่งที่ควรทำต่อ:', ...acts.map((x, i) => `${i + 1}. ${x.replace(/<[^>]+>/g, '')}`)].join('\n');
+  S.saText = summaryText;
+  const execSec = `<section class="panel sa-exec"><div class="panel-head"><div><span class="sa-lv">ระดับผู้บริหาร</span><h2>สรุปภาพรวมเชิงกลยุทธ์</h2><p>${rangeText(r)} · ${ps.map(p => PL[p].name).join(' · ')} · เทียบกับช่วงก่อนหน้าที่ยาวเท่ากัน</p></div><div class="sa-head-btns"><button class="btn sm" data-act="sa-copy">${ic('copy', 14)} คัดลอกสรุป</button><button class="btn sm" data-act="sa-catalog">${ic('strategy', 14)} สูตรทั้งหมด</button></div></div>
+    <div class="sa-exec-grid"><div class="sa-health"><div class="sa-gauge-w">${gauge(H.score)}</div><p class="note" style="text-align:center;margin:6px 0 0">Social Health Score<br><small>70 = เท่ากับช่วงก่อนหน้า</small></p>
+      <div class="sa-parts">${H.parts.map(x => `<div class="sa-part${x.v == null ? ' na' : ''}" title="${esc(x.why)}"><span>${x.t}<small>${x.w}%</small></span><div class="sa-pbar"><i style="width:${x.v == null ? 0 : x.v}%;background:${saLevel(x.v)[1]}"></i></div><b>${x.v == null ? 'ไม่มีข้อมูล' : Math.round(x.v)}</b></div>`).join('')}</div></div>
+     <div class="sa-exec-txt"><h3>${ic('spark', 15)} ข้อค้นพบสำคัญ</h3><ul class="sa-list">${exec.map(x => `<li>${x}</li>`).join('')}</ul>
+      ${acts.length ? `<h3>${ic('arrow', 15)} สิ่งที่ควรทำต่อ</h3><ol class="sa-acts">${acts.map(x => `<li><span>${x}</span></li>`).join('')}</ol>` : ''}</div></div></section>`;
+
+  // ---------- ตัวชี้วัดตามสูตร (พร้อมแทนค่า) ----------
+  const tile = (name, val, formula, sub, d, tip) => `<div class="sa-k" title="${esc(tip || '')}"><div class="sa-k-top"><span>${name}</span>${d != null && r.hasPrev ? dpill(d) : ''}</div><b>${val}</b><code>${formula}</code>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const fx = (a, b, res, op = '÷') => `${fnum(a)} ${op} ${fnum(b)} = ${res}`;
+  const erNum = A.erR != null && sa.er === 'reach' ? fx(A.eng, A.reach, pp(A.erR, 2)) : fx(A.eng, A.imp, pp(A.erI, 2));
+  const groups = [
+    ['Awareness', 'target', [
+      (A.reach || A.imp) && tile(LN ? 'ส่งถึง (Reach)' : 'Reach', cnt(A.reach || A.imp, 'k', null, 'sa-r'), 'ผลรวม Reach ของทุกโพสต์', `${fnum(A.n)} โพสต์`, g(A.reach, B.reach)),
+      A.imp && tile(LN ? 'เปิดอ่าน (Impressions)' : 'Impressions', cnt(A.imp, 'k', null, 'sa-i'), 'ผลรวม Impressions', '', g(A.imp, B.imp)),
+      A.freq != null && tile('Frequency', f2(A.freq), 'Impressions ÷ Reach', 'คนเดิมเห็นซ้ำเฉลี่ยกี่ครั้ง', g(A.freq, B.freq)),
+      r.hasPrev && (A.reach || A.imp) && (B.reach || B.imp) && tile('Reach Growth', sgn(g(A.reach || A.imp, B.reach || B.imp)), `(${fk(A.reach || A.imp)} − ${fk(B.reach || B.imp)}) ÷ ${fk(B.reach || B.imp)} × 100`, 'เทียบช่วงก่อนหน้า', null)
+    ]],
+    ['Engagement', 'heart', [
+      A.eng != null && tile('Total Engagement', cnt(A.eng, 'k', null, 'sa-e'), LN ? 'คลิก (LINE)' : 'Like + Comment + Share + Save', '', g(A.eng, B.eng)),
+      A.erR != null && tile('ER by Reach', pp(A.erR, 2), fx(A.eng, A.reach, pp(A.erR, 2)), 'คนที่เห็นแล้วสนใจจริง', g(A.erR, B.erR)),
+      A.erI != null && tile('ER by Impression', pp(A.erI, 2), 'Engagement ÷ Impressions × 100', 'ประสิทธิภาพต่อการแสดงผล', g(A.erI, B.erI)),
+      A.cmtR != null && tile('Comment Rate', pp(A.cmtR, 2), fx(A.comments, A.reach, pp(A.cmtR, 2)), 'กระตุ้นบทสนทนา', g(A.cmtR, B.cmtR)),
+      A.shareR != null && tile('Share Rate', pp(A.shareR, 2), fx(A.shares, A.reach, pp(A.shareR, 2)), 'ความอยากบอกต่อ', g(A.shareR, B.shareR)),
+      A.saveR != null && tile('Save Rate', pp(A.saveR, 2), fx(A.saves, A.reach, pp(A.saveR, 2)), 'คุณค่าจนต้องเก็บไว้', g(A.saveR, B.saveR)),
+      A.clickR != null && tile('Click Rate', pp(A.clickR, 2), fx(A.clicks, A.reach, pp(A.clickR, 2)), 'ดึงคนไปขั้นถัดไป', g(A.clickR, B.clickR))
+    ]],
+    ['Traffic', 'link', [
+      A.ctr != null && tile('CTR', pp(A.ctr, 2), 'Clicks ÷ Impressions × 100', 'กระตุ้นการคลิกดีไหม', g(A.ctr, B.ctr)),
+      A.linkCtr != null && tile('Link CTR', pp(A.linkCtr, 2), fx(A.link, A.imp, pp(A.linkCtr, 2)), 'คลิกลิงก์ออกไปภายนอก', g(A.linkCtr, B.linkCtr))
+    ]],
+    ['Video', 'play', A.vids ? [
+      A.viewRate != null && tile('View Rate', pp(A.viewRate, 1), 'Video Views ÷ Impressions × 100', `${A.vids} วิดีโอ · Hook/ภาพปกดึงดูดไหม`, g(A.viewRate, B.viewRate)),
+      A.completion != null && tile('Completion Rate', pp(A.completion, 1), 'ดูจบ ÷ Video Starts × 100', 'รักษาความสนใจได้ไหม', g(A.completion, B.completion)),
+      A.avgWatch != null && tile('Avg. Watch Time', fdur(A.avgWatch), 'Watch Time รวม ÷ Views', 'คนดูนานเท่าไร', g(A.avgWatch, B.avgWatch))
+    ] : []],
+    ['Brand & Community', 'audience', [
+      folG != null && tile('Follower Growth Rate', sgn(folG), `(${fk(fNow)} − ${fk(fStart)}) ÷ ${fk(fStart)} × 100`, `+${fnum(fNow - fStart)} คน`, folGPrev ? g(folG, folGPrev) : null),
+      C.total && tile('Sentiment Score', f2(((C.by.pos || 0) - (C.by.neg || 0) - (C.by.cmp || 0)) / C.total * 100, 0), `(${C.by.pos || 0} − ${(C.by.neg || 0) + (C.by.cmp || 0)}) ÷ ${C.total} × 100`, 'ช่วง −100 ถึง +100', null),
+      C.total && tile('Response Rate', pp(C.replyRate, 0), 'ความคิดเห็นที่ตอบ ÷ ทั้งหมด × 100', C.avgRT != null ? `ตอบเฉลี่ยใน ${fmins(C.avgRT)}` : '', g(C.replyRate, D.replyRate))
+    ]]
+  ].map(([t, icon, l]) => [t, icon, l.filter(Boolean)]).filter(x => x[2].length);
+  const kpiSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">ตัวชี้วัดตามสูตร</span><h2>KPI ที่คำนวณได้จากข้อมูลของเรา</h2><p>แต่ละช่องแสดงสูตรพร้อมแทนค่าจริง · ป้ายสีเทียบกับช่วงก่อนหน้า</p></div>
+    <div class="seg" role="group" aria-label="ฐานของ Engagement Rate"><button data-act="sa-er" data-v="reach" aria-pressed="${sa.er === 'reach'}">ER by Reach</button><button data-act="sa-er" data-v="imp" aria-pressed="${sa.er === 'imp'}">ER by Impression</button></div></div>
+    ${groups.map(([t, icon, l]) => `<div class="sa-group"><h3>${ic(icon, 15)} ${t}</h3><div class="sa-kgrid">${l.join('')}</div></div>`).join('')}
+    <p class="note" style="margin:10px 0 0">ข้อแนะนำ: อย่าใช้ Engagement Rate สูตรเดียวทั้งองค์กร — Facebook, Instagram, TikTok, LINE และ X นับต่างกัน จึงให้เลือกดูทั้ง ER by Reach และ ER by Impression</p></section>`;
+
+  // ---------- ระดับช่องทาง ----------
+  const avgOf = k => saMean(plStats.map(x => x.a[k]));
+  const plRows = plStats.map(({ p, a, c }) => {
+    const pf = sumFol([p], endMs), ps0 = sumFol([p], r.from - DAY);
+    const strong = [['erR', 'ER by Reach'], ['shareR', 'Share Rate'], ['saveR', 'Save Rate'], ['ctr', 'CTR'], ['viewRate', 'View Rate'], ['completion', 'ดูวิดีโอจบ']].filter(([k]) => a[k] != null && plStats.length > 1 && avgOf(k) && a[k] > avgOf(k) * 1.15).map(([, t]) => t);
+    const weak = [['erR', 'ER'], ['shareR', 'การแชร์'], ['ctr', 'การคลิก'], ['completion', 'การดูจบ']].filter(([k]) => a[k] != null && plStats.length > 1 && avgOf(k) && a[k] < avgOf(k) * .8).map(([, t]) => t);
+    const note = LN && p === 'line' ? `อัตราเปิดอ่าน ${pp(saDiv(a.imp, a.reach), 1)} · อัตราคลิก ${pp(saDiv(a.clicks, a.imp), 1)}` : `${strong.length ? 'จุดแข็ง: ' + strong.join(', ') : ''}${strong.length && weak.length ? ' · ' : ''}${weak.length ? 'ควรปรับ: ' + weak.join(', ') : ''}` || 'ใกล้เคียงค่าเฉลี่ยของทุกช่องทาง';
+    return `<tr><td class="sa-pl">${platChip(p)}<small>${note}</small></td><td class="num">${fnum(a.n)}</td><td class="num">${fk(a.reach || a.imp)}</td><td class="num">${f2(a.freq)}</td><td class="num">${pp(a.erR, 2)}</td><td class="num">${pp(a.erI, 2)}</td><td class="num">${pp(a.shareR, 2)}</td><td class="num">${pp(a.saveR, 2)}</td><td class="num">${pp(a.ctr, 2)}</td><td class="num">${pp(a.viewRate, 1)}</td><td class="num">${pp(a.completion, 1)}</td><td class="num">${pf != null && ps0 ? sgn((pf - ps0) / ps0) : '—'}</td><td class="num">${c.total ? f2(((c.by.pos || 0) - (c.by.neg || 0) - (c.by.cmp || 0)) / c.total * 100, 0) : '—'}</td><td class="num"><b>${a.n ? fk(n0(a.eng) / a.n) : '—'}</b></td></tr>`;
+  }).join('');
+  const plSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">ระดับช่องทาง</span><h2>เปรียบเทียบแต่ละโซเชียล</h2><p>อย่าดูแค่ช่องทางไหนได้คนเยอะ — ดูคุณภาพการมีส่วนร่วมของแต่ละช่องทางด้วย · เลือกดูทีละช่องทางได้จากแถบด้านบน</p></div></div>
+    <div class="tbl-wrap"><table class="tbl sa-tbl"><thead><tr><th>ช่องทาง</th><th class="r">โพสต์</th><th class="r">Reach</th><th class="r">Frequency</th><th class="r">ER Reach</th><th class="r">ER Impr.</th><th class="r">Share</th><th class="r">Save</th><th class="r">CTR</th><th class="r">View</th><th class="r">ดูจบ</th><th class="r">Follower</th><th class="r">Sentiment</th><th class="r">Engagement/โพสต์</th></tr></thead><tbody>${plRows}</tbody></table></div></section>`;
+
+  // ---------- Funnel ----------
+  const fsteps = [['Impressions', A.imp], ['Reach', A.reach], ['Engagement', A.eng], ['Clicks', A.clicks], ['Link clicks', A.link], ['New followers', A.fol]].filter(([, v]) => v);
+  const fmax = Math.max(...fsteps.map(x => x[1]), 1);
+  const funnelSec = fsteps.length >= 3 ? `<section class="panel"><div class="panel-head"><div><span class="sa-lv">Customer journey (ช่วงโซเชียล)</span><h2>Funnel: คนหายไปที่ขั้นไหน</h2><p>ขั้นหลังคลิก (เข้าเว็บ → ลงทะเบียน/ซื้อ) ต้องเชื่อมข้อมูลเว็บไซต์หรือระบบลงทะเบียนก่อน</p></div></div>
+    <div class="sa-funnel">${fsteps.map(([t, v], i) => `<div class="sa-f-row"><span class="sa-f-l">${t}</span><div class="sa-f-bar"><i style="width:${Math.max(2, v / fmax * 100)}%;--i:${i}"></i></div><b>${fk(v)}</b><small>${i ? `${pp(v / fsteps[i - 1][1], 1)} ของขั้นก่อน` : '100%'}</small></div>`).join('')}</div></section>` : '';
+
+  // ---------- ระดับคอนเทนต์ ----------
+  const ctTable = (rows, label) => `<div class="tbl-wrap"><table class="tbl sa-tbl"><thead><tr><th>${label}</th><th class="r">โพสต์</th><th class="r">Avg ER</th><th class="r">Share</th><th class="r">Save</th><th class="r">CTR</th><th class="r">View</th><th class="r">Post Score</th></tr></thead><tbody>
+    ${rows.sort((a, b) => n0(b.a.meanER) - n0(a.a.meanER)).map(x => { const l = cur.filter(p => label === 'หมวด (Pillar)' ? p.cat === x.k : p.type === x.t); const sc = saMean(l.map(p => SC.get(p.id).sc.overall)); return `<tr><td>${x.c ? `<i class="dot" style="background:${x.c}"></i> ` : ''}${esc(x.t)}</td><td class="num">${x.n}</td><td class="num"><b>${pp(x.a.meanER, 2)}</b></td><td class="num">${pp(x.a.shareR, 2)}</td><td class="num">${pp(x.a.saveR, 2)}</td><td class="num">${pp(x.a.ctr, 2)}</td><td class="num">${pp(x.a.viewRate, 1)}</td><td class="num">${sc != null ? Math.round(sc) : '—'}</td></tr>`; }).join('')}</tbody></table></div>`;
+  const ctIns = [bp && `<b>${bp.t}</b> ได้ ER เฉลี่ยสูงสุด ${pp(bp.a.meanER, 2)}`, bSave && `<b>${bSave.t}</b> มีคุณค่าจนถูกบันทึกมากที่สุด (Save ${pp(bSave.a.saveR, 2)})`, bShare && `<b>${bShare.t}</b> ถูกบอกต่อมากที่สุด (Share ${pp(bShare.a.shareR, 2)})`, best(pillar, 'ctr') && `<b>${best(pillar, 'ctr').t}</b> พาคนคลิกได้ดีที่สุด (CTR ${pp(best(pillar, 'ctr').a.ctr, 2)})`, bf && `รูปแบบ <b>${bf.t}</b> ทำผลงานดีที่สุด (ER ${pp(bf.a.meanER, 2)})`].filter(Boolean);
+  const contentSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">ระดับคอนเทนต์</span><h2>คอนเทนต์แบบไหนทำงานดีที่สุด</h2><p>Average ER = ΣER ของแต่ละโพสต์ ÷ จำนวนโพสต์ · แยกตามหมวด (Content Pillar) และรูปแบบ (Format)</p></div></div>
+    ${ctIns.length ? `<ul class="sa-list sa-ins">${ctIns.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}
+    <div class="grid-2">${ctTable(pillar.map(x => Object.assign({}, x)), 'หมวด (Pillar)')}${ctTable(fmt.map(x => Object.assign({}, x)), 'รูปแบบ (Format)')}</div></section>`;
+
+  // ---------- ระดับโพสต์ ----------
+  const ob = SA_OBJ[sa.obj];
+  const ranked = cur.map(p => ({ p, s: SC.get(p.id) })).filter(x => x.s.sc[sa.obj] != null).sort((a, b) => b.s.sc[sa.obj] - a.s.sc[sa.obj]);
+  const why = (x, bad) => { const w = ob.w; const r2 = x.s.rates; const lab = { likeR: 'Like', cmtR: 'Comment', shareR: 'Share', saveR: 'Save', clickR: 'Click', reachIdx: 'Reach', viewRate: 'View', ctr: 'CTR', linkCtr: 'Link CTR', pvR: 'Profile visit', folR: 'Follow' }; const ks = Object.keys(w).filter(k => r2[k] != null); if (!ks.length) return ''; const k = ks.sort((a, b2) => bad ? (r2[a] || 0) * w[a] - (r2[b2] || 0) * w[b2] : (r2[b2] || 0) * w[b2] - (r2[a] || 0) * w[a])[0]; return `${bad ? 'ต่ำสุดที่' : 'เด่นที่'} ${lab[k]} ${k === 'reachIdx' ? f2(r2[k], 1) + '× ค่ากลาง' : pp(r2[k], 2)}`; };
+  const pRow = (x, i, bad) => `<button class="sa-post" data-act="open" data-id="${x.p.id}"><span class="sa-rank${bad ? ' bad' : ''}">${i + 1}</span><span class="sa-pt"><b>${esc(x.p.caption || x.p.type)}</b><small>${platChip(x.p.platform)} ${esc(x.p.type)} · ${fds(x.p.at)} · ${why(x, bad)}</small></span><span class="sa-sc"><i style="width:${x.s.sc[sa.obj]}%;background:${saLevel(x.s.sc[sa.obj])[1]}"></i><b>${Math.round(x.s.sc[sa.obj])}</b></span></button>`;
+  const postSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">ระดับโพสต์</span><h2>${ob.t}</h2><p>${ob.f} · แต่ละอัตราแปลงเป็นเปอร์เซ็นไทล์ (0–100) เทียบกับโพสต์ในแพลตฟอร์มเดียวกัน</p></div>
+    <div class="seg" role="group" aria-label="วัตถุประสงค์">${Object.entries(SA_OBJ).map(([k, o]) => `<button data-act="sa-obj" data-v="${k}" aria-pressed="${sa.obj === k}">${o.th}</button>`).join('')}</div></div>
+    ${ranked.length ? `<div class="grid-2"><div><h3 class="sa-sub">${ic('spark', 14)} ดีที่สุด 5 อันดับ</h3>${ranked.slice(0, 5).map((x, i) => pRow(x, i)).join('')}</div><div><h3 class="sa-sub">${ic('clock', 14)} ควรทบทวน</h3>${ranked.length > 5 ? ranked.slice(-Math.min(5, ranked.length - 5)).reverse().map((x, i) => pRow(x, ranked.length - 1 - i - (i ? 0 : 0) > 0 ? i : i, true)).join('') : '<div class="empty">มีโพสต์น้อยกว่า 6 โพสต์ ยังจัดอันดับล่างไม่ได้</div>'}</div></div>` : `<div class="empty">ข้อมูลโพสต์ยังไม่พอคำนวณคะแนนแบบนี้ (ต้องมีตัวชี้วัดอย่างน้อย 30% ของน้ำหนัก)</div>`}
+    ${sa.obj === 'action' ? `<p class="note" style="margin:10px 0 0">Conversion Score ในเอกสารต้องใช้ยอดขาย/CPA ซึ่งระบบยังไม่มี จึงใช้ Action Score ที่วัดการพาคนไปขั้นถัดไปแทน</p>` : ''}</section>`;
+
+  // ---------- Best posting pattern ----------
+  const slotRows = [['Engagement สูงสุด', bE, x => pp(x.v, 2) + ' ER'], ['คลิกมากที่สุด (CTR)', bC, x => pp(x.v, 2) + ' CTR'], ['เข้าถึงมากที่สุด', bR, x => f2(x.v, 1) + '× ของค่ากลาง']];
+  const timeSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">Best posting pattern</span><h2>ช่วงเวลาที่ควรโพสต์ แยกตามเป้าหมาย</h2><p>ค่าเฉลี่ยตามวัน × ช่วงเวลา (ต้องมีอย่างน้อย 2 โพสต์ต่อช่อง) · ช่วงที่ได้ Engagement กับช่วงที่คนคลิกอาจไม่ตรงกัน</p></div></div>
+    <div class="sa-slots">${slotRows.map(([t, x, fv]) => `<div class="sa-slot${x ? '' : ' na'}"><small>${t}</small><b>${x ? slotTxt(x) : 'ข้อมูลยังไม่พอ'}</b>${x ? `<span>${fv(x)} · ${x.n} โพสต์</span>` : ''}</div>`).join('')}</div>
+    <div style="margin-top:14px">${heatmap(cur)}</div></section>`;
+
+  // ---------- Trend ----------
+  const allP = postsOf(ps);
+  const win = (days, off) => { const to = TODAY + DAY - off * days * DAY, from = to - days * DAY; return saAgg(allP.filter(p => p.at >= from && p.at < to)); };
+  const tr = [['WoW', 'สัปดาห์นี้ vs สัปดาห์ก่อน', 7], ['MoM', '30 วันนี้ vs 30 วันก่อน', 30], ['YoY', '365 วันนี้ vs ปีก่อน', 365]].map(([k, t, d]) => { const a = win(d, 0), b = win(d, 1); return { k, t, a, b }; });
+  const trendSec = `<section class="panel"><div class="panel-head"><div><span class="sa-lv">Trend</span><h2>WoW · MoM · YoY และค่าเฉลี่ยเคลื่อนที่</h2><p>(ช่วงนี้ − ช่วงก่อน) ÷ ช่วงก่อน × 100 · นับจากวันนี้ ไม่ขึ้นกับช่วงเวลาที่เลือก · เส้นค่าเฉลี่ย 7/30 วัน ช่วยไม่ให้เข้าใจผิดจากโพสต์ไวรัลโพสต์เดียว</p></div></div>
+    <div class="tbl-wrap"><table class="tbl sa-tbl"><thead><tr><th>ช่วงเทียบ</th><th class="r">โพสต์</th><th class="r">Reach</th><th class="r">Engagement</th><th class="r">${sa.er === 'reach' ? 'ER Reach' : 'ER Impr.'}</th><th class="r">CTR</th></tr></thead><tbody>
+    ${tr.map(x => `<tr><td><b>${x.k}</b> <small class="muted">${x.t}</small></td>${[['n', fnum], ['reach', fk], ['eng', fk], [ER, v => pp(v, 2)], ['ctr', v => pp(v, 2)]].map(([k, f]) => { const d = g(x.a[k], x.b[k]); return `<td class="num">${f(x.a[k])} <span class="sa-d ${d == null ? '' : d >= 0 ? 'up' : 'down'}">${d == null ? '' : sgn(d)}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="chart" id="ch-sa-ma" style="margin-top:14px"></div><div class="legend"><span><i style="background:var(--line-2)"></i>Engagement รายวัน</span><span><i style="background:var(--accent)"></i>ค่าเฉลี่ย 7 วัน</span><span><i style="background:var(--gold)"></i>ค่าเฉลี่ย 30 วัน</span></div></section>`;
+
+  // ---------- สูตรที่ยังใช้ไม่ได้ ----------
+  const naSec = `<section class="panel sa-na"><div class="panel-head"><div><span class="sa-lv">ยังคำนวณไม่ได้</span><h2>สูตรที่ต้องมีข้อมูลเพิ่ม</h2><p>${SA_NEED}</p></div><button class="btn sm" data-act="sa-catalog">ดูรายการสูตรทั้งหมด</button></div>
+    <div class="sa-na-grid">${[['Traffic หลังคลิก', 'Landing Page Rate, Bounce Rate', 'Google Analytics 4 / Meta Pixel'], ['Lead & Sales', 'Lead Conversion, CPL, Conversion Rate, CPA, CAC, AOV', 'ระบบลงทะเบียน / สมัคร / ยอดขาย'], ['Profitability', 'ROAS, ROI, MER, Contribution Margin', 'ค่าโฆษณาและรายได้'], ['Customer', 'Repeat, Retention, Churn, CLV, LTV:CAC, RFM, Cohort', 'รหัสผู้ใช้ / ลูกค้า (CRM)'], ['Attribution', 'First / Last touch, Linear, Position based', 'UTM + รหัสผู้ใช้ข้ามช่องทาง'], ['Share of Voice', 'Mention ของเรา ÷ Mention ทั้งตลาด', 'เครื่องมือ Social Listening']].map(([t, l, need]) => `<div class="sa-na-card"><b>${t}</b><span>${l}</span><small>${ic('plug', 12)} ต้องเชื่อม: ${need}</small></div>`).join('')}</div></section>`;
+
+  return `<div class="stack" data-stagger>${execSec}${kpiSec}${plSec}${funnelSec}${contentSec}${postSec}${timeSec}${trendSec}${naSec}</div>`;
+};
+AFTER.strategy = function (animate) {
+  const el = $('#ch-sa-ma'); if (!el) return;
+  const r = range(), ps = shownP(); let from = r.from; const to = Math.min(r.to, TODAY + DAY);
+  if ((to - from) / DAY < 60) from = to - 90 * DAY;
+  const days = []; for (let t = sod(from); t < to; t += DAY) days.push(t);
+  const byDay = {}; postsOf(ps).forEach(p => { const d = sod(p.at); if (d >= from && d < to) byDay[d] = (byDay[d] || 0) + engP(p); });
+  const raw = days.map(d => byDay[d] || 0);
+  const ma = n => raw.map((_, i) => i + 1 < Math.min(n, 3) ? null : saMean(raw.slice(Math.max(0, i - n + 1), i + 1)));
+  const m7 = ma(7).map(v => v == null ? 0 : v), m30 = ma(30).map(v => v == null ? 0 : v);
+  mountChart('ch-sa-ma', { labels: days.map(d => fds(d)), tips: days.map(d => fdate(d)), series: [{ name: 'Engagement รายวัน', color: 'var(--line-2)', values: raw }, { name: 'เฉลี่ย 7 วัน', color: 'var(--accent)', values: m7 }, { name: 'เฉลี่ย 30 วัน', color: 'var(--gold)', values: m30 }], aria: 'กราฟค่าเฉลี่ยเคลื่อนที่ของ Engagement', h: 240 }, animate);
+};
+
 boot();
 })();

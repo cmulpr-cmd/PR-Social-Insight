@@ -86,9 +86,9 @@
 
   /* ---------- โหมดสาธิต (ข้อมูลอยู่ในเบราว์เซอร์ หายเมื่อรีเฟรช) ---------- */
   const ROLES = {
-    'Super Admin': ['dashboard', 'posts', 'comments', 'audience', 'add', 'admin'],
-    'Editor': ['dashboard', 'posts', 'comments', 'audience', 'add'],
-    'Analyst': ['dashboard', 'posts', 'comments', 'audience'],
+    'Super Admin': ['dashboard', 'posts', 'comments', 'audience', 'strategy', 'add', 'admin'],
+    'Editor': ['dashboard', 'posts', 'comments', 'audience', 'strategy', 'add'],
+    'Analyst': ['dashboard', 'posts', 'comments', 'audience', 'strategy'],
     'Viewer': ['dashboard']
   };
   let D = null;

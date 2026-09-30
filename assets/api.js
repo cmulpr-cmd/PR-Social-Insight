@@ -61,7 +61,7 @@
     async logout() { try { await this.call('auth.logout'); } catch (_) {} store.del(TOKEN_KEY); },
     bootstrap() { return this.call('data.bootstrap'); },
     version() { return this.call('data.version'); },
-    sessionCheck() { return this.call('session.check'); },
+    sessionCheck(active) { return this.call('session.check', { active: !!active }); },
     sessionReport() { return this.call('session.report'); },
     savePost(payload) { return this.call('post.save', payload); },
     deletePost(id) { return this.call('post.delete', { id }); },

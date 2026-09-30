@@ -410,6 +410,7 @@ function toast(text, type = 'ok') {
 }
 function handleErr(e) {
   if (e && e.code === 'replaced') { if (ME) sessKicked({}); return; }
+  if (e && e.code === 'idle') { if (ME) lockIdle(idleLast()); return; }
   if (e && e.code === 'unauthorized') { toast(e.message, 'error'); setTimeout(() => showAuth(), 700); return; }
   toast((e && e.message) || 'เกิดข้อผิดพลาด ลองอีกครั้ง', 'error');
 }
@@ -580,8 +581,8 @@ const SESS = { timer: 0, shown: false, cd: 0 };
 function sessStart() { clearInterval(SESS.timer); SESS.shown = false; if (API && API.sessionCheck) SESS.timer = setInterval(sessTick, 5000); }
 async function sessTick() {
   if (!ME || SESS.shown || !API.sessionCheck) return;
-  try { const r = await API.sessionCheck(); if (r && r.status === 'replaced' && ME) sessKicked(r); }
-  catch (e) { if (e && e.code === 'replaced') sessKicked({}); }
+  try { const r = await API.sessionCheck(idleActive()); if (r && r.status === 'replaced' && ME) sessKicked(r); else if (r && r.status === 'idle' && ME) lockIdle(r.last || idleLast()); }
+  catch (e) { if (e && e.code === 'replaced') sessKicked({}); else if (e && e.code === 'idle' && ME) lockIdle(idleLast()); }
 }
 function sessKicked(info) {
   if (SESS.shown) return; SESS.shown = true; clearInterval(SESS.timer); clearInterval(LIVE.timer);
@@ -612,6 +613,192 @@ async function kickOut(why, btn) {
   A.noticeWarn = why === 'report';
   showAuth();
 }
+/* ================= ไม่มีการใช้งานเกิน 30 นาที → ออกจากระบบ + หน้า Access Denied =================
+   นับการขยับเมาส์ / แตะ / พิมพ์ / เลื่อนหน้า (ใช้ร่วมกันทุกแท็บของเบราว์เซอร์เดียวกัน) ตรวจทุก 5 วินาที และตรวจทันทีเมื่อกลับมาที่แท็บ */
+const IDLE = { ms: Math.max(.05, +CFG.IDLE_MINUTES || 30) * 60e3, last: Date.now(), timer: 0, ping: 0, off: !(CFG.IDLE_MINUTES !== 0) };
+const idleGet = k => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+const idleSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
+function idleMark() { const n = Date.now(); if (n - IDLE.last > 1500) { IDLE.last = n; idleSet('psi_act', String(n)); } }
+['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, idleMark, { passive: true, capture: true }));
+function idleLast() { return Math.max(IDLE.last, +idleGet('psi_act') || 0); }
+function idleStart() { if (IDLE.off) return; IDLE.last = Date.now(); idleSet('psi_act', String(IDLE.last)); IDLE.ping = IDLE.last; clearInterval(IDLE.timer); IDLE.timer = setInterval(idleCheck, 5000); }
+function idleCheck() {
+  if (!ME || IDLE.off) return;
+  if (MODAL.locked && !MODAL.kick) { idleMark(); return; }               // กำลังนำเข้าไฟล์อยู่ ไม่นับว่าไม่ได้ใช้งาน
+  const last = idleLast(); if (Date.now() - last >= IDLE.ms) lockIdle(last);
+}
+/** มีการใช้งานตั้งแต่ส่งสัญญาณครั้งก่อนไหม (ส่งให้ระบบหลังบ้านบันทึก lastActive) */
+function idleActive() { const l = idleLast(), a = l > IDLE.ping; if (a) IDLE.ping = l; return a; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) idleCheck(); });
+window.addEventListener('storage', e => { if (e.key === 'psi_locked' && e.newValue && ME) { try { lockIdle(JSON.parse(e.newValue).at, true); } catch (_) {} } });
+async function lockIdle(last, fromOther) {
+  if (!ME && !fromOther) return;
+  const email = ME ? ME.email : '';
+  clearInterval(IDLE.timer); clearInterval(SESS.timer); clearInterval(LIVE.timer); clearInterval(SESS.cd); SESS.shown = false;
+  dpClose(); if (KPOP.key) kpopClose(); if (S.openPost) closeDrawer(); MODAL.kick = false; modalClose(true);
+  const lk = { at: last || Date.now() - IDLE.ms, email, lockedAt: Date.now() };
+  if (!fromOther) idleSet('psi_locked', JSON.stringify(lk));
+  ME = null; S.acting = null;
+  showDenied(lk);
+  try { await API.logout(); } catch (_) {}
+}
+/* ---------------- หน้า Access Denied: คืนหนาว ดวงจันทร์ ภูเขาหิมะ และฝูงเพนกวินที่เพิ่มขึ้นเรื่อยๆ ---------------- */
+const AD = { raf: 0, ps: [], W: 0, H: 0, spawnT: 0, lk: null, tick: 0, snow: [], ctx: null, last: 0, reduce: false, max: 40, kinds: {} };
+const AD_ART = `<svg class="ad-art" viewBox="0 0 560 250" aria-hidden="true" focusable="false">
+  <defs><radialGradient id="ad-moon" cx="45%" cy="40%" r="60%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e9e3ff"/></radialGradient>
+  <linearGradient id="ad-mt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1680"/><stop offset="1" stop-color="#26095c"/></linearGradient></defs>
+  <circle class="ad-glow" cx="282" cy="92" r="104" fill="#b99cff" opacity=".16"/>
+  <circle cx="282" cy="92" r="84" fill="url(#ad-moon)"/>
+  <g class="ad-cl c1" fill="#5b2bb0" opacity=".7"><ellipse cx="110" cy="190" rx="60" ry="16"/><circle cx="92" cy="182" r="18"/><circle cx="122" cy="176" r="24"/></g>
+  <path d="M60 222 L128 96 L160 150 L182 124 L246 222Z" fill="url(#ad-mt)" stroke="#6d3fd0" stroke-width="1.4"/>
+  <path d="M128 96 L110 130 L122 124 L132 136 L142 118 Z" fill="#fff"/>
+  <path d="M300 222 L386 108 L470 222Z" fill="url(#ad-mt)" stroke="#6d3fd0" stroke-width="1.4"/>
+  <path d="M386 108 L366 136 L378 132 L388 144 L398 132 L406 136Z" fill="#fff"/>
+  <path d="M170 230 L282 72 L394 230Z" fill="#2c0d6b" stroke="#7a4be0" stroke-width="1.6"/>
+  <path d="M234 140 L282 72 L330 140 L306 128 L282 146 L258 128Z" fill="#fff"/>
+  <path d="M234 140 L258 128 L282 146 L306 128 L330 140" fill="none" stroke="#e8699a" stroke-width="3" stroke-linejoin="round"/>
+  <g class="ad-cl c2" fill="#6a36c9" opacity=".85"><ellipse cx="300" cy="228" rx="120" ry="18"/><circle cx="240" cy="218" r="22"/><circle cx="286" cy="206" r="30"/><circle cx="340" cy="214" r="24"/></g>
+  <g class="ad-cl c3" fill="#5b2bb0" opacity=".7"><ellipse cx="470" cy="196" rx="64" ry="15"/><circle cx="452" cy="188" r="18"/><circle cx="484" cy="182" r="22"/></g>
+  <g class="ad-fl" fill="#fff"><path d="M60 60l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" opacity=".8"/><path d="M500 50l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z" opacity=".7"/><path d="M430 26l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" opacity=".6"/></g>
+</svg>`;
+const AD_GROUND = `<svg class="ad-hills" viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 120 C180 60 330 70 520 110 S880 60 1080 96 1340 70 1440 90 V320 H0Z" fill="#cfc6f2" opacity=".55"/>
+  <path d="M0 160 C220 110 420 150 640 130 S1040 100 1240 140 1400 130 1440 136 V320 H0Z" fill="#e6e0fb"/>
+  <path d="M0 200 C260 170 520 210 760 190 S1180 170 1440 196 V320 H0Z" fill="#f7f5ff"/>
+  <path d="M0 160 C220 110 420 150 640 130 S1040 100 1240 140 1400 130 1440 136" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/>
+</svg>`;
+function showDenied(lk) {
+  adStop(); AD.lk = lk; AD.reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  document.body.classList.remove('modal-open');
+  root().innerHTML = `<div class="ad" id="ad" role="main">
+    <canvas class="ad-snow" id="ad-snow" aria-hidden="true"></canvas>
+    <div class="ad-stars" aria-hidden="true">${Array.from({ length: 46 }, (_, i) => { const r = n => (Math.sin(i * 71.7 + n) + 1) / 2; return `<i style="left:${(r(1) * 100).toFixed(1)}%;top:${(r(2) * 55).toFixed(1)}%;--d:${(2 + r(3) * 4).toFixed(1)}s;--dl:-${(r(4) * 5).toFixed(1)}s;--z:${(1 + r(5) * 2.2).toFixed(1)}px"></i>`; }).join('')}</div>
+    <div class="ad-top">${AD_ART}</div>
+    <section class="ad-card">
+      <span class="ad-lock" aria-hidden="true">${ic('lock', 22)}</span>
+      <h1 class="ad-title">${'ACCESS DENIED'.split('').map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('')}</h1>
+      <p class="ad-sub">ไม่มีการใช้งานเกิน ${Math.round(IDLE.ms / 60e3)} นาที ระบบจึงออกจากระบบให้อัตโนมัติ เพื่อปกป้องข้อมูลสำคัญของหน่วยงาน${lk.email ? `<br><small>${esc(lk.email)}</small>` : ''}</p>
+      <div class="ad-timer" role="timer" aria-label="ระยะเวลาที่ไม่ได้ใช้งาน">
+        <span class="ad-tl">${ic('clock', 14)} ละเว้นจากการใช้งานระบบ</span>
+        <div class="ad-digits">${[['h', 'ชั่วโมง'], ['m', 'นาที'], ['s', 'วินาที']].map(([k, t], i) => `${i ? '<i class="ad-colon">:</i>' : ''}<div class="ad-seg"><div class="ad-box"><span class="ad-dg" id="ad-${k}0"></span><span class="ad-dg" id="ad-${k}1"></span></div><small>${t}</small></div>`).join('')}</div>
+      </div>
+      <button class="ad-btn" data-act="ad-back">${ic('arrow', 17)} <span>กลับเข้าสู่ระบบอีกครั้ง</span></button>
+      <p class="ad-flock">${peng('', 20)} ฝูงเพนกวินที่มารอคุณ <b id="ad-n">0</b> ตัว <small>· แตะเพนกวินได้นะ</small></p>
+    </section>
+    <div class="ad-ground" aria-hidden="true">${AD_GROUND}<div class="ad-stage" id="ad-stage"></div></div>
+  </div>`;
+  const cv = $('#ad-snow'); AD.ctx = cv.getContext && cv.getContext('2d');
+  adResize(); window.addEventListener('resize', adResize);
+  AD.max = innerWidth < 640 ? 16 : innerWidth < 1100 ? 28 : 42;
+  // ยิ่งทิ้งไว้นาน ฝูงยิ่งใหญ่: เริ่ม 5 ตัว แล้วเพิ่ม 1 ตัวทุก 10 วินาที (เปิดหน้าใหม่ก็นับต่อจากเวลาที่ถูกล็อก)
+  const start = Math.min(AD.max, 5 + Math.floor((Date.now() - (lk.lockedAt || Date.now())) / 10000));
+  ['build', 'walk', 'skate', 'ball', 'run'].concat(Array.from({ length: Math.max(0, start - 5) }, () => adPick())).slice(0, start).forEach(k => adSpawn(k, true));
+  AD.spawnT = performance.now();
+  adClock(); AD.tick = setInterval(adClock, 1000);
+  AD.last = performance.now(); AD.raf = requestAnimationFrame(adLoop);
+  $('#ad-stage').addEventListener('pointerdown', adPoke);
+}
+function adStop() { cancelAnimationFrame(AD.raf); AD.raf = 0; clearInterval(AD.tick); window.removeEventListener('resize', adResize); AD.ps = []; AD.kinds = {}; }
+function adResize() {
+  const g = $('.ad-ground'), cv = $('#ad-snow'); if (!g || !cv) return;
+  AD.W = g.clientWidth; AD.H = g.clientHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; if (AD.ctx) AD.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const n = innerWidth < 640 ? 70 : 150;
+  if (AD.snow.length !== n) AD.snow = Array.from({ length: n }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: .6 + Math.random() * 2.6, v: 0, p: Math.random() * 6.28, a: .35 + Math.random() * .6 }));
+  AD.snow.forEach(f => { f.v = 16 + f.r * 16 + Math.random() * 10; });
+}
+function adClock() {
+  const lk = AD.lk; if (!lk) return; const t = Math.max(0, Math.floor((Date.now() - lk.at) / 1000));
+  const v = { h: String(Math.min(99, Math.floor(t / 3600))).padStart(2, '0'), m: String(Math.floor(t / 60) % 60).padStart(2, '0'), s: String(t % 60).padStart(2, '0') };
+  Object.entries(v).forEach(([k, str]) => [0, 1].forEach(i => adDigit($('#ad-' + k + i), str[i])));
+}
+function adDigit(el, ch) {
+  if (!el || el.dataset.v === ch) return; const first = el.dataset.v == null; el.dataset.v = ch;
+  const old = el.querySelector('span:not(.out)'), n = document.createElement('span'); n.textContent = ch; n.className = first ? '' : 'in'; el.appendChild(n);
+  if (old) { old.className = 'out'; setTimeout(() => old.remove(), 600); }
+}
+const AD_W = { walk: 5, run: 2, skate: 3, ball: 2, slide: 2, sled: 1.5, build: 1 };
+function adPick() {
+  const tot = Object.values(AD_W).reduce((a, b) => a + b, 0); let r = Math.random() * tot;
+  for (const [k, w] of Object.entries(AD_W)) { r -= w; if (r <= 0) return k === 'build' && (AD.kinds.build || 0) >= 3 ? 'walk' : k; }
+  return 'walk';
+}
+function adSpawn(kind, first) {
+  const st = $('#ad-stage'); if (!st) return;
+  const lane = Math.random(), mob = innerWidth < 640;
+  const size = Math.round((mob ? 34 : 40) + lane * (mob ? 46 : 70) + (kind === 'build' ? 6 : 0));
+  const bottom = Math.round((1 - lane) * AD.H * .46 + AD.H * .05);
+  const dir = Math.random() < .5 ? 1 : -1;
+  const base = { walk: 34, run: 78, skate: 120, ball: 26, slide: 150, sled: 170, build: 0 }[kind];
+  const p = { kind, lane, size, dir, speed: base * (.7 + lane * .6) * (.85 + Math.random() * .3), x: 0, stop: 0, nextTurn: 3 + Math.random() * 8, r: 6, ang: 0, el: null };
+  p.x = first || kind === 'build' ? Math.random() * Math.max(1, AD.W - size) : dir > 0 ? -size * 2.2 : AD.W + size * 1.2;
+  const el = document.createElement('div'); el.className = 'ad-p k-' + kind + (first ? '' : ' enter'); p.el = el;
+  el.style.cssText = `--s:${size}px;bottom:${bottom}px;z-index:${10 + Math.round(lane * 60)};--wd:${(kind === 'run' ? .24 : .42 + Math.random() * .16).toFixed(2)}s;filter:${lane < .35 ? `saturate(.8) brightness(.93) blur(${((.35 - lane) * 1.6).toFixed(2)}px)` : 'none'}`;
+  const body = `<div class="ad-w">${peng(kind !== 'slide' && Math.random() < .35 ? 'wave' : '', size)}</div>`;
+  el.innerHTML = `<div class="ad-f" style="transform:scaleX(${dir})">${
+    kind === 'skate' ? `${body}<div class="ad-sk"><i></i><i></i></div>` :
+    kind === 'sled' ? `${body}<div class="ad-sled"><b></b></div>` :
+    kind === 'ball' ? `${body}<div class="ad-ball" style="--r:${p.r}px"><i></i></div>` :
+    kind === 'build' ? `${body}<div class="ad-sm"><i class="b1"></i><i class="b2"></i><i class="b3"><em class="e1"></em><em class="e2"></em><em class="nose"></em></i><i class="hat"></i><i class="arm"></i></div>` : body}</div><span class="ad-sh"></span>`;
+  st.appendChild(el); AD.ps.push(p); AD.kinds[kind] = (AD.kinds[kind] || 0) + 1;
+  if (!first) setTimeout(() => el.classList.remove('enter'), 950);
+  const n = $('#ad-n'); if (n) { n.textContent = AD.ps.length; n.classList.remove('bump'); void n.offsetWidth; n.classList.add('bump'); }
+  el.style.transform = `translate3d(${p.x.toFixed(1)}px,0,0)`;
+}
+function adLoop(t) {
+  const dt = Math.min(.05, (t - AD.last) / 1000); AD.last = t;
+  if (!document.getElementById('ad')) { adStop(); return; }
+  if (!AD.reduce) {
+    if (AD.ps.length < AD.max && t - AD.spawnT > 10000) { AD.spawnT = t; adSpawn(adPick()); }
+    AD.ps.forEach(p => {
+      if (p.kind === 'build') return;
+      p.nextTurn -= dt;
+      if (p.stop > 0) { p.stop -= dt; if (p.stop <= 0) p.el.classList.remove('stop'); return; }
+      const m = p.size * 1.1;
+      if ((p.x < -m && p.dir < 0) || (p.x > AD.W + m * .1 && p.dir > 0) || (p.nextTurn <= 0 && ['walk', 'run', 'ball'].includes(p.kind) && p.x > 0 && p.x < AD.W - p.size)) {
+        if (p.nextTurn <= 0 && p.kind === 'walk' && Math.random() < .5) { p.stop = 1 + Math.random() * 2.2; p.el.classList.add('stop'); }
+        p.dir *= -1; p.nextTurn = 4 + Math.random() * 9; p.el.firstChild.style.transform = `scaleX(${p.dir})`;
+        if (p.kind === 'skate' && Math.random() < .6) adOllie(p);
+        return;
+      }
+      if (p.kind === 'skate' && Math.random() < dt * .18) adOllie(p);
+      const dx = p.dir * p.speed * dt; p.x += dx;
+      p.el.style.transform = `translate3d(${p.x.toFixed(1)}px,0,0)`;
+      if (p.kind === 'ball') {
+        p.r = Math.min(p.size * .55, p.r + dt * 1.6); p.ang += Math.abs(dx) / Math.max(4, p.r) * 57.3;
+        const b = p.el.querySelector('.ad-ball'); if (b) { b.style.setProperty('--r', p.r.toFixed(1) + 'px'); b.style.setProperty('--a', p.ang.toFixed(0) + 'deg'); }
+        if (p.r >= p.size * .55 && !p.poof) { p.poof = 1; b.classList.add('poof'); setTimeout(() => { p.r = 5; p.poof = 0; b.classList.remove('poof'); }, 700); }
+      }
+    });
+  }
+  adSnow(dt, t);
+  AD.raf = requestAnimationFrame(adLoop);
+}
+function adOllie(p) { if (p.ollie) return; p.ollie = 1; p.el.classList.add('ollie'); setTimeout(() => { p.el.classList.remove('ollie'); p.ollie = 0; }, 700); }
+function adSnow(dt, t) {
+  const c = AD.ctx; if (!c) return; c.clearRect(0, 0, innerWidth, innerHeight);
+  const wind = Math.sin(t / 4000) * 14;
+  c.fillStyle = '#fff';
+  AD.snow.forEach(f => {
+    if (!AD.reduce) { f.y += f.v * dt; f.p += dt * (.6 + f.r * .2); f.x += (Math.sin(f.p) * 10 + wind) * dt; if (f.y > innerHeight + 4) { f.y = -4; f.x = Math.random() * innerWidth; } if (f.x > innerWidth + 4) f.x = -4; else if (f.x < -4) f.x = innerWidth + 4; }
+    c.globalAlpha = f.a; c.beginPath(); c.arc(f.x, f.y, f.r, 0, 6.2832); c.fill();
+  });
+  c.globalAlpha = 1;
+}
+function adPoke(e) {
+  const el = e.target.closest && e.target.closest('.ad-p'); if (!el) return;
+  el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
+  const r = el.getBoundingClientRect(), fx = document.createElement('span'); fx.className = 'ad-heart'; fx.textContent = ['❤', '❄', '✨', '💜'][Math.floor(Math.random() * 4)];
+  fx.style.left = (r.left + r.width / 2) + 'px'; fx.style.top = (r.top) + 'px'; document.body.appendChild(fx); setTimeout(() => fx.remove(), 1200);
+}
+function leaveDenied() {
+  const lk = AD.lk || {}; idleSet('psi_locked', null); adStop();
+  A.notice = 'ออกจากระบบอัตโนมัติ เนื่องจากไม่มีการใช้งานเกิน ' + Math.round(IDLE.ms / 60e3) + ' นาที กรุณาเข้าสู่ระบบอีกครั้ง'; A.noticeWarn = false;
+  if (lk.email) A.email = lk.email;
+  const ad = $('#ad'); if (ad) { ad.classList.add('bye'); setTimeout(showAuth, 480); } else showAuth();
+}
+/** ใช้ดูตัวอย่างหน้า Access Denied ในโหมดสาธิต (พิมพ์ใน Console) */
+if (window.API && API.demo) window.psiPreviewIdle = () => lockIdle(Date.now() - IDLE.ms - 60e3);
 /* หิมะโปรยเบาๆ ด้านหลังเนื้อหา (ปิดได้จากปุ่มเกล็ดหิมะที่แถบเมนู · ผู้ที่ตั้งค่าลดการเคลื่อนไหวจะไม่เห็น) */
 const snowOn = () => { try { return localStorage.getItem('psi_snow') !== '0'; } catch (_) { return true; } };
 function snowInit() {
@@ -670,7 +857,7 @@ function liveStart() {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && ME) { LIVE.next = 0; liveTick(); } });
 function startApp() {
-  snowInit(); liveStart(); sessStart();
+  snowInit(); liveStart(); sessStart(); idleStart();
   root().innerHTML = `<div class="app"><aside class="side" id="side"></aside><main><div class="topbar" id="topbar"></div><div id="view" class="view"></div></main><div id="fab-slot"></div></div>`;
   renderSide(); renderTop(); renderView('enter');
 }
@@ -2621,6 +2808,7 @@ document.addEventListener('click', async e => {
     case 'sa-obj': S.sa.obj = v; renderView('soft'); break;
     case 'sa-kpi': kpopOpen(v); break;
     case 'kick-ok': kickOut('self', el); break;
+    case 'ad-back': leaveDenied(); break;
     case 'kick-report': kickOut('report', el); break;
     case 'snow': { const on = !snowOn(); try { localStorage.setItem('psi_snow', on ? '1' : '0'); } catch (_) {} document.body.classList.toggle('no-snow', !on); renderSide(); toast(on ? 'เปิดหิมะตกแล้ว ❄' : 'ปิดหิมะตกแล้ว', 'info'); break; }
     case 'kpop-close': kpopClose(); break;
@@ -2859,6 +3047,8 @@ document.addEventListener('submit', async e => {
 async function boot() {
   applyTheme();
   if (!window.API) { showSetup(); return; }
+  // ถูกล็อกเพราะไม่มีการใช้งาน → เปิดหน้าใหม่ก็ยังอยู่หน้า Access Denied จนกว่าจะกด “กลับเข้าสู่ระบบอีกครั้ง”
+  const lkRaw = idleGet('psi_locked'); if (lkRaw) { try { const lk = JSON.parse(lkRaw); if (API.hasToken()) API.logout().catch(() => {}); showDenied(lk); return; } catch (_) { idleSet('psi_locked', null); } }
   if (API.hasToken()) {
     renderSkeleton();
     const L = loaderShow(); L.at(4, 88);

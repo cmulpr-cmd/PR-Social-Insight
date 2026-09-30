@@ -87,6 +87,7 @@
     importLog(files) { return this.call('import.log', { files }); },
     dupScan() { return this.call('data.dupscan'); },
     dedupe() { return this.call('data.dedupe'); },
+    saveSettings(p) { return this.call('settings.save', p); },
     addUser(email, role) { return this.call('users.add', { email, role }); },
     saveUser(u) { return this.call('users.save', u); },
     deleteUser(email) { return this.call('users.delete', { email }); },
@@ -144,10 +145,16 @@
       return { status: 'active', token: 'demo', user: clone(u) };
     },
     async logout() { DEMO_KICK = null; store.del(TOKEN_KEY); },
+    async saveSettings(p) {
+      await wait(450); const u = need('admin');
+      const m = Math.round(Number(p.idleMinutes)); if (!isFinite(m) || m < 0 || m > 480) throw new ApiError('invalid', 'ตั้งเวลาได้ 1–480 นาที หรือ 0 เพื่อปิด');
+      db().settings = Object.assign({}, db().settings, { idleMinutes: m }); log(u.email, m ? 'ตั้งค่าออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน ' + m + ' นาที' : 'ปิดการออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน');
+      return clone(db().settings);
+    },
     // ลายนิ้วมือของข้อมูลทั้งหมด (โหมดสาธิต) — เปลี่ยนเมื่อข้อมูลใดๆ เปลี่ยน ใช้กับการรีเฟรชเบื้องหลังทุก 3 วินาที
     async version() {
       await wait(60); need();
-      const t = JSON.stringify([db().posts, db().audience, db().followers, db().daily, db().users, db().connections || null]);
+      const t = JSON.stringify([db().posts, db().audience, db().followers, db().daily, db().users, db().connections || null, db().settings || null]);
       let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
       return { v: t.length + ':' + h };
     },
@@ -163,6 +170,7 @@
       const posts = db().posts.filter(p => u.platforms.includes(p.platform));
       const aud = {}; u.platforms.forEach(p => { if (db().audience[p]) aud[p] = db().audience[p]; });
       const out = { user: u, posts, audience: aud, followers: db().followers.filter(f => u.platforms.includes(f.platform)), daily: (db().daily || []).filter(d => u.platforms.includes(d.platform)), connections: this._conn() };
+      out.settings = Object.assign({ idleMinutes: 30 }, db().settings || {});
       if (u.menus.includes('admin')) { out.users = db().users; out.logs = db().logs; out.sheetUrl = ''; }
       return clone(out);
     },

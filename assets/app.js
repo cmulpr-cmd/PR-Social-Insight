@@ -120,7 +120,7 @@ const localLog = what => DB.logs.unshift({ at: Date.now(), who: ME.email, what }
 
 function load(d) {
   ME = d.user;
-  DB = { posts: d.posts || [], audience: d.audience || {}, followers: d.followers || [], daily: (d.daily || []).map(withT), users: d.users || [], logs: d.logs || [], sheetUrl: d.sheetUrl || '', connections: d.connections || {}, loadedAt: Date.now() };
+  DB = { posts: d.posts || [], audience: d.audience || {}, followers: d.followers || [], daily: (d.daily || []).map(withT), users: d.users || [], logs: d.logs || [], sheetUrl: d.sheetUrl || '', connections: d.connections || {}, settings: d.settings || {}, loadedAt: Date.now() };
   DB.posts.forEach(p => { p.comments = p.comments || []; p.m = p.m || {}; });
   buildFIdx();
 }
@@ -615,17 +615,20 @@ async function kickOut(why, btn) {
 }
 /* ================= ไม่มีการใช้งานเกิน 30 นาที → ออกจากระบบ + หน้า Access Denied =================
    นับการขยับเมาส์ / แตะ / พิมพ์ / เลื่อนหน้า (ใช้ร่วมกันทุกแท็บของเบราว์เซอร์เดียวกัน) ตรวจทุก 5 วินาที และตรวจทันทีเมื่อกลับมาที่แท็บ */
-const IDLE = { ms: Math.max(.05, +CFG.IDLE_MINUTES || 30) * 60e3, last: Date.now(), timer: 0, ping: 0, off: !(CFG.IDLE_MINUTES !== 0) };
+const IDLE = { last: Date.now(), timer: 0, ping: 0 };
+/** นาทีที่ตั้งไว้: ค่าที่แอดมินตั้งในเมนู “ทีมและสิทธิ์” (เก็บในฐานข้อมูล) > config.js > 30 นาที · 0 = ปิด */
+function idleMin() { const st = DB && DB.settings; const v = st && st.idleMinutes != null ? +st.idleMinutes : CFG.IDLE_MINUTES != null ? +CFG.IDLE_MINUTES : 30; return isFinite(v) && v > 0 ? v : 0; }
+const idleMsNow = () => { const m = idleMin(); return m ? Math.max(.05, m) * 60e3 : 0; };
 const idleGet = k => { try { return localStorage.getItem(k); } catch (_) { return null; } };
 const idleSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
 function idleMark() { const n = Date.now(); if (n - IDLE.last > 1500) { IDLE.last = n; idleSet('psi_act', String(n)); } }
 ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, idleMark, { passive: true, capture: true }));
 function idleLast() { return Math.max(IDLE.last, +idleGet('psi_act') || 0); }
-function idleStart() { if (IDLE.off) return; IDLE.last = Date.now(); idleSet('psi_act', String(IDLE.last)); IDLE.ping = IDLE.last; clearInterval(IDLE.timer); IDLE.timer = setInterval(idleCheck, 5000); }
+function idleStart() { IDLE.last = Date.now(); idleSet('psi_act', String(IDLE.last)); IDLE.ping = IDLE.last; clearInterval(IDLE.timer); IDLE.timer = setInterval(idleCheck, 5000); }
 function idleCheck() {
-  if (!ME || IDLE.off) return;
+  if (!ME || !idleMsNow()) return;
   if (MODAL.locked && !MODAL.kick) { idleMark(); return; }               // กำลังนำเข้าไฟล์อยู่ ไม่นับว่าไม่ได้ใช้งาน
-  const last = idleLast(); if (Date.now() - last >= IDLE.ms) lockIdle(last);
+  const last = idleLast(); if (Date.now() - last >= idleMsNow()) lockIdle(last);
 }
 /** มีการใช้งานตั้งแต่ส่งสัญญาณครั้งก่อนไหม (ส่งให้ระบบหลังบ้านบันทึก lastActive) */
 function idleActive() { const l = idleLast(), a = l > IDLE.ping; if (a) IDLE.ping = l; return a; }
@@ -636,7 +639,7 @@ async function lockIdle(last, fromOther) {
   const email = ME ? ME.email : '';
   clearInterval(IDLE.timer); clearInterval(SESS.timer); clearInterval(LIVE.timer); clearInterval(SESS.cd); SESS.shown = false;
   dpClose(); if (KPOP.key) kpopClose(); if (S.openPost) closeDrawer(); MODAL.kick = false; modalClose(true);
-  const lk = { at: last || Date.now() - IDLE.ms, email, lockedAt: Date.now() };
+  const lk = { at: last || Date.now() - idleMsNow(), email, lockedAt: Date.now(), min: idleMin() || 30 };
   if (!fromOther) idleSet('psi_locked', JSON.stringify(lk));
   ME = null; S.acting = null;
   showDenied(lk);
@@ -677,7 +680,7 @@ function showDenied(lk) {
     <section class="ad-card">
       <span class="ad-lock" aria-hidden="true">${ic('lock', 22)}</span>
       <h1 class="ad-title">${'ACCESS DENIED'.split('').map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('')}</h1>
-      <p class="ad-sub">ไม่มีการใช้งานเกิน ${Math.round(IDLE.ms / 60e3)} นาที ระบบจึงออกจากระบบให้อัตโนมัติ เพื่อปกป้องข้อมูลสำคัญของหน่วยงาน${lk.email ? `<br><small>${esc(lk.email)}</small>` : ''}</p>
+      <p class="ad-sub">ไม่มีการใช้งานเกิน ${fmtMin(lk.min || 30)} ระบบจึงออกจากระบบให้อัตโนมัติ เพื่อปกป้องข้อมูลสำคัญของหน่วยงาน${lk.email ? `<br><small>${esc(lk.email)}</small>` : ''}</p>
       <div class="ad-timer" role="timer" aria-label="ระยะเวลาที่ไม่ได้ใช้งาน">
         <span class="ad-tl">${ic('clock', 14)} ละเว้นจากการใช้งานระบบ</span>
         <div class="ad-digits">${[['h', 'ชั่วโมง'], ['m', 'นาที'], ['s', 'วินาที']].map(([k, t], i) => `${i ? '<i class="ad-colon">:</i>' : ''}<div class="ad-seg"><div class="ad-box"><span class="ad-dg" id="ad-${k}0"></span><span class="ad-dg" id="ad-${k}1"></span></div><small>${t}</small></div>`).join('')}</div>
@@ -792,13 +795,35 @@ function adPoke(e) {
   fx.style.left = (r.left + r.width / 2) + 'px'; fx.style.top = (r.top) + 'px'; document.body.appendChild(fx); setTimeout(() => fx.remove(), 1200);
 }
 function leaveDenied() {
-  const lk = AD.lk || {}; idleSet('psi_locked', null); adStop();
-  A.notice = 'ออกจากระบบอัตโนมัติ เนื่องจากไม่มีการใช้งานเกิน ' + Math.round(IDLE.ms / 60e3) + ' นาที กรุณาเข้าสู่ระบบอีกครั้ง'; A.noticeWarn = false;
+  const lk = AD.lk || {}; if (!lk.preview) idleSet('psi_locked', null); adStop();
+  if (lk.preview) { adStop(); startApp(); go('admin'); return; }
+  A.notice = 'ออกจากระบบอัตโนมัติ เนื่องจากไม่มีการใช้งานเกิน ' + fmtMin(lk.min || 30) + ' กรุณาเข้าสู่ระบบอีกครั้ง'; A.noticeWarn = false;
   if (lk.email) A.email = lk.email;
   const ad = $('#ad'); if (ad) { ad.classList.add('bye'); setTimeout(showAuth, 480); } else showAuth();
 }
 /** ใช้ดูตัวอย่างหน้า Access Denied ในโหมดสาธิต (พิมพ์ใน Console) */
-if (window.API && API.demo) window.psiPreviewIdle = () => lockIdle(Date.now() - IDLE.ms - 60e3);
+const fmtMin = m => m >= 60 && m % 60 === 0 ? (m / 60) + ' ชั่วโมง' : m > 60 ? Math.floor(m / 60) + ' ชั่วโมง ' + (m % 60) + ' นาที' : m + ' นาที';
+if (window.API && API.demo) window.psiPreviewIdle = () => lockIdle(Date.now() - idleMsNow() - 60e3);
+/** ดูตัวอย่างหน้า Access Denied จากหน้าตั้งค่า (ไม่ออกจากระบบจริง) */
+function previewDenied() { const m = idleMin() || 30; showDenied({ at: Date.now() - m * 60e3 - 7000, email: ME.email, lockedAt: Date.now(), min: m, preview: true }); }
+/* ---------------- แผงตั้งค่าในเมนู “ทีมและสิทธิ์” ---------------- */
+const IDLE_PRESETS = [5, 10, 15, 30, 60, 120];
+function idlePanel() {
+  const cur = idleMin(), d = S.idleDraft || (S.idleDraft = { on: cur > 0, min: cur || 30 }), dirty = (d.on ? d.min : 0) !== cur;
+  return `<section class="panel idle-panel" id="idle-panel"><div class="panel-head"><div><h2>${ic('clock', 17)} ออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน</h2><p>ไม่ขยับเมาส์ ไม่แตะจอ ไม่พิมพ์ และไม่เลื่อนหน้า ครบเวลาที่ตั้ง ระบบจะออกจากระบบและแสดงหน้า Access Denied · มีผลกับผู้ใช้ทุกคนภายในไม่กี่วินาที</p></div>
+    <label class="sw" title="เปิด/ปิด"><input type="checkbox" data-change="idle-on" ${d.on ? 'checked' : ''}><span></span><b>${d.on ? 'เปิดใช้งาน' : 'ปิดอยู่'}</b></label></div>
+   <div class="idle-body${d.on ? '' : ' off'}">
+    <div class="idle-now"><small>ตั้งเวลาไว้</small><b>${d.on ? fmtMin(d.min) : 'ไม่ออกจากระบบอัตโนมัติ'}</b></div>
+    <div class="idle-ctl">
+     <div class="seg seg-x" role="group" aria-label="เลือกระยะเวลา" data-seg="idle"><span class="seg-thumb" aria-hidden="true"></span>${IDLE_PRESETS.map(m => `<button data-act="idle-pick" data-v="${m}" aria-pressed="${d.on && d.min === m}" ${d.on ? '' : 'disabled'}>${m >= 60 ? m / 60 + ' ชม.' : m + ' นาที'}</button>`).join('')}</div>
+     <label class="idle-custom">กำหนดเอง <input class="input" type="number" min="1" max="480" step="1" value="${d.min}" data-input="idle-min" aria-label="จำนวนนาที" ${d.on ? '' : 'disabled'}> นาที</label>
+    </div>
+   </div>
+   <div class="idle-foot"><span class="note">${dirty ? `${ic('alert', 13)} ยังไม่บันทึก — ค่าที่ใช้อยู่ตอนนี้: ${cur ? fmtMin(cur) : 'ปิด'}` : `${ic('check', 13)} ใช้งานอยู่: ${cur ? fmtMin(cur) : 'ปิด'}`}</span>
+    <div class="idle-btns"><button class="btn" data-act="idle-preview">${ic('eye', 15)} ดูตัวอย่างหน้า Access Denied</button><button class="btn primary" data-act="idle-save" ${dirty ? '' : 'disabled'}>${ic('check', 15)} บันทึกการตั้งค่า</button></div></div>
+  </section>`;
+}
+function idlePanelPaint() { const el = $('#idle-panel'); if (!el) return; const t = document.createElement('div'); t.innerHTML = idlePanel(); el.replaceWith(t.firstElementChild); syncThumbs($('#idle-panel'), true); }
 /* หิมะโปรยเบาๆ ด้านหลังเนื้อหา (ปิดได้จากปุ่มเกล็ดหิมะที่แถบเมนู · ผู้ที่ตั้งค่าลดการเคลื่อนไหวจะไม่เห็น) */
 const snowOn = () => { try { return localStorage.getItem('psi_snow') !== '0'; } catch (_) { return true; } };
 function snowInit() {
@@ -810,7 +835,7 @@ function snowInit() {
    ทุก 3 วินาที ถามฐานข้อมูลว่า “เวอร์ชันข้อมูล” เปลี่ยนไหม (คำขอเล็กมาก) — ไม่เปลี่ยนก็ไม่ทำอะไร
    ถ้าเปลี่ยน โหลดข้อมูลใหม่ แล้วแก้ DOM เฉพาะจุดที่ต่าง ไม่มีหน้าโหลด ไม่กระพริบ ไม่เลื่อนหน้า และไม่รบกวนคนที่กำลังพิมพ์ */
 const LIVE = { v: null, busy: false, timer: 0, fails: 0, next: 0, sig: '' };
-const liveSig = d => { try { return JSON.stringify([d.posts, d.audience, d.followers, d.daily, d.users, d.connections, d.user]); } catch (_) { return String(Math.random()); } };
+const liveSig = d => { try { return JSON.stringify([d.posts, d.audience, d.followers, d.daily, d.users, d.connections, d.user, d.settings]); } catch (_) { return String(Math.random()); } };
 function liveBusy() {
   const a = document.activeElement;
   if (MODAL.locked || $('#modal.on') || $('#loader') || DP.open) return true;
@@ -852,7 +877,7 @@ function applySilent(d) {
 }
 function liveStart() {
   clearInterval(LIVE.timer); LIVE.v = null; LIVE.fails = 0; LIVE.next = 0;
-  LIVE.sig = liveSig({ posts: DB.posts, audience: DB.audience, followers: DB.followers, daily: (DB.daily || []).map(x => { const y = Object.assign({}, x); delete y._t; return y; }), users: DB.users, connections: DB.connections, user: ME });
+  LIVE.sig = liveSig({ settings: DB.settings, posts: DB.posts, audience: DB.audience, followers: DB.followers, daily: (DB.daily || []).map(x => { const y = Object.assign({}, x); delete y._t; return y; }), users: DB.users, connections: DB.connections, user: ME });
   LIVE.timer = setInterval(liveTick, 3000); liveTick();
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && ME) { LIVE.next = 0; liveTick(); } });
@@ -2695,6 +2720,7 @@ VIEWS.connect = function () {
 VIEWS.admin = function () {
   const actives = DB.users.filter(u => u.status !== 'pending'), pend = DB.users.filter(u => u.status === 'pending');
   return `<div class="stack" data-stagger>
+   ${idlePanel()}
    <div class="grid-2">
     <section class="panel"><div class="panel-head"><div><h2>นโยบายการเข้าใช้งาน</h2><p>บังคับใช้ที่เซิร์ฟเวอร์ทุกครั้งที่เข้าสู่ระบบและเรียกข้อมูล</p></div>${DB.sheetUrl ? `<a class="btn sm" href="${esc(DB.sheetUrl)}" target="_blank" rel="noopener noreferrer">${ic('sheet', 14)} เปิดฐานข้อมูล</a>` : ''}</div>
      <div class="stack" style="gap:10px;font-size:13.5px">
@@ -2702,6 +2728,8 @@ VIEWS.admin = function () {
       <div style="display:flex;justify-content:space-between;gap:10px"><span>ยืนยันตัวตน</span><span>รหัส OTP 6 หลักทางอีเมล (หมดอายุ 10 นาที)</span></div>
       <div style="display:flex;justify-content:space-between;gap:10px"><span>อีเมลใหม่ต้องได้รับอนุมัติ</span><span class="status active">เปิดใช้งาน</span></div>
       <div style="display:flex;justify-content:space-between;gap:10px"><span>อายุการเข้าสู่ระบบ</span><span>7 วัน</span></div>
+      <div style="display:flex;justify-content:space-between;gap:10px"><span>ออกจากระบบเมื่อไม่มีการใช้งาน</span><span>${idleMin() ? fmtMin(idleMin()) : 'ปิด'}</span></div>
+      <div style="display:flex;justify-content:space-between;gap:10px"><span>ใช้งานได้ทีละอุปกรณ์</span><span class="status active">เปิดใช้งาน</span></div>
      </div></section>
     <section class="panel"><div class="panel-head"><div><h2>เพิ่มผู้ใช้</h2><p>ผู้ใช้เข้าได้ทันทีหลังยืนยันรหัสทางอีเมล</p></div></div>
      <form id="add-user" class="stack" style="gap:10px" novalidate>
@@ -2809,6 +2837,11 @@ document.addEventListener('click', async e => {
     case 'sa-kpi': kpopOpen(v); break;
     case 'kick-ok': kickOut('self', el); break;
     case 'ad-back': leaveDenied(); break;
+    case 'idle-pick': { const d = S.idleDraft || (S.idleDraft = { on: true, min: 30 }); d.min = +v; d.on = true; idlePanelPaint(); break; }
+    case 'idle-preview': previewDenied(); break;
+    case 'idle-save': { const d = S.idleDraft; if (!d) break; const m = d.on ? Math.round(d.min) : 0; if (d.on && !(m >= 1 && m <= 480)) { toast('ตั้งเวลาได้ 1–480 นาที', 'error'); break; }
+      try { DB.settings = await busy(el, () => API.saveSettings({ idleMinutes: m })); localLog(m ? 'ตั้งค่าออกจากระบบอัตโนมัติ ' + m + ' นาที' : 'ปิดการออกจากระบบอัตโนมัติ'); S.idleDraft = null; idleMark(); renderView('soft'); toast(m ? 'บันทึกแล้ว · ไม่มีการใช้งาน ' + fmtMin(m) + ' จะออกจากระบบอัตโนมัติ' : 'ปิดการออกจากระบบอัตโนมัติแล้ว'); } catch (_) {}
+      break; }
     case 'kick-report': kickOut('report', el); break;
     case 'snow': { const on = !snowOn(); try { localStorage.setItem('psi_snow', on ? '1' : '0'); } catch (_) {} document.body.classList.toggle('no-snow', !on); renderSide(); toast(on ? 'เปิดหิมะตกแล้ว ❄' : 'ปิดหิมะตกแล้ว', 'info'); break; }
     case 'kpop-close': kpopClose(); break;
@@ -2880,6 +2913,7 @@ document.addEventListener('change', async e => {
     case 'from': S.f.from = t.value; refilter(); break;
     case 'to': S.f.to = t.value; refilter(); break;
     case 'ptype': S.pf.type = t.value; renderPostList(true); break;
+    case 'idle-on': { const d = S.idleDraft || (S.idleDraft = { on: true, min: idleMin() || 30 }); d.on = t.checked; idlePanelPaint(); break; }
     case 'pcat': S.pf.cat = t.value; renderPostList(true); break;
     case 'psort': S.pf.sort = t.value; renderPostList(true); break;
     case 'cunr': S.cf.unreplied = t.checked; renderFeed(); break;
@@ -2934,6 +2968,7 @@ document.addEventListener('input', e => {
   const t = e.target, k = t.dataset.input; if (!k) return;
   if (k === 'page-fol' && S.pimp) S.pimp.followers = t.value;
   if (k === 'dp-a' || k === 'dp-b') dpTyped(k.slice(3), t, e.inputType);
+  if (k === 'idle-min') { const d = S.idleDraft || (S.idleDraft = { on: true, min: 30 }); const m = Math.round(+t.value); if (m >= 1 && m <= 480) { d.min = m; const p = $('#idle-panel'); if (p) { $('.idle-now b', p).textContent = fmtMin(m); $$('[data-act="idle-pick"]', p).forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === m))); syncThumbs(p, true); const sv = $('[data-act="idle-save"]', p); if (sv) sv.disabled = m === idleMin(); } } }
   if (k === 'pq') { S.pf.q = t.value; clearTimeout(qt); qt = setTimeout(() => renderPostList(false), 120); }
   if (k === 'cq') { S.cf.q = t.value; clearTimeout(qt); qt = setTimeout(renderFeed, 150); }
   if (k === 'acap' && !S.editing && !S.catTouched) { const c = autoCategory(t.value); const sel = $('#a-cat'); if (sel && t.value.trim().length > 8) { sel.value = c; const h = $('#cat-hint'); if (h) h.textContent = 'ระบบแนะนำหมวด “' + CAT[c].t + '” จากข้อความ เปลี่ยนเองได้'; } }

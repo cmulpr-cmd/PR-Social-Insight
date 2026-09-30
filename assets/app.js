@@ -431,26 +431,31 @@ function isDark() { const a = document.documentElement.getAttribute('data-theme'
    ===================================================================== */
 const A = { email: '', sentTo: '', demoCode: null, timer: null, resendAt: 0 };
 function showAuth() {
-  closeDrawer(); ME = null; S.acting = null; clearInterval(SESS.timer); clearInterval(LIVE.timer);
+  closeDrawer(); ME = null; S.acting = null; clearInterval(SESS.timer); clearInterval(LIVE.timer); clearInterval(AD.tick); AD.lk = null;
   const r = root();
+  const card = `<section class="auth-card al-card" id="al-card">${PENG_PEEK}
+      <div class="al-brand">${brandMark()}<div><b>${esc(APP_NAME)}</b><small>${esc(CFG.ORG_NAME || 'Public Relations')} · Social Analytics</small></div></div>
+      <ol class="stepper" aria-label="ขั้นตอนเข้าสู่ระบบ"><li data-s="1"><span>1</span><em class="lbl">อีเมล</em></li><li class="bar" data-b="1" aria-hidden="true"></li><li data-s="2"><span>2</span><em class="lbl">ยืนยันรหัส</em></li><li class="bar" data-b="2" aria-hidden="true"></li><li data-s="3"><span>3</span><em class="lbl">ตรวจสอบสิทธิ์</em></li></ol>
+      <div id="step-host" aria-live="polite"></div>
+      <div class="auth-foot">${ic('lock', 15)}<span>ใช้ได้เฉพาะอีเมล <b class="mono">@${esc(DOMAIN)}</b> · ผู้ใช้ใหม่จะถูกส่งคำขอสิทธิ์ถึงแอดมินโดยอัตโนมัติ</span></div>
+    </section>`;
+  const scene = $('#ad');
+  // มาจากหน้า Access Denied: ฉากหิมะและฝูงเพนกวินวิ่งต่อเนื่อง เปลี่ยนแค่เนื้อหาตรงกลางเป็นกรอบเข้าสู่ระบบ
+  if (scene && AD.cv && AD.cv.isConnected) {
+    const old = $$('.ad-top, .ad-card', scene); old.forEach(x => x.classList.add('ad-out'));
+    setTimeout(() => { old.forEach(x => x.remove()); scene.classList.add('ad-login'); scene.setAttribute('aria-label', 'เข้าสู่ระบบ'); AD.cv.insertAdjacentHTML('afterend', card); const f = $('.ad-flock', scene); if (f) f.innerHTML = adFlockTxt(); setStep(1, stepEmail()); }, 360);
+    return;
+  }
   const paint = () => {
-    r.innerHTML = `<div class="auth" id="auth">
-      <section class="auth-art" aria-hidden="true">
-        <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="grain"></div>
-        <div class="auth-brand">${brandMark()}<b>${esc(APP_NAME)}</b></div>
-        <div class="auth-copy"><span class="eyebrow">${esc(CFG.ORG_NAME || 'Public Relations')} · Social Analytics</span><h1>ข้อมูลโซเชียลทุกช่องทาง ในที่เดียว</h1><p>Facebook, Instagram และ TikTok — ตัวชี้วัดรายโพสต์ ความคิดเห็นเชิงคุณภาพ และข้อมูลผู้ชม สำหรับวางกลยุทธ์คอนเทนต์</p></div>
-        <div class="float-cards"><div class="fc">Reach<b>+48.0%</b>${spark([3, 4, 3.6, 5, 4.8, 6.2, 7], '#e9c77f', 110, 26)}</div><div class="fc">Engagement rate<b>5.71%</b></div><div class="fc">Positive comments<b>33%</b></div></div>
-      </section>
-      <section class="auth-panel"><div class="auth-card">
-        <ol class="stepper" aria-label="ขั้นตอนเข้าสู่ระบบ"><li data-s="1"><span>1</span><em class="lbl">อีเมล</em></li><li class="bar" data-b="1" aria-hidden="true"></li><li data-s="2"><span>2</span><em class="lbl">ยืนยันรหัส</em></li><li class="bar" data-b="2" aria-hidden="true"></li><li data-s="3"><span>3</span><em class="lbl">ตรวจสอบสิทธิ์</em></li></ol>
-        <div id="step-host" aria-live="polite"></div>
-        <div class="auth-foot">${ic('lock', 15)}<span>ใช้ได้เฉพาะอีเมล <b class="mono">@${esc(DOMAIN)}</b> · ผู้ใช้ใหม่จะถูกส่งคำขอสิทธิ์ถึงแอดมินโดยอัตโนมัติ</span></div>
-      </div></section></div>`;
+    adStop();
+    r.innerHTML = `<div class="ad ad-login" id="ad" aria-label="เข้าสู่ระบบ">${adStars()}<canvas class="ad-cv" id="ad-cv" aria-label="ฝูงเพนกวินเล่นหิมะ แตะเพื่อให้วิ่งหนี"></canvas>${card}<p class="ad-flock">${adFlockTxt()}</p></div>`;
+    adScene(Date.now() - 20000);
     setStep(1, stepEmail());
   };
   const app = $('.app', r);
   if (app) { app.style.transition = 'opacity .3s'; app.style.opacity = 0; setTimeout(paint, 280); } else paint();
 }
+const adFlockTxt = () => `${peng('', 20)} เพนกวินมารอต้อนรับ <b id="ad-n">${AD.ps.length || 0}</b> ตัว <small>· แตะแล้วน้องจะวิ่งหนี</small>`;
 function setStep(n, html, after) {
   const host = $('#step-host'); if (!host) return;
   const old = host.firstElementChild;
@@ -700,12 +705,23 @@ function adGround() {
   AD.ground = c;
   AD.glints = Array.from({ length: Math.round(W / 30) }, () => { const gx = Math.random() * W, k = 1 + (Math.random() < .5 ? 1 : 0); return { x: gx, y: adHill(gx, k) + 8 + Math.random() * AD.gH * .45, p: Math.random() * 6.28, s: 1 + Math.random() * 1.6 }; });
 }
+const adStars = () => `<div class="ad-stars" aria-hidden="true">${Array.from({ length: 46 }, (_, i) => { const r = n => (Math.sin(i * 71.7 + n) + 1) / 2; return `<i style="left:${(r(1) * 100).toFixed(1)}%;top:${(r(2) * 55).toFixed(1)}%;--d:${(2 + r(3) * 4).toFixed(1)}s;--dl:-${(r(4) * 5).toFixed(1)}s;--z:${(1 + r(5) * 2.2).toFixed(1)}px"></i>`; }).join('')}</div>`;
+/** เริ่มฉากหิมะ + ฝูงเพนกวินบน canvas #ad-cv (ใช้ทั้งหน้าเข้าสู่ระบบและหน้า Access Denied) */
+function adScene(since) {
+  AD.cv = $('#ad-cv'); AD.ctx = AD.cv.getContext('2d');
+  adSprites(); adResize(); window.addEventListener('resize', adResize);
+  AD.max = innerWidth < 640 ? 18 : innerWidth < 1100 ? 30 : 44;
+  const start = Math.min(AD.max, 6 + Math.floor((Date.now() - (since || Date.now())) / 10000));
+  ['build', 'walk', 'skate', 'ball', 'run', 'slide'].concat(Array.from({ length: Math.max(0, start - 6) }, () => adPick())).slice(0, start).forEach(k => adSpawn(k, true));
+  AD.spawnT = performance.now(); AD.last = performance.now(); AD.raf = requestAnimationFrame(adLoop);
+  AD.cv.addEventListener('pointerdown', adPoke);
+}
 function showDenied(lk) {
   adStop(); AD.lk = lk;
   document.body.classList.remove('modal-open');
   const min = fmtMin(lk.min || 30);
   root().innerHTML = `<div class="ad" id="ad" role="main">
-    <div class="ad-stars" aria-hidden="true">${Array.from({ length: 46 }, (_, i) => { const r = n => (Math.sin(i * 71.7 + n) + 1) / 2; return `<i style="left:${(r(1) * 100).toFixed(1)}%;top:${(r(2) * 55).toFixed(1)}%;--d:${(2 + r(3) * 4).toFixed(1)}s;--dl:-${(r(4) * 5).toFixed(1)}s;--z:${(1 + r(5) * 2.2).toFixed(1)}px"></i>`; }).join('')}</div>
+    ${adStars()}
     <div class="ad-top">${AD_ART}</div>
     <canvas class="ad-cv" id="ad-cv" aria-label="ฝูงเพนกวินเล่นหิมะ แตะเพื่อให้วิ่งหนี"></canvas>
     <section class="ad-card">
@@ -720,15 +736,8 @@ function showDenied(lk) {
     </section>
     <p class="ad-flock">${peng('', 20)} ฝูงเพนกวินที่มารอคุณ <b id="ad-n">0</b> ตัว <small>· แตะเพนกวินแล้วน้องจะวิ่งหนี</small></p>
   </div>`;
-  AD.cv = $('#ad-cv'); AD.ctx = AD.cv.getContext('2d');
-  adSprites(); adResize(); window.addEventListener('resize', adResize);
-  AD.max = innerWidth < 640 ? 18 : innerWidth < 1100 ? 30 : 44;
-  const start = Math.min(AD.max, 6 + Math.floor((Date.now() - (lk.lockedAt || Date.now())) / 10000));
-  ['build', 'walk', 'skate', 'ball', 'run', 'slide'].concat(Array.from({ length: Math.max(0, start - 6) }, () => adPick())).slice(0, start).forEach(k => adSpawn(k, true));
-  AD.spawnT = performance.now();
+  adScene(lk.lockedAt || Date.now());
   adClock(true); AD.tick = setInterval(() => adClock(false), 1000);
-  AD.last = performance.now(); AD.raf = requestAnimationFrame(adLoop);
-  AD.cv.addEventListener('pointerdown', adPoke);
 }
 function adStop() { cancelAnimationFrame(AD.raf); AD.raf = 0; clearInterval(AD.tick); window.removeEventListener('resize', adResize); AD.ps = []; AD.fx = []; AD.kinds = {}; }
 function adResize() {
@@ -912,11 +921,11 @@ function adPoke(e) {
   AD.ps.forEach(p => { if (p === hit) return; const d = Math.hypot(p.x - px, (p.y - py) * 1.6); if (d < (hit ? 190 : 150)) scare(p, 80 + d * 1.5, false); });
 }
 function leaveDenied() {
-  const lk = AD.lk || {}; if (!lk.preview) idleSet('psi_locked', null); adStop();
+  const lk = AD.lk || {}; if (!lk.preview) idleSet('psi_locked', null); clearInterval(AD.tick);
   if (lk.preview) { adStop(); startApp(); go('admin'); return; }
   A.notice = 'ออกจากระบบอัตโนมัติ เนื่องจากไม่มีการใช้งานเกิน ' + fmtMin(lk.min || 30) + ' กรุณาเข้าสู่ระบบอีกครั้ง'; A.noticeWarn = false;
   if (lk.email) A.email = lk.email;
-  const ad = $('#ad'); if (ad) { ad.classList.add('bye'); setTimeout(showAuth, 480); } else showAuth();
+  showAuth();
 }
 /** ใช้ดูตัวอย่างหน้า Access Denied ในโหมดสาธิต (พิมพ์ใน Console) */
 const fmtMin = m => m >= 60 && m % 60 === 0 ? (m / 60) + ' ชั่วโมง' : m > 60 ? Math.floor(m / 60) + ' ชั่วโมง ' + (m % 60) + ' นาที' : m + ' นาที';

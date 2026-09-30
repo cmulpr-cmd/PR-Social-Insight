@@ -736,9 +736,8 @@ details.help ol{margin:10px 0 2px;padding-left:20px;display:flex;flex-direction:
   .otp{gap:6px}
   .otp input{font-size:20px}
 }
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
-}
+html.rm *,html.rm *::before,html.rm *::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+
 .kbd{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:.95em}
 
 /* โลโก้หน่วยงาน */
@@ -810,7 +809,7 @@ details.help ol{margin:10px 0 2px;padding-left:20px;display:flex;flex-direction:
 .pyr-bar.l span{background:var(--e2);transform-origin:right}
 .pyr-bar.r span{background:var(--fb);transform-origin:left}
 @keyframes grow-x{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-@media (prefers-reduced-motion:reduce){.pyr-bar span{animation:none}}
+html.rm .pyr-bar span{animation:none}
 .pm-tile.static{cursor:default;background:linear-gradient(135deg,var(--accent-soft),var(--surface))}
 .pm-tile.static:hover{transform:none;box-shadow:none;border-color:var(--line)}
 .pm-tile .src{font-size:11px}
@@ -893,7 +892,7 @@ body.modal-open{overflow:hidden}
 .fab:hover{transform:translateY(-3px);background:var(--accent-soft)}
 .fab:active{transform:translateY(0) scale(.97)}
 @media (max-width:640px){.fab{right:14px;bottom:14px;padding:12px}.fab span{display:none}.modal{padding:18px;border-radius:18px}.m-pct b{font-size:36px}}
-@media (prefers-reduced-motion:reduce){.modal,.modal-bd,.modal-body.swap,.m-bar span,.m-bar span::after,.fab{animation:none;transition:none}}
+html.rm .modal,html.rm .modal-bd,html.rm .modal-body.swap,html.rm .m-bar span,html.rm .m-bar span::after,html.rm .fab{animation:none;transition:none}
 .fab.raised{bottom:96px}
 @media (max-width:640px){.fab.raised{bottom:84px}}
 
@@ -1020,7 +1019,7 @@ details.help.alt summary{color:var(--ink-2)}
 .dp-wrap.sheet .dp-day{height:42px}
 .dp-wrap.sheet .dp-btns{width:100%}.dp-wrap.sheet .dp-btns .btn{flex:1;justify-content:center}
 @media (max-width:640px){.seg.seg-x{max-width:100%;overflow-x:auto;flex-wrap:nowrap}.date-btn{width:100%}}
-@media (prefers-reduced-motion:reduce){.seg-thumb,.dp-pop,.db-chev{transition:none}}
+html.rm .seg-thumb,html.rm .dp-pop,html.rm .db-chev{transition:none}
 
 /* ============ LINE OA และ X ============ */
 [style*="var(--xpl)"].pl-badge,[style*="var(--xpl)"].pl-ico,.pl-badge[style*="--xpl"]{color:var(--xink)}
@@ -1032,7 +1031,7 @@ details.help.alt summary{color:var(--ink-2)}
 [data-count].cu{opacity:.92}
 [data-count].cu-done{animation:cu-pop .5s var(--spring)}
 @keyframes cu-pop{0%{transform:translateY(-1px) scale(1.035);opacity:.9}100%{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){[data-count].cu-done{animation:none}}
+html.rm [data-count].cu-done{animation:none}
 
 /* ============ หน้าต่างโหลดข้อมูลเต็มจอ ============ */
 .ld-wrap{position:fixed;inset:0;z-index:400;display:block}
@@ -1113,7 +1112,7 @@ details.help.alt summary{color:var(--ink-2)}
 @keyframes wv-rise{0%{transform:translate(0,10px) scale(.3);opacity:0}16%{transform:translate(calc(var(--dx) * .2),0) scale(1.06);opacity:1}72%{opacity:1}100%{transform:translate(var(--dx),-62px) scale(.78);opacity:0}}
 @keyframes wv-twinkle{0%,100%{transform:scale(.55) rotate(0deg);opacity:.45}50%{transform:scale(1.18) rotate(45deg);opacity:1}}
 @media (max-width:640px){.ld-card{inset:8px;border-radius:22px;padding:16px}.ld-name{font-size:clamp(22px,6.8vw,30px);letter-spacing:-.4px;column-gap:.24em}.ld-stage{width:min(88vw,calc((100vh - 290px) * 1.16));width:min(88vw,calc((100dvh - 290px) * 1.16))}}
-@media (prefers-reduced-motion:reduce){.ld-card::before,.ld-card::after,.wv-art,.wv-art *,.ld-ch{animation:none!important}.ld-ch{opacity:1}.wv-flip,.wv-rx{opacity:0}.wv-p{transition:none}}
+html.rm .ld-card::before,html.rm .ld-card::after,html.rm .wv-art,html.rm .wv-art *,html.rm .ld-ch{animation:none!important}html.rm .ld-ch{opacity:1}html.rm .wv-flip,html.rm .wv-rx{opacity:0}html.rm .wv-p{transition:none}
 
 
 /* ============ ขั้นตอนตรวจสิทธิ์: วงหมุน / เช็คสีเขียว ============ */
@@ -1439,7 +1438,7 @@ body.no-snow #snowfall{display:none}
 .pb-arr:hover:not(:disabled){background:var(--surface)}
 .pb-arr:disabled{opacity:.3;cursor:not-allowed}
 @media (max-width:640px){.pickbar{padding:8px}.pb-seg button{padding:5px 9px 8px;min-width:44px}.pb-lab{width:100%}}
-@media (prefers-reduced-motion:reduce){#snowfall,.peng .pg,.peng .pg-eyes,.peng .pg-fl,.peng .pg-pom,.peng .pg-tail,.wv-peng,.es-snow,.kb-c i,.kp-pl-b i,.pickbar.in{animation:none!important}.pop-peng{opacity:1;transform:none}.drawer,.pop{filter:none}}
+html.rm #snowfall,html.rm .peng .pg,html.rm .peng .pg-eyes,html.rm .peng .pg-fl,html.rm .peng .pg-pom,html.rm .peng .pg-tail,html.rm .wv-peng,html.rm .es-snow,html.rm .kb-c i,html.rm .kp-pl-b i,html.rm .pickbar.in{animation:none!important}html.rm .pop-peng{opacity:1;transform:none}html.rm .drawer,html.rm .pop{filter:none}
 @media (max-width:900px){.me-peng{display:none}}
 @media (max-width:640px){
   .pb-seg.seg-x{flex-wrap:wrap;overflow:visible;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%}
@@ -1488,7 +1487,7 @@ body.no-snow #snowfall{display:none}
 .modal-wrap.locked .modal:has(.kick){animation:kick-in .6s var(--spring)}
 @keyframes kick-in{0%{transform:scale(.9)}60%{transform:scale(1.03)}100%{transform:none}}
 .auth-notice{margin-bottom:14px;animation:m-swap .4s var(--ease)}
-@media (prefers-reduced-motion:reduce){.kick-peng .pg,.kr-fg,.kick-bar span{animation:none}}
+html.rm .kick-peng .pg,html.rm .kr-fg,html.rm .kick-bar span{animation:none}
 
 /* ============ เปลี่ยนตัวกรองแบบลื่น: จางแวบ → ตัวเลขวิ่งจากค่าเดิม → กราฟเปลี่ยนรูป ============ */
 .view.mx-out{opacity:.62;filter:blur(1.4px) saturate(.85);transform:translateY(3px) scale(.996);transition:opacity .14s var(--ease),filter .14s var(--ease),transform .14s var(--ease)}
@@ -1516,7 +1515,7 @@ body.no-snow #snowfall{display:none}
 .mx-run svg circle,.mx-run svg path[stroke-dasharray]{transition:stroke-dasharray .8s var(--ease),stroke-dashoffset .8s var(--ease),d .8s var(--ease)}
 .mx-run [style*="width:"]:not(.seg-thumb){transition:width .8s var(--spring)}
 .mx-run .sa-gauge .g-fg{transition:stroke-dasharray .9s var(--spring),stroke .4s}
-@media (prefers-reduced-motion:reduce){.view.mx-out,.view.mx-run{filter:none;transform:none;transition:none}.mx-up,.mx-down,.mx-chg,.mx-in{animation:none!important}}
+html.rm .view.mx-out,html.rm .view.mx-run{filter:none;transform:none;transition:none}html.rm .mx-up,html.rm .mx-down,html.rm .mx-chg,html.rm .mx-in{animation:none!important}
 
 
 /* ============ หน้า Access Denied (ไม่มีการใช้งานเกินกำหนด) — คืนหนาว ฝูงเพนกวิน ============ */
@@ -1525,11 +1524,10 @@ body.no-snow #snowfall{display:none}
 .ad.bye{animation:ad-bye .5s var(--ease-in) forwards}
 @keyframes ad-fade{from{opacity:0}to{opacity:1}}
 @keyframes ad-bye{to{opacity:0;transform:scale(1.03);filter:blur(6px)}}
-.ad-snow{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
 .ad-stars{position:absolute;inset:0;z-index:0;pointer-events:none}
 .ad-stars i{position:absolute;width:var(--z);height:var(--z);border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8);animation:ad-tw var(--d) ease-in-out infinite;animation-delay:var(--dl)}
 @keyframes ad-tw{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
-.ad-top{position:relative;z-index:1;width:min(520px,88vw,calc(24vh * 2.24));flex:none;animation:ad-drop 1.1s var(--spring) both}
+.ad-top{position:relative;z-index:1;width:min(520px,88vw,calc(22vh * 2.24));flex:none;animation:ad-drop 1.1s var(--spring) both}
 @keyframes ad-drop{from{opacity:0;transform:translateY(-24px) scale(.96)}to{opacity:1;transform:none}}
 .ad-art{display:block;width:100%;height:auto;overflow:visible}
 .ad-glow{transform-box:fill-box;transform-origin:center;animation:ad-glow 5s ease-in-out infinite}
@@ -1547,9 +1545,10 @@ body.no-snow #snowfall{display:none}
 .ad-title{margin:0;font-family:var(--f-display);font-weight:800;font-size:clamp(28px,4.6vw,46px);letter-spacing:.14em;line-height:1.1;display:flex;justify-content:center;flex-wrap:wrap}
 .ad-title span{display:inline-block;color:#fff;text-shadow:0 0 18px rgba(185,156,255,.75),0 3px 0 rgba(185,166,255,.45);animation:ad-float 3.6s ease-in-out infinite;animation-delay:calc(var(--i) * .12s)}
 @keyframes ad-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-.ad-sub{margin:0;max-width:44ch;color:#d8cef7;font-size:14.5px;line-height:1.7}
+.ad-sub{margin:0;color:#d8cef7;font-size:14.5px;line-height:1.7;display:flex;flex-direction:column;align-items:center}
+.ad-sub > span{display:block;text-wrap:balance}
 .ad-sub small{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:99px;background:rgba(255,255,255,.1);color:#fff;font-size:12.5px}
-.ad-timer{position:relative;margin-top:6px;padding:14px 20px 14px;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 20px 50px -24px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.25)}
+.ad-timer{position:relative;margin-top:6px;padding:14px 20px 14px;border-radius:22px;background:linear-gradient(180deg,rgba(70,30,140,.86),rgba(42,14,96,.9));border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 20px 50px -24px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.25)}
 .ad-timer::before{content:"";position:absolute;left:18px;right:18px;top:-8px;height:16px;background:var(--snow) repeat-x 0 0/120px 16px}
 .ad-timer::after{content:"";position:absolute;left:22px;right:22px;bottom:-12px;height:15px;background:var(--ic) repeat-x 0 0/60px 15px;opacity:.85;filter:drop-shadow(0 2px 2px rgba(0,0,0,.15))}
 .ad-tl{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#e7defd;letter-spacing:.02em}
@@ -1557,12 +1556,6 @@ body.no-snow #snowfall{display:none}
 .ad-seg{display:flex;flex-direction:column;align-items:center;gap:6px}
 .ad-seg small{font-size:11.5px;color:#cfc3f5}
 .ad-box{display:flex;gap:4px;padding:8px 10px;border-radius:14px;background:linear-gradient(180deg,#f7f9ff,#dfe6ff);box-shadow:inset 0 -3px 0 rgba(90,70,170,.18),inset 0 2px 0 #fff,0 8px 18px -10px rgba(0,0,0,.6);color:#3a1680;font-family:var(--f-display);font-weight:800;font-size:clamp(28px,4vw,40px);line-height:1}
-.ad-dg{position:relative;display:inline-block;width:.64em;height:1.12em;overflow:hidden;font-variant-numeric:tabular-nums}
-.ad-dg span{position:absolute;inset:0;display:grid;place-items:center}
-.ad-dg span.in{animation:dg-in .55s var(--spring) both}
-.ad-dg span.out{animation:dg-out .5s var(--ease) forwards}
-@keyframes dg-in{from{transform:translateY(-80%);opacity:0;filter:blur(3px)}to{transform:none;opacity:1;filter:none}}
-@keyframes dg-out{to{transform:translateY(80%);opacity:0;filter:blur(3px)}}
 .ad-colon{font-style:normal;font-family:var(--f-display);font-weight:800;font-size:clamp(24px,3.4vw,34px);line-height:1.6;color:#fff;animation:ad-blink 1s steps(1) infinite}
 @keyframes ad-blink{50%{opacity:.25}}
 .ad-btn{position:relative;margin-top:16px;display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border:0;border-radius:99px;cursor:pointer;font:inherit;font-weight:700;font-size:15.5px;color:#3a1680;
@@ -1579,74 +1572,10 @@ body.no-snow #snowfall{display:none}
 .ad-flock b{color:#fff;font-size:14px;display:inline-block}
 .ad-flock b.bump{animation:pop .5s var(--spring)}
 .ad-flock small{color:#9f92cf}
-/* พื้นหิมะ + เพนกวิน */
-.ad-ground{position:absolute;left:0;right:0;bottom:0;height:clamp(150px,27vh,280px);z-index:2}
-.ad-hills{position:absolute;inset:0;width:100%;height:100%}
-.ad-stage{position:absolute;inset:0}
-.ad-p{position:absolute;left:0;width:var(--s);height:var(--s);will-change:transform;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.ad-p.enter .ad-w{animation:ad-enter .9s var(--spring) both}
-@keyframes ad-enter{from{opacity:0;transform:scale(.4) translateY(30%)}to{opacity:1;transform:none}}
-.ad-f{position:relative;width:100%;height:100%;transition:transform .45s var(--spring)}
-.ad-w{position:relative;width:100%;height:100%;transform-origin:50% 94%;animation:ad-waddle var(--wd) ease-in-out infinite alternate}
-.ad-w .peng{width:100%;height:100%}
-.ad-p .peng .pg{animation:none}
-@keyframes ad-waddle{0%{transform:rotate(-8deg)}50%{transform:rotate(0) translateY(-5%)}100%{transform:rotate(8deg)}}
-.ad-p.stop .ad-w{animation:ad-look 1.8s ease-in-out infinite}
-@keyframes ad-look{0%,100%{transform:rotate(0)}30%{transform:rotate(-6deg)}65%{transform:rotate(5deg)}}
-.ad-p.hop .ad-f{animation:ad-hop .65s var(--spring)}
-@keyframes ad-hop{0%{translate:0 0}40%{translate:0 -38%}100%{translate:0 0}}
-/* สเก็ตบอร์ด */
-.k-skate .ad-w{top:-10%;animation:ad-lean 1.5s ease-in-out infinite alternate}
-@keyframes ad-lean{from{transform:rotate(-4deg)}to{transform:rotate(6deg) translateY(-2%)}}
-.ad-sk{position:absolute;left:-8%;right:-8%;bottom:3%;height:9%;border-radius:999px;background:linear-gradient(180deg,#f07aa8,#b93d74);box-shadow:0 3px 0 #7b2a57}
-.ad-sk i{position:absolute;bottom:-75%;width:20%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#5b2bb0 25%,#fff 28%);border:2px solid #fff;animation:spin .45s linear infinite}
-.ad-sk i:first-child{left:10%}.ad-sk i:last-child{right:10%}
-.ad-p.ollie .ad-f{animation:ad-ollie .7s cubic-bezier(.3,.7,.3,1)}
-@keyframes ad-ollie{0%{translate:0 0;rotate:0deg}35%{translate:0 -55%;rotate:-10deg}70%{translate:0 -10%;rotate:4deg}100%{translate:0 0;rotate:0deg}}
-/* กลิ้งก้อนหิมะ */
-.k-ball .ad-w{animation:ad-push var(--wd) ease-in-out infinite alternate}
-@keyframes ad-push{from{transform:rotate(6deg)}to{transform:rotate(14deg) translateY(-3%)}}
-.ad-ball{position:absolute;left:84%;bottom:1%;width:calc(var(--r) * 2);height:calc(var(--r) * 2);border-radius:50%;background:radial-gradient(circle at 34% 30%,#fff,#eef1fc 55%,#c9d0ef);box-shadow:inset -3px -4px 6px rgba(90,80,160,.22),0 3px 4px rgba(20,10,60,.25)}
-.ad-ball i{position:absolute;inset:16%;border-radius:50%;border:1.5px dashed rgba(140,150,210,.55);transform:rotate(var(--a,0deg))}
-.ad-ball.poof{animation:ad-poof .7s var(--ease) forwards}
-@keyframes ad-poof{0%{transform:scale(1);opacity:1}40%{transform:scale(1.35);opacity:.8;filter:blur(1px)}100%{transform:scale(1.8);opacity:0;filter:blur(4px)}}
-/* ไถลพุง */
-.k-slide .ad-w{animation:ad-glide .5s ease-in-out infinite alternate;transform-origin:50% 60%}
-.k-slide .ad-w .peng{transform:rotate(78deg) translate(18%,-6%)}
-@keyframes ad-glide{from{transform:translateY(0)}to{transform:translateY(-4%)}}
-.k-slide .ad-f::after{content:"";position:absolute;right:88%;bottom:6%;width:70%;height:22%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,255,255,0));animation:ad-spray .4s ease-in-out infinite alternate}
-@keyframes ad-spray{from{opacity:.4;transform:scaleX(.7)}to{opacity:.9;transform:scaleX(1.1)}}
-/* เลื่อนหิมะ */
-.k-sled .ad-w{top:-14%;animation:ad-bump .35s ease-in-out infinite alternate}
-@keyframes ad-bump{from{transform:rotate(-3deg)}to{transform:rotate(2deg) translateY(-3%)}}
-.ad-sled{position:absolute;left:-22%;right:-22%;bottom:2%;height:18%}
-.ad-sled b{position:absolute;inset:0 0 30% 0;border-radius:10px 26px 8px 8px;background:linear-gradient(180deg,#f07aa8,#c44a7f);box-shadow:inset 0 3px 0 rgba(255,255,255,.35)}
-.ad-sled::after{content:"";position:absolute;left:0;right:-10%;bottom:0;height:34%;border:3px solid #ffd1e2;border-top:0;border-left:0;border-radius:0 0 40px 6px}
-/* ปั้นตุ๊กตาหิมะ */
-.k-build .ad-w{animation:ad-pat 1.1s ease-in-out infinite}
-.k-build .ad-w .pg-fl-r{transform-box:fill-box;transform-origin:5% 5%;animation:ad-patfl 1.1s ease-in-out infinite}
-@keyframes ad-pat{0%,100%{transform:rotate(0)}50%{transform:rotate(7deg) translateY(-2%)}}
-@keyframes ad-patfl{0%,100%{transform:rotate(0)}50%{transform:rotate(-55deg)}}
-.ad-sm{position:absolute;left:88%;bottom:0;width:95%;height:150%}
-.ad-sm i{position:absolute;left:50%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e8ecfb 60%,#c7cfef);box-shadow:inset -3px -4px 6px rgba(90,80,160,.2);transform:translateX(-50%) scale(0);transform-origin:50% 100%;animation:sm-grow 16s var(--spring) infinite}
-.ad-sm .b1{bottom:0;width:78%;aspect-ratio:1}
-.ad-sm .b2{bottom:44%;width:58%;aspect-ratio:1;animation-delay:1.6s}
-.ad-sm .b3{bottom:74%;width:42%;aspect-ratio:1;animation-delay:3.2s}
-.ad-sm .b3 em{position:absolute;border-radius:50%;background:#1b1530}
-.ad-sm .e1,.ad-sm .e2{width:12%;height:12%;top:36%}.ad-sm .e1{left:28%}.ad-sm .e2{right:28%}
-.ad-sm .nose{width:30%!important;height:12%!important;top:52%;left:50%;border-radius:0 50% 50% 0!important;background:#f5a524!important;clip-path:polygon(0 0,100% 50%,0 100%)}
-.ad-sm .hat{bottom:100%;width:34%;height:22%;border-radius:4px;background:linear-gradient(#3a2a5a,#1b1530);animation-delay:4.4s;box-shadow:0 5px 0 -1px #1b1530,0 3px 0 0 #e0679a}
-.ad-sm .hat::after{content:"";position:absolute;left:-25%;right:-25%;bottom:-4px;height:5px;border-radius:3px;background:#1b1530}
-.ad-sm .arm{bottom:58%;width:100%;height:4%;border-radius:2px;background:transparent;animation-delay:2.4s;box-shadow:none}
-.ad-sm .arm::before,.ad-sm .arm::after{content:"";position:absolute;top:0;width:38%;height:100%;min-height:2px;background:#8a5a3b;border-radius:2px}
-.ad-sm .arm::before{left:-6%;transform:rotate(-24deg)}.ad-sm .arm::after{right:-6%;transform:rotate(24deg)}
-@keyframes sm-grow{0%{transform:translateX(-50%) scale(0);opacity:0}6%{transform:translateX(-50%) scale(1.12);opacity:1}9%,86%{transform:translateX(-50%) scale(1);opacity:1}94%,100%{transform:translateX(-50%) scale(.2,0);opacity:0}}
-.ad-sh{display:none}
-.ad-heart{position:fixed;z-index:20;pointer-events:none;font-size:20px;transform:translate(-50%,-50%);animation:ad-heart 1.2s var(--ease) forwards;text-shadow:0 0 10px rgba(255,255,255,.6)}
-@keyframes ad-heart{0%{opacity:0;transform:translate(-50%,-30%) scale(.4)}25%{opacity:1;transform:translate(-50%,-110%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-260%) scale(.9)}}
-@media (max-width:640px){.ad-flock{top:auto;bottom:10px;right:50%;translate:50% 0;white-space:nowrap;background:rgba(38,9,92,.72);border-color:rgba(255,255,255,.25)}.ad-flock small{display:none}.ad-title{letter-spacing:.08em}.ad-sub{font-size:13.5px;padding:0 6px}.ad-timer{padding:12px 12px}.ad-digits{gap:5px}.ad-box{padding:6px 7px;border-radius:12px}.ad-btn{padding:13px 22px;font-size:14.5px}.ad-ground{height:clamp(150px,27vh,240px)}}
+.ad-cv{position:fixed;inset:0;z-index:3;touch-action:manipulation;cursor:pointer;-webkit-tap-highlight-color:transparent}
+@media (max-width:640px){.ad-flock{top:auto;bottom:10px;right:50%;translate:50% 0;white-space:nowrap;background:rgba(38,9,92,.72);border-color:rgba(255,255,255,.25)}.ad-flock small{display:none}.ad-title{letter-spacing:.08em}.ad-sub{font-size:13.5px;padding:0 6px}.ad-timer{padding:12px 12px}.ad-digits{gap:5px}.ad-box{padding:6px 7px;border-radius:12px}.ad-btn{padding:13px 22px;font-size:14.5px}}
 @media (max-height:760px){.ad-card{gap:6px}.ad-sub{font-size:13px;line-height:1.55}.ad-btn{margin-top:10px}.ad-lock{width:42px;height:42px}}
-@media (prefers-reduced-motion:reduce){.ad *,.ad{animation:none!important;transition:none!important}.ad-sm i{transform:translateX(-50%) scale(1);opacity:1}}
+html.rm .ad *,html.rm .ad{animation:none!important;transition:none!important}html.rm .ad-sm i{transform:translateX(-50%) scale(1);opacity:1}
 
 /* ============ แผงตั้งค่า: ออกจากระบบอัตโนมัติ (เมนูทีมและสิทธิ์) ============ */
 .idle-panel .panel-head h2{display:flex;align-items:center;gap:8px}
@@ -1671,3 +1600,14 @@ body.no-snow #snowfall{display:none}
 .idle-foot .note{display:inline-flex;align-items:center;gap:6px;margin:0}
 .idle-btns{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:640px){.idle-now{width:100%}.idle-btns{width:100%}.idle-btns .btn{flex:1 1 auto;justify-content:center}.idle-panel .panel-head{flex-wrap:wrap}}
+
+/* ตัวจับเวลาแบบม้วน: ตัวเลข 0–9 เรียงเป็นแถบแนวตั้ง เลื่อนขึ้นทีละช่อง (ไม่มีตัวเลขซ้อนกัน) */
+.ad-dg{position:relative;display:inline-block;width:.64em;height:1.14em;overflow:hidden;font-variant-numeric:tabular-nums;-webkit-mask:linear-gradient(180deg,transparent 0,#000 16%,#000 84%,transparent 100%);mask:linear-gradient(180deg,transparent 0,#000 16%,#000 84%,transparent 100%)}
+.ad-strip{display:flex;flex-direction:column;transition:transform .62s cubic-bezier(.34,1.3,.64,1);will-change:transform}
+.ad-strip b{display:block;height:1.14em;line-height:1.14em;text-align:center;font-weight:800}
+.ad-dg.tick{animation:dg-pulse .6s var(--ease)}
+@keyframes dg-pulse{0%{filter:none}30%{filter:drop-shadow(0 0 6px rgba(139,92,246,.55))}100%{filter:none}}
+.ad-box{position:relative;overflow:hidden}
+.ad-box::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(90,70,170,.12)}
+.ad-card{pointer-events:none}.ad-card > *{pointer-events:auto}
+

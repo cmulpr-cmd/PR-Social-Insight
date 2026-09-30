@@ -3,6 +3,9 @@
 "use strict";
 const CFG = window.APP_CONFIG || {}, DOMAIN = CFG.DOMAIN || 'cmu.ac.th', API = window.API || {};
 const APP_NAME = CFG.APP_NAME || 'PR Social Insight';
+/* การเคลื่อนไหว: เปิดเสมอ (แม้ Windows/มือถือตั้ง “ลดภาพเคลื่อนไหว”) — ผู้ใช้ปิดเองได้จากปุ่มในแถบเมนู */
+const RM = () => document.documentElement.classList.contains('rm');
+(function () { let v = null; try { v = localStorage.getItem('psi_rm'); } catch (_) {} document.documentElement.classList.toggle('rm', v === '1'); })();
 // โลโก้หน่วยงาน: ใส่ LOGO_URL ใน config.js (เช่น 'assets/logo.png') ถ้าว่างจะแสดงตัวอักษรย่อ
 const brandMark = () => CFG.LOGO_URL
   ? `<span class="brand-mark logo"><img src="${String(CFG.LOGO_URL).replace(/"/g, '&quot;')}" alt="โลโก้ ${String(APP_NAME).replace(/[<>"]/g, '')}" onerror="this.parentNode.classList.remove('logo');this.parentNode.textContent='${String(CFG.LOGO_TEXT || 'PR').replace(/['"<>\\]/g, '')}'"></span>`
@@ -351,7 +354,7 @@ const CU_SKIP = '.m-prog, #dp, input, select, textarea, [contenteditable], .no-c
 const cuEase = k => k >= 1 ? 1 : 1 - Math.pow(2, -10 * k) * (1 - k * .15);   // ease-out แบบเอ็กซ์โพเนนเชียล ชะลอนุ่มช่วงท้าย
 function countUp(scope) {
   if (!scope || !scope.isConnected) return;
-  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduce) return;
+  if (RM()) return;
   const fmt = (el, v) => { const f = el.dataset.fmt; return f === 'pct' ? pct(v, +el.dataset.dec || 0) : f === 'n' ? fnum(v) : fk(v); };
   const pickAll = sel => { const l = $$(sel, scope); if (scope.matches && scope.matches(sel)) l.unshift(scope); return l.filter(el => !el._cu && !el.closest(CU_SKIP)); };
   const items = pickAll('[data-count]').map(el => ({ el, b: +el.dataset.count, f: v => fmt(el, v) })).filter(x => isFinite(x.b) && x.b !== 0);
@@ -645,8 +648,6 @@ async function lockIdle(last, fromOther) {
   showDenied(lk);
   try { await API.logout(); } catch (_) {}
 }
-/* ---------------- หน้า Access Denied: คืนหนาว ดวงจันทร์ ภูเขาหิมะ และฝูงเพนกวินที่เพิ่มขึ้นเรื่อยๆ ---------------- */
-const AD = { raf: 0, ps: [], W: 0, H: 0, spawnT: 0, lk: null, tick: 0, snow: [], ctx: null, last: 0, reduce: false, max: 40, kinds: {} };
 const AD_ART = `<svg class="ad-art" viewBox="0 0 560 250" aria-hidden="true" focusable="false">
   <defs><radialGradient id="ad-moon" cx="45%" cy="40%" r="60%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e9e3ff"/></radialGradient>
   <linearGradient id="ad-mt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1680"/><stop offset="1" stop-color="#26095c"/></linearGradient></defs>
@@ -664,135 +665,251 @@ const AD_ART = `<svg class="ad-art" viewBox="0 0 560 250" aria-hidden="true" foc
   <g class="ad-cl c3" fill="#5b2bb0" opacity=".7"><ellipse cx="470" cy="196" rx="64" ry="15"/><circle cx="452" cy="188" r="18"/><circle cx="484" cy="182" r="22"/></g>
   <g class="ad-fl" fill="#fff"><path d="M60 60l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" opacity=".8"/><path d="M500 50l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z" opacity=".7"/><path d="M430 26l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" opacity=".6"/></g>
 </svg>`;
-const AD_GROUND = `<svg class="ad-hills" viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden="true">
-  <path d="M0 120 C180 60 330 70 520 110 S880 60 1080 96 1340 70 1440 90 V320 H0Z" fill="#cfc6f2" opacity=".55"/>
-  <path d="M0 160 C220 110 420 150 640 130 S1040 100 1240 140 1400 130 1440 136 V320 H0Z" fill="#e6e0fb"/>
-  <path d="M0 200 C260 170 520 210 760 190 S1180 170 1440 196 V320 H0Z" fill="#f7f5ff"/>
-  <path d="M0 160 C220 110 420 150 640 130 S1040 100 1240 140 1400 130 1440 136" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/>
-</svg>`;
+/* ---------------- หน้า Access Denied: วาดทั้งฉากบน canvas เดียว (ลื่น 60fps ไม่ขึ้นกับการตั้งค่าลดภาพเคลื่อนไหวของเครื่อง) ----------------
+   ฉาก: ดวงจันทร์/ภูเขา (DOM) · เนินหิมะ 3 ชั้นมีต้นสนและประกายระยิบ · หิมะ 3 ระดับความลึก (นุ่ม ไม่แข็ง) · ฝูงเพนกวินที่ใช้ชีวิตเอง */
+const AD = { raf: 0, ps: [], fx: [], snow: [], W: 0, H: 0, gTop: 0, gH: 0, dpr: 1, ctx: null, cv: null, ground: null, flake: [], last: 0, spawnT: 0, lk: null, tick: 0, max: 40, kinds: {}, img: {}, ready: false, ft: [], q: 1, glints: [] };
+function adSprites() {
+  if (AD.ready || AD.loading) return; AD.loading = true;
+  const base = PENG_G.replace(/<ellipse class="pg-sh"[^>]*\/>/, '');
+  const flip = (g, a, b) => g.replace(/(<path class="pg-fl pg-fl-l"[^>]*\/>)/, `<g transform="rotate(${a} 21 42)">$1</g>`).replace(/(<path class="pg-fl pg-fl-r"[^>]*\/>)/, `<g transform="rotate(${b} 59 42)">$1</g>`);
+  const blink = g => g.replace(/<g class="pg-eyes">[\s\S]*?<\/g>/, '<g><path d="M31.4 30.2q2.6 2 5.2 0M43.4 30.2q2.6 2 5.2 0" fill="none" stroke="#1b1530" stroke-width="1.6" stroke-linecap="round"/></g>');
+  const wide = g => g.replace(/rx="2.6" ry="2.9"/g, 'rx="3.2" ry="3.6"');
+  const F = { n: base, b: blink(base), w: flip(base, 0, -120), w2: flip(base, 0, -80), u: wide(flip(base, 105, -105)), u2: wide(flip(base, 70, -70)) };
+  let left = Object.keys(F).length;
+  Object.entries(F).forEach(([k, g]) => { const im = new Image(); im.onload = () => { if (--left === 0) AD.ready = true; }; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="200" height="200">${g}</svg>`); AD.img[k] = im; });
+  // เกล็ดหิมะแบบฟุ้งนุ่ม (วาดครั้งเดียวแล้วใช้ซ้ำ)
+  AD.flake = [6, 10, 16].map(sz => { const c = document.createElement('canvas'); c.width = c.height = sz * 2; const x = c.getContext('2d'), g = x.createRadialGradient(sz, sz, 0, sz, sz, sz); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.45, 'rgba(255,255,255,.85)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, sz * 2, sz * 2); return c; });
+}
+const adHill = (x, k) => { const W = AD.W || 1, t = AD.gTop, h = AD.gH; return k === 0 ? t - h * .16 + Math.sin(x / W * 5.2 + 1.3) * h * .07 + Math.sin(x / W * 11 + .4) * h * .025 : k === 1 ? t + Math.sin(x / W * 3.4 + 2.2) * h * .06 + Math.sin(x / W * 9 + 1) * h * .02 : t + h * .38 + Math.sin(x / W * 2.6 + .5) * h * .05; };
+function adGround() {
+  const W = AD.W, H = AD.H, c = document.createElement('canvas'); c.width = W * AD.dpr; c.height = H * AD.dpr; const x = c.getContext('2d'); x.scale(AD.dpr, AD.dpr);
+  const layer = (k, c0, c1, rim) => {
+    x.beginPath(); x.moveTo(0, H); for (let i = 0; i <= W; i += 8) x.lineTo(i, adHill(i, k)); x.lineTo(W, H); x.closePath();
+    const top = adHill(W / 2, k) - AD.gH * .1, g = x.createLinearGradient(0, top, 0, H); g.addColorStop(0, c0); g.addColorStop(1, c1); x.fillStyle = g; x.fill();
+    x.save(); x.clip(); const sh = x.createLinearGradient(0, top, 0, top + 40); sh.addColorStop(0, 'rgba(255,255,255,.55)'); sh.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = sh; x.fillRect(0, top, W, 60); x.restore();
+    x.beginPath(); for (let i = 0; i <= W; i += 8) i ? x.lineTo(i, adHill(i, k)) : x.moveTo(i, adHill(i, k)); x.strokeStyle = rim; x.lineWidth = 2.2; x.stroke();
+  };
+  // ต้นสนหิมะบนเนินไกล
+  layer(0, '#a996e6', '#d2c7f6', 'rgba(255,255,255,.55)');
+  for (let i = 0; i < Math.max(6, W / 120); i++) { const tx = (i + .5) * (W / Math.max(6, W / 120)) + Math.sin(i * 7.3) * 30, s = 16 + (Math.sin(i * 3.1) + 1) * 10, ty = adHill(tx, 0) + 4;
+    x.fillStyle = '#8f7ad8'; [0, 1, 2].forEach(j => { const w = s * (1 - j * .25), yy = ty - s * j * .55; x.beginPath(); x.moveTo(tx - w * .6, yy); x.lineTo(tx, yy - s * .9); x.lineTo(tx + w * .6, yy); x.closePath(); x.fill(); });
+    x.fillStyle = 'rgba(255,255,255,.85)'; [0, 1, 2].forEach(j => { const w = s * (1 - j * .25), yy = ty - s * j * .55; x.beginPath(); x.moveTo(tx - w * .25, yy - s * .55); x.lineTo(tx, yy - s * .9); x.lineTo(tx + w * .25, yy - s * .55); x.quadraticCurveTo(tx, yy - s * .48, tx - w * .25, yy - s * .55); x.fill(); }); }
+  layer(1, '#e2dafb', '#f3f0ff', 'rgba(255,255,255,.9)');
+  layer(2, '#f7f5ff', '#ffffff', 'rgba(255,255,255,1)');
+  // เงาอ่อนใต้ขอบเนินหน้า
+  AD.ground = c;
+  AD.glints = Array.from({ length: Math.round(W / 30) }, () => { const gx = Math.random() * W, k = 1 + (Math.random() < .5 ? 1 : 0); return { x: gx, y: adHill(gx, k) + 8 + Math.random() * AD.gH * .45, p: Math.random() * 6.28, s: 1 + Math.random() * 1.6 }; });
+}
 function showDenied(lk) {
-  adStop(); AD.lk = lk; AD.reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  adStop(); AD.lk = lk;
   document.body.classList.remove('modal-open');
+  const min = fmtMin(lk.min || 30);
   root().innerHTML = `<div class="ad" id="ad" role="main">
-    <canvas class="ad-snow" id="ad-snow" aria-hidden="true"></canvas>
     <div class="ad-stars" aria-hidden="true">${Array.from({ length: 46 }, (_, i) => { const r = n => (Math.sin(i * 71.7 + n) + 1) / 2; return `<i style="left:${(r(1) * 100).toFixed(1)}%;top:${(r(2) * 55).toFixed(1)}%;--d:${(2 + r(3) * 4).toFixed(1)}s;--dl:-${(r(4) * 5).toFixed(1)}s;--z:${(1 + r(5) * 2.2).toFixed(1)}px"></i>`; }).join('')}</div>
     <div class="ad-top">${AD_ART}</div>
+    <canvas class="ad-cv" id="ad-cv" aria-label="ฝูงเพนกวินเล่นหิมะ แตะเพื่อให้วิ่งหนี"></canvas>
     <section class="ad-card">
       <span class="ad-lock" aria-hidden="true">${ic('lock', 22)}</span>
-      <h1 class="ad-title">${'ACCESS DENIED'.split('').map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('')}</h1>
-      <p class="ad-sub">ไม่มีการใช้งานเกิน ${fmtMin(lk.min || 30)} ระบบจึงออกจากระบบให้อัตโนมัติ เพื่อปกป้องข้อมูลสำคัญของหน่วยงาน${lk.email ? `<br><small>${esc(lk.email)}</small>` : ''}</p>
-      <div class="ad-timer" role="timer" aria-label="ระยะเวลาที่ไม่ได้ใช้งาน">
+      <h1 class="ad-title" aria-label="Access denied">${'ACCESS DENIED'.split('').map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('')}</h1>
+      <p class="ad-sub"><span>ไม่มีการใช้งานเกิน ${min} ระบบจึงออกจากระบบให้อัตโนมัติ</span><span>เพื่อปกป้องข้อมูลสำคัญของหน่วยงาน</span>${lk.email ? `<small>${esc(lk.email)}</small>` : ''}</p>
+      <div class="ad-timer" role="timer" aria-live="off" aria-label="ระยะเวลาที่ไม่ได้ใช้งาน">
         <span class="ad-tl">${ic('clock', 14)} ละเว้นจากการใช้งานระบบ</span>
-        <div class="ad-digits">${[['h', 'ชั่วโมง'], ['m', 'นาที'], ['s', 'วินาที']].map(([k, t], i) => `${i ? '<i class="ad-colon">:</i>' : ''}<div class="ad-seg"><div class="ad-box"><span class="ad-dg" id="ad-${k}0"></span><span class="ad-dg" id="ad-${k}1"></span></div><small>${t}</small></div>`).join('')}</div>
+        <div class="ad-digits">${[['h', 'ชั่วโมง'], ['m', 'นาที'], ['s', 'วินาที']].map(([k, t], i) => `${i ? '<i class="ad-colon">:</i>' : ''}<div class="ad-seg"><div class="ad-box">${[0, 1].map(j => `<span class="ad-dg" id="ad-${k}${j}"><span class="ad-strip">${'01234567890'.split('').map(d => `<b>${d}</b>`).join('')}</span></span>`).join('')}</div><small>${t}</small></div>`).join('')}</div>
       </div>
-      <button class="ad-btn" data-act="ad-back">${ic('arrow', 17)} <span>กลับเข้าสู่ระบบอีกครั้ง</span></button>
-      <p class="ad-flock">${peng('', 20)} ฝูงเพนกวินที่มารอคุณ <b id="ad-n">0</b> ตัว <small>· แตะเพนกวินได้นะ</small></p>
+      <button class="ad-btn" data-act="ad-back">${ic('arrow', 17)} <span>${lk.preview ? 'ปิดตัวอย่าง กลับหน้าตั้งค่า' : 'กลับเข้าสู่ระบบอีกครั้ง'}</span></button>
     </section>
-    <div class="ad-ground" aria-hidden="true">${AD_GROUND}<div class="ad-stage" id="ad-stage"></div></div>
+    <p class="ad-flock">${peng('', 20)} ฝูงเพนกวินที่มารอคุณ <b id="ad-n">0</b> ตัว <small>· แตะเพนกวินแล้วน้องจะวิ่งหนี</small></p>
   </div>`;
-  const cv = $('#ad-snow'); AD.ctx = cv.getContext && cv.getContext('2d');
-  adResize(); window.addEventListener('resize', adResize);
-  AD.max = innerWidth < 640 ? 16 : innerWidth < 1100 ? 28 : 42;
-  // ยิ่งทิ้งไว้นาน ฝูงยิ่งใหญ่: เริ่ม 5 ตัว แล้วเพิ่ม 1 ตัวทุก 10 วินาที (เปิดหน้าใหม่ก็นับต่อจากเวลาที่ถูกล็อก)
-  const start = Math.min(AD.max, 5 + Math.floor((Date.now() - (lk.lockedAt || Date.now())) / 10000));
-  ['build', 'walk', 'skate', 'ball', 'run'].concat(Array.from({ length: Math.max(0, start - 5) }, () => adPick())).slice(0, start).forEach(k => adSpawn(k, true));
+  AD.cv = $('#ad-cv'); AD.ctx = AD.cv.getContext('2d');
+  adSprites(); adResize(); window.addEventListener('resize', adResize);
+  AD.max = innerWidth < 640 ? 18 : innerWidth < 1100 ? 30 : 44;
+  const start = Math.min(AD.max, 6 + Math.floor((Date.now() - (lk.lockedAt || Date.now())) / 10000));
+  ['build', 'walk', 'skate', 'ball', 'run', 'slide'].concat(Array.from({ length: Math.max(0, start - 6) }, () => adPick())).slice(0, start).forEach(k => adSpawn(k, true));
   AD.spawnT = performance.now();
-  adClock(); AD.tick = setInterval(adClock, 1000);
+  adClock(true); AD.tick = setInterval(() => adClock(false), 1000);
   AD.last = performance.now(); AD.raf = requestAnimationFrame(adLoop);
-  $('#ad-stage').addEventListener('pointerdown', adPoke);
+  AD.cv.addEventListener('pointerdown', adPoke);
 }
-function adStop() { cancelAnimationFrame(AD.raf); AD.raf = 0; clearInterval(AD.tick); window.removeEventListener('resize', adResize); AD.ps = []; AD.kinds = {}; }
+function adStop() { cancelAnimationFrame(AD.raf); AD.raf = 0; clearInterval(AD.tick); window.removeEventListener('resize', adResize); AD.ps = []; AD.fx = []; AD.kinds = {}; }
 function adResize() {
-  const g = $('.ad-ground'), cv = $('#ad-snow'); if (!g || !cv) return;
-  AD.W = g.clientWidth; AD.H = g.clientHeight;
-  const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; if (AD.ctx) AD.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const n = innerWidth < 640 ? 70 : 150;
-  if (AD.snow.length !== n) AD.snow = Array.from({ length: n }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: .6 + Math.random() * 2.6, v: 0, p: Math.random() * 6.28, a: .35 + Math.random() * .6 }));
-  AD.snow.forEach(f => { f.v = 16 + f.r * 16 + Math.random() * 10; });
+  const cv = AD.cv; if (!cv || !cv.isConnected) return;
+  const W = innerWidth, H = innerHeight; AD.W = W; AD.H = H; AD.dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * AD.dpr); cv.height = Math.round(H * AD.dpr); cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  AD.gH = Math.max(140, Math.min(280, H * (W < 640 ? .27 : .25))); AD.gTop = H - AD.gH;
+  adGround();
+  const n = Math.round((W < 640 ? 90 : 190) * AD.q);
+  while (AD.snow.length < n) AD.snow.push(adFlake(true)); AD.snow.length = n;
+  AD.ps.forEach(p => { p.y = adLaneY(p.lane); });
 }
-function adClock() {
+function adFlake(anyY) { const z = Math.random(); return { x: Math.random() * AD.W, y: anyY ? Math.random() * AD.H : -20, z, r: 1.2 + z * 3.8 + Math.random() * 1.2, vy: 14 + z * 46 + Math.random() * 10, amp: 8 + Math.random() * 22, ph: Math.random() * 6.28, fr: .4 + Math.random() * .9, a: .45 + z * .5 }; }
+const adLaneY = lane => AD.gTop + AD.gH * (.16 + lane * .72);
+/* ---------- ตัวจับเวลาแบบม้วนตัวเลข (ไม่มีตัวเลขซ้อน) ---------- */
+function adClock(first) {
   const lk = AD.lk; if (!lk) return; const t = Math.max(0, Math.floor((Date.now() - lk.at) / 1000));
   const v = { h: String(Math.min(99, Math.floor(t / 3600))).padStart(2, '0'), m: String(Math.floor(t / 60) % 60).padStart(2, '0'), s: String(t % 60).padStart(2, '0') };
-  Object.entries(v).forEach(([k, str]) => [0, 1].forEach(i => adDigit($('#ad-' + k + i), str[i])));
+  Object.entries(v).forEach(([k, str]) => [0, 1].forEach(i => adDigit($('#ad-' + k + i), +str[i], first)));
 }
-function adDigit(el, ch) {
-  if (!el || el.dataset.v === ch) return; const first = el.dataset.v == null; el.dataset.v = ch;
-  const old = el.querySelector('span:not(.out)'), n = document.createElement('span'); n.textContent = ch; n.className = first ? '' : 'in'; el.appendChild(n);
-  if (old) { old.className = 'out'; setTimeout(() => old.remove(), 600); }
+function adDigit(el, d, first) {
+  if (!el) return; const st = el.firstElementChild, prev = el._d;
+  if (prev === d) return; el._d = d;
+  const go = (idx, anim) => { st.style.transition = anim ? '' : 'none'; st.style.transform = `translateY(${-idx * 10 / 11 * 100 / 10}%)`; if (!anim) void st.offsetWidth; };
+  if (first || prev == null) { go(d, false); return; }
+  if (d === 0 && prev > 0) { go(10, true); clearTimeout(el._t); el._t = setTimeout(() => go(0, false), 620); }   // หมุนต่อไปยัง 0 ด้านล่าง แล้วแอบกลับขึ้นบน
+  else go(d, true);
+  el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
 }
-const AD_W = { walk: 5, run: 2, skate: 3, ball: 2, slide: 2, sled: 1.5, build: 1 };
+/* ---------- เพนกวิน ---------- */
+const AD_W = { walk: 5, run: 2.2, skate: 2.6, ball: 2, slide: 2, sled: 1.6, spin: 1.6, build: 1 };
 function adPick() {
   const tot = Object.values(AD_W).reduce((a, b) => a + b, 0); let r = Math.random() * tot;
   for (const [k, w] of Object.entries(AD_W)) { r -= w; if (r <= 0) return k === 'build' && (AD.kinds.build || 0) >= 3 ? 'walk' : k; }
   return 'walk';
 }
 function adSpawn(kind, first) {
-  const st = $('#ad-stage'); if (!st) return;
-  const lane = Math.random(), mob = innerWidth < 640;
-  const size = Math.round((mob ? 34 : 40) + lane * (mob ? 46 : 70) + (kind === 'build' ? 6 : 0));
-  const bottom = Math.round((1 - lane) * AD.H * .46 + AD.H * .05);
+  const lane = Math.random(), mob = AD.W < 640, s = (mob ? 36 : 42) + lane * (mob ? 48 : 76);
   const dir = Math.random() < .5 ? 1 : -1;
-  const base = { walk: 34, run: 78, skate: 120, ball: 26, slide: 150, sled: 170, build: 0 }[kind];
-  const p = { kind, lane, size, dir, speed: base * (.7 + lane * .6) * (.85 + Math.random() * .3), x: 0, stop: 0, nextTurn: 3 + Math.random() * 8, r: 6, ang: 0, el: null };
-  p.x = first || kind === 'build' ? Math.random() * Math.max(1, AD.W - size) : dir > 0 ? -size * 2.2 : AD.W + size * 1.2;
-  const el = document.createElement('div'); el.className = 'ad-p k-' + kind + (first ? '' : ' enter'); p.el = el;
-  el.style.cssText = `--s:${size}px;bottom:${bottom}px;z-index:${10 + Math.round(lane * 60)};--wd:${(kind === 'run' ? .24 : .42 + Math.random() * .16).toFixed(2)}s;filter:${lane < .35 ? `saturate(.8) brightness(.93) blur(${((.35 - lane) * 1.6).toFixed(2)}px)` : 'none'}`;
-  const body = `<div class="ad-w">${peng(kind !== 'slide' && Math.random() < .35 ? 'wave' : '', size)}</div>`;
-  el.innerHTML = `<div class="ad-f" style="transform:scaleX(${dir})">${
-    kind === 'skate' ? `${body}<div class="ad-sk"><i></i><i></i></div>` :
-    kind === 'sled' ? `${body}<div class="ad-sled"><b></b></div>` :
-    kind === 'ball' ? `${body}<div class="ad-ball" style="--r:${p.r}px"><i></i></div>` :
-    kind === 'build' ? `${body}<div class="ad-sm"><i class="b1"></i><i class="b2"></i><i class="b3"><em class="e1"></em><em class="e2"></em><em class="nose"></em></i><i class="hat"></i><i class="arm"></i></div>` : body}</div><span class="ad-sh"></span>`;
-  st.appendChild(el); AD.ps.push(p); AD.kinds[kind] = (AD.kinds[kind] || 0) + 1;
-  if (!first) setTimeout(() => el.classList.remove('enter'), 950);
+  const base = { walk: 42, run: 95, skate: 140, ball: 30, slide: 175, sled: 190, spin: 0, build: 0 }[kind];
+  const p = { kind, lane, s, dir, face: dir, y: adLaneY(lane), sp: base * (.75 + lane * .5) * (.85 + Math.random() * .3), x: 0, ph: Math.random() * 6.28, st: 'move', stT: 0, next: 1.5 + Math.random() * 4, jz: 0, jv: 0, rot: 0, spin: 0, frame: 'n', blinkT: 2 + Math.random() * 4, r: 6, ang: 0, bt: Math.random() * 16, flee: 0, wave: 0, board: 0 };
+  p.x = first || kind === 'build' || kind === 'spin' ? s + Math.random() * Math.max(1, AD.W - s * 2) : dir > 0 ? -s * 1.5 : AD.W + s * 1.5;
+  p.home = p.x; if (!first) adPuff(p.x, p.y, 6, .6);
+  AD.ps.push(p); AD.kinds[kind] = (AD.kinds[kind] || 0) + 1;
   const n = $('#ad-n'); if (n) { n.textContent = AD.ps.length; n.classList.remove('bump'); void n.offsetWidth; n.classList.add('bump'); }
-  el.style.transform = `translate3d(${p.x.toFixed(1)}px,0,0)`;
+}
+function adPuff(x, y, n, sc = 1) { for (let i = 0; i < n; i++) AD.fx.push({ t: 'puff', x: x + (Math.random() - .5) * 20 * sc, y: y - Math.random() * 6, vx: (Math.random() - .5) * 60 * sc, vy: -20 - Math.random() * 50 * sc, r: (4 + Math.random() * 7) * sc, life: .7 + Math.random() * .5, age: 0 }); }
+function adUpdate(p, dt) {
+  const s = p.s, spd = p.flee > 0 ? Math.max(p.sp * 2.6, 230 * (.7 + p.lane * .6)) : p.sp;
+  // เวลากะพริบตา
+  p.blinkT -= dt; if (p.blinkT < -.14) p.blinkT = 2 + Math.random() * 4;
+  // กระโดด/ฟิสิกส์แกนตั้ง
+  if (p.jz > 0 || p.jv > 0) { p.jv -= 1500 * dt * (s / 90); p.jz += p.jv * dt; if (p.jz <= 0) { p.jz = 0; p.jv = 0; p.squash = .22; if (p.spin) { p.spin = 0; p.rot = 0; } adPuff(p.x, p.y, 3, s / 90); } }
+  if (p.squash) p.squash = Math.max(0, p.squash - dt * 1.6);
+  if (p.spin) p.rot += dt * 12.5 * p.dir;
+  p.face += (p.dir - p.face) * Math.min(1, dt * 9);
+  if (p.flee > 0) { p.flee -= dt; if (Math.random() < dt * 6) AD.fx.push({ t: 'drop', x: p.x - p.dir * s * .25, y: p.y - s * .8 - p.jz, vx: -p.dir * 40, vy: -60, life: .6, age: 0, r: 2 + s / 50 }); if (p.flee <= 0) { p.st = p.kind === 'build' ? 'home' : 'move'; p.next = 1 + Math.random() * 3; } }
+  const edgeTurn = () => { if (p.x < s * .6 && p.dir < 0) p.dir = 1; else if (p.x > AD.W - s * .6 && p.dir > 0) p.dir = -1; };
+  const exitTurn = () => { if (p.x < -s * 1.4 && p.dir < 0) p.dir = 1; else if (p.x > AD.W + s * 1.4 && p.dir > 0) p.dir = -1; };
+  p.next -= dt;
+  switch (p.kind) {
+    case 'build': {
+      if (p.st === 'home' || (p.flee > 0)) { if (p.flee <= 0) { const dx = p.home - p.x; if (Math.abs(dx) < 4) { p.st = 'build'; p.dir = 1; } else { p.dir = Math.sign(dx); p.x += p.dir * 90 * dt; p.ph += dt * 14; } } else { p.x += p.dir * spd * dt; p.ph += dt * 22; exitTurn(); } break; }
+      p.bt = (p.bt + dt) % 16; p.dir = 1; const b = p.bt;
+      p.ph += dt * 6; if ([1.2, 3.2, 5.2, 7, 8.6].some(k => b > k && b - dt <= k)) { p.jv = 260 * (s / 90); adPuff(p.x + s * .7, p.y, 4, s / 90); }
+      if (b > 11 && b - dt <= 11) { p.jv = 420 * (s / 90); p.spin = 1; }
+      p.wave = b > 11.5 && b < 14 ? 1 : 0; break;
+    }
+    case 'spin': {
+      p.ph += dt * 7; if (p.next <= 0) { p.jv = 380 * (s / 90); p.spin = 1; p.next = 1.8 + Math.random() * 2.6; if (Math.random() < .4) p.dir *= -1; }
+      if (p.flee > 0) { p.x += p.dir * spd * dt; p.ph += dt * 20; exitTurn(); } else if (p.x < -s || p.x > AD.W + s) { p.dir = p.x < 0 ? 1 : -1; p.x += p.dir * 60 * dt; }
+      break;
+    }
+    case 'skate': case 'sled': case 'slide': {
+      p.x += p.dir * spd * dt; p.ph += dt * (p.kind === 'sled' ? 16 : 3); exitTurn();
+      if (p.kind === 'skate' && p.jz === 0 && p.next <= 0) { p.jv = 430 * (s / 90); p.board = .001; p.next = 2 + Math.random() * 4; }
+      if (p.kind === 'skate' && p.board) { p.board += dt * 2.2; if (p.board >= 1) p.board = 0; }
+      if (p.kind === 'slide' && Math.random() < dt * 22) AD.fx.push({ t: 'puff', x: p.x - p.dir * s * .45, y: p.y - 2, vx: -p.dir * (30 + Math.random() * 40), vy: -10 - Math.random() * 30, r: 2 + Math.random() * 4 * (s / 90), life: .45, age: 0 });
+      if (p.kind === 'sled' && p.jz === 0 && p.next <= 0) { p.jv = 220 * (s / 90); p.next = .8 + Math.random() * 2; }
+      break;
+    }
+    default: { // walk / run / ball
+      if (p.st === 'stop') {
+        p.stT -= dt; p.ph += dt * 2.2;
+        if (p.stT <= 0) { p.st = 'move'; p.wave = 0; p.next = 2 + Math.random() * 5; }
+        break;
+      }
+      p.x += p.dir * spd * dt; p.ph += dt * (p.flee > 0 ? 24 : p.kind === 'run' ? 17 : 10) * (p.kind === 'ball' ? .8 : 1);
+      if (p.flee > 0) { exitTurn(); if (p.x < -s * 1.3 || p.x > AD.W + s * 1.3) { p.flee = 0; p.st = 'move'; } }
+      else edgeTurn();
+      if (p.kind === 'ball') {
+        p.r = Math.min(s * .52, p.r + dt * (1.4 + p.lane)); p.ang += spd * dt / Math.max(4, p.r) * p.dir;
+        if (p.r >= s * .52) { adPuff(p.x + p.dir * (s * .42 + p.r), p.y - p.r, 14, s / 70); p.r = 5; }
+      }
+      if (p.next <= 0 && p.flee <= 0) {
+        const r = Math.random(); p.next = 2 + Math.random() * 5;
+        if (p.kind === 'ball') { if (r < .3) p.dir *= -1; break; }
+        if (r < .28) { p.st = 'stop'; p.stT = 1 + Math.random() * 2; }
+        else if (r < .46) { p.st = 'stop'; p.stT = 1.8; p.wave = 1; }
+        else if (r < .66) { p.jv = 400 * (s / 90); p.spin = 1; }
+        else if (r < .82) p.dir *= -1;
+        else if (r < .92) { p.st = 'stop'; p.stT = 1.1; adThrow(p); }
+        else p.jv = 300 * (s / 90);
+      }
+    }
+  }
+}
+function adThrow(p) { AD.fx.push({ t: 'ball', x: p.x + p.dir * p.s * .3, y: p.y - p.s * .7, vx: p.dir * (160 + Math.random() * 140) * (p.s / 90), vy: -(220 + Math.random() * 120) * (p.s / 90), g: 700 * (p.s / 90), floor: p.y, r: 2.5 + p.s / 30, life: 3, age: 0 }); }
+function adDrawP(c, p, t) {
+  const s = p.s, flee = p.flee > 0, im = AD.img;
+  let frame = flee ? (Math.sin(p.ph * .5) > 0 ? 'u' : 'u2') : p.wave ? (Math.sin(t / 110) > 0 ? 'w' : 'w2') : p.blinkT < 0 ? 'b' : 'n';
+  const walking = p.kind === 'walk' || p.kind === 'run' || p.kind === 'ball' || flee || p.st === 'home';
+  const moving = walking && p.st !== 'stop';
+  let rot = p.rot, bob = 0, sx = 1, sy = 1;
+  if (moving) { rot += Math.sin(p.ph) * (flee ? .2 : .14); bob = Math.abs(Math.sin(p.ph)) * s * .05; }
+  else if (p.st === 'stop' && !p.wave) rot += Math.sin(p.ph) * .08;
+  if (p.kind === 'build' && !flee) rot += Math.sin(p.ph * 2) * .06;
+  if (p.kind === 'skate' && !flee) rot += Math.sin(t / 700 + p.ph) * .07 - p.dir * .05;
+  if (p.kind === 'sled') bob = Math.abs(Math.sin(p.ph)) * s * .02;
+  if (p.squash) { sy = 1 - p.squash * .6; sx = 1 + p.squash * .5; }
+  const lift = p.kind === 'skate' ? s * .13 : p.kind === 'sled' ? s * .17 : 0;
+  const alpha = .72 + p.lane * .28;
+  c.save(); c.globalAlpha = alpha; c.translate(p.x, p.y);
+  // เงา
+  const sh = 1 / (1 + p.jz / (s * .5)); c.fillStyle = `rgba(60,40,120,${.16 * sh})`; c.beginPath(); c.ellipse(0, 0, s * .34 * sh, s * .07 * sh, 0, 0, 6.2832); c.fill();
+  // ของเล่นใต้/หน้าเพนกวิน
+  if (p.kind === 'ball' && !flee) { const bx = p.dir * (s * .42 + p.r), by = -p.r; c.save(); c.translate(bx, by); c.rotate(p.ang); const g = c.createRadialGradient(-p.r * .35, -p.r * .4, p.r * .1, 0, 0, p.r); g.addColorStop(0, '#ffffff'); g.addColorStop(.6, '#eef1fc'); g.addColorStop(1, '#c5ccef'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, p.r, 0, 6.2832); c.fill(); c.strokeStyle = 'rgba(140,150,210,.5)'; c.lineWidth = 1.2; c.setLineDash([3, 3]); c.beginPath(); c.arc(0, 0, p.r * .62, 0, 6.2832); c.stroke(); c.setLineDash([]); c.restore(); }
+  if (p.kind === 'build') adSnowman(c, p);
+  c.translate(0, -p.jz - bob);
+  if (p.kind === 'skate' && !flee) { c.save(); c.translate(0, -s * .05); if (p.board) c.rotate(p.board * 6.2832 * p.dir); const bw = s * .72; c.fillStyle = '#c44a7f'; c.beginPath(); c.roundRect ? c.roundRect(-bw / 2, -s * .05, bw, s * .07, s * .035) : c.rect(-bw / 2, -s * .05, bw, s * .07); c.fill(); c.fillStyle = '#f07aa8'; c.fillRect(-bw / 2 + 3, -s * .05, bw - 6, s * .03); [-.3, .3].forEach(k => { c.save(); c.translate(bw * k, s * .03); c.rotate(p.x / (s * .06)); c.fillStyle = '#fff'; c.beginPath(); c.arc(0, 0, s * .045, 0, 6.2832); c.fill(); c.fillStyle = '#5b2bb0'; c.fillRect(-s * .01, -s * .045, s * .02, s * .09); c.restore(); }); c.restore(); }
+  if (p.kind === 'sled' && !flee) { c.save(); c.scale(p.face, 1); c.fillStyle = '#c44a7f'; c.beginPath(); c.roundRect ? c.roundRect(-s * .5, -s * .16, s * 1, s * .12, [s * .05, s * .12, s * .03, s * .03]) : c.rect(-s * .5, -s * .16, s, s * .12); c.fill(); c.strokeStyle = '#ffd1e2'; c.lineWidth = Math.max(2, s * .03); c.beginPath(); c.moveTo(-s * .5, -s * .01); c.lineTo(s * .45, -s * .01); c.quadraticCurveTo(s * .62, -s * .01, s * .6, -s * .14); c.stroke(); c.restore(); }
+  c.translate(0, -lift);
+  if (p.kind === 'slide' && !flee) { rot = p.dir * 1.35 + Math.sin(p.ph * 4) * .03; }
+  c.rotate(rot); c.scale(p.face * sx, sy);
+  const img = im[frame] || im.n; if (img && img.complete) c.drawImage(img, -s / 2, p.kind === 'slide' && !flee ? -s * .62 : -s * .95, s, s);
+  c.restore();
+  if (flee && p.bang > 0) { p.bang -= 1 / 60; c.save(); c.globalAlpha = Math.min(1, p.bang * 2); c.font = `800 ${Math.round(12 + s * .22)}px ${getComputedStyle(document.body).fontFamily}`; c.fillStyle = '#ffd24d'; c.textAlign = 'center'; c.fillText('!', p.x, p.y - s * 1.12 - p.jz); c.restore(); }
+}
+function adSnowman(c, p) {
+  const s = p.s, b = p.bt, ox = s * .78, e = (t0, d = .5) => { const k = Math.max(0, Math.min(1, (b - t0) / d)); return k <= 0 ? 0 : 1 + Math.sin(k * Math.PI) * .18 * (1 - k) - (1 - k) * (1 - k) * 0; };
+  const melt = b > 14.5 ? Math.max(0, 1 - (b - 14.5) / 1.4) : 1;
+  const ball = (y, r, k) => { if (!k) return; c.save(); c.translate(ox, y); c.scale(k, k * melt); const g = c.createRadialGradient(-r * .35, -r * .4, r * .1, 0, 0, r); g.addColorStop(0, '#fff'); g.addColorStop(.62, '#edf0fc'); g.addColorStop(1, '#c7cfef'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, r, 0, 6.2832); c.fill(); c.restore(); };
+  const r1 = s * .34, r2 = s * .25, r3 = s * .18, k1 = e(1), k2 = e(3), k3 = e(5);
+  ball(-r1 * melt, r1, k1); ball(-(r1 * 2 + r2 * .8) * melt, r2, k2); ball(-(r1 * 2 + r2 * 1.6 + r3 * .8) * melt, r3, k3);
+  const hy = -(r1 * 2 + r2 * 1.6 + r3 * .8) * melt;
+  if (e(7) && melt > .5) { c.fillStyle = '#1b1530'; [-.35, .35].forEach(k => { c.beginPath(); c.arc(ox + r3 * k, hy - r3 * .15, r3 * .12, 0, 6.2832); c.fill(); }); c.fillStyle = '#f5a524'; c.beginPath(); c.moveTo(ox, hy + r3 * .05); c.lineTo(ox + r3 * .75, hy + r3 * .18); c.lineTo(ox, hy + r3 * .3); c.fill(); }
+  if (e(8.6) && melt > .5) { c.fillStyle = '#231a3a'; const hw = r3 * 1.1; c.fillRect(ox - hw / 2, hy - r3 * 1.75, hw, r3 * .9); c.fillRect(ox - hw * .8, hy - r3 * .9, hw * 1.6, r3 * .16); c.fillStyle = '#e0679a'; c.fillRect(ox - hw / 2, hy - r3 * 1.05, hw, r3 * .16); }
+  if (e(7.8) && melt > .5) { c.strokeStyle = '#8a5a3b'; c.lineWidth = Math.max(1.5, s * .025); c.lineCap = 'round'; const ay = -(r1 * 2 + r2 * .8) * melt; c.beginPath(); c.moveTo(ox - r2 * .9, ay); c.lineTo(ox - r2 * 1.9, ay - r2 * .7); c.moveTo(ox + r2 * .9, ay); c.lineTo(ox + r2 * 1.9, ay - r2 * .8); c.stroke(); }
 }
 function adLoop(t) {
-  const dt = Math.min(.05, (t - AD.last) / 1000); AD.last = t;
-  if (!document.getElementById('ad')) { adStop(); return; }
-  if (!AD.reduce) {
-    if (AD.ps.length < AD.max && t - AD.spawnT > 10000) { AD.spawnT = t; adSpawn(adPick()); }
-    AD.ps.forEach(p => {
-      if (p.kind === 'build') return;
-      p.nextTurn -= dt;
-      if (p.stop > 0) { p.stop -= dt; if (p.stop <= 0) p.el.classList.remove('stop'); return; }
-      const m = p.size * 1.1;
-      if ((p.x < -m && p.dir < 0) || (p.x > AD.W + m * .1 && p.dir > 0) || (p.nextTurn <= 0 && ['walk', 'run', 'ball'].includes(p.kind) && p.x > 0 && p.x < AD.W - p.size)) {
-        if (p.nextTurn <= 0 && p.kind === 'walk' && Math.random() < .5) { p.stop = 1 + Math.random() * 2.2; p.el.classList.add('stop'); }
-        p.dir *= -1; p.nextTurn = 4 + Math.random() * 9; p.el.firstChild.style.transform = `scaleX(${p.dir})`;
-        if (p.kind === 'skate' && Math.random() < .6) adOllie(p);
-        return;
-      }
-      if (p.kind === 'skate' && Math.random() < dt * .18) adOllie(p);
-      const dx = p.dir * p.speed * dt; p.x += dx;
-      p.el.style.transform = `translate3d(${p.x.toFixed(1)}px,0,0)`;
-      if (p.kind === 'ball') {
-        p.r = Math.min(p.size * .55, p.r + dt * 1.6); p.ang += Math.abs(dx) / Math.max(4, p.r) * 57.3;
-        const b = p.el.querySelector('.ad-ball'); if (b) { b.style.setProperty('--r', p.r.toFixed(1) + 'px'); b.style.setProperty('--a', p.ang.toFixed(0) + 'deg'); }
-        if (p.r >= p.size * .55 && !p.poof) { p.poof = 1; b.classList.add('poof'); setTimeout(() => { p.r = 5; p.poof = 0; b.classList.remove('poof'); }, 700); }
-      }
-    });
-  }
-  adSnow(dt, t);
+  if (!AD.cv || !AD.cv.isConnected) { adStop(); return; }
+  const dt = Math.min(.05, (t - AD.last) / 1000 || .016); AD.last = t;
+  // ปรับคุณภาพอัตโนมัติถ้าเครื่องช้า
+  AD.ft.push(dt); if (AD.ft.length > 90) { const avg = AD.ft.reduce((a, b) => a + b, 0) / AD.ft.length; AD.ft = []; if (avg > .026 && AD.q > .45) { AD.q -= .2; AD.snow.length = Math.round(AD.snow.length * .75); AD.max = Math.max(10, Math.round(AD.max * .8)); } }
+  if (AD.ps.length < AD.max && t - AD.spawnT > 10000) { AD.spawnT = t; adSpawn(adPick()); }
+  const c = AD.ctx, W = AD.W, H = AD.H; c.setTransform(AD.dpr, 0, 0, AD.dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const wind = Math.sin(t / 5200) * 16 + Math.sin(t / 1900) * 6;
+  const flake = f => { f.y += f.vy * dt; f.ph += dt * f.fr; const x = f.x + Math.sin(f.ph) * f.amp; f.x += wind * dt * (.4 + f.z); const lim = f.z < .5 ? adHill(x, 1) + AD.gH * f.z * .5 : H + 10;
+    if (f.y > lim) { Object.assign(f, adFlake(false)); return; } if (f.x > W + 30) f.x = -30; else if (f.x < -30) f.x = W + 30;
+    const fade = f.z < .5 ? Math.min(1, (lim - f.y) / 40) : 1, spr = AD.flake[f.r < 2.4 ? 0 : f.r < 4 ? 1 : 2], d = f.r * 2.6; c.globalAlpha = f.a * fade; c.drawImage(spr, x - d / 2, f.y - d / 2, d, d); };
+  AD.snow.forEach(f => { if (f.z < .5) flake(f); }); c.globalAlpha = 1;
+  if (AD.ground) c.drawImage(AD.ground, 0, 0, W, H);
+  AD.glints.forEach(g => { const a = Math.max(0, Math.sin(t / 700 + g.p)); if (a < .2) return; c.globalAlpha = a * .9; c.fillStyle = '#fff'; c.beginPath(); c.moveTo(g.x, g.y - g.s * 3); c.lineTo(g.x + g.s * .6, g.y); c.lineTo(g.x, g.y + g.s * 3); c.lineTo(g.x - g.s * .6, g.y); c.fill(); c.fillRect(g.x - g.s * 3, g.y - .5, g.s * 6, 1); }); c.globalAlpha = 1;
+  if (AD.ready) { AD.ps.forEach(p => adUpdate(p, dt)); AD.ps.slice().sort((a, b) => a.y - b.y).forEach(p => adDrawP(c, p, t)); }
+  // เอฟเฟกต์: ฝุ่นหิมะ ก้อนหิมะที่ขว้าง หยดเหงื่อ
+  AD.fx = AD.fx.filter(f => { f.age += dt; if (f.age > f.life) return false; const k = f.age / f.life;
+    if (f.t === 'puff') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 60 * dt; c.globalAlpha = (1 - k) * .9; c.fillStyle = '#fff'; c.beginPath(); c.arc(f.x, f.y, f.r * (.6 + k * .8), 0, 6.2832); c.fill(); }
+    else if (f.t === 'drop') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 300 * dt; c.globalAlpha = 1 - k; c.fillStyle = '#9fd3ff'; c.beginPath(); c.ellipse(f.x, f.y, f.r * .7, f.r, 0, 0, 6.2832); c.fill(); }
+    else if (f.t === 'ball') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += f.g * dt; if (f.y >= f.floor && f.vy > 0) { adPuff(f.x, f.floor, 8, f.r / 5); return false; } c.globalAlpha = 1; c.fillStyle = '#fff'; c.beginPath(); c.arc(f.x, f.y, f.r, 0, 6.2832); c.fill(); }
+    return true; });
+  c.globalAlpha = 1;
+  AD.snow.forEach(f => { if (f.z >= .5) flake(f); }); c.globalAlpha = 1;
   AD.raf = requestAnimationFrame(adLoop);
 }
-function adOllie(p) { if (p.ollie) return; p.ollie = 1; p.el.classList.add('ollie'); setTimeout(() => { p.el.classList.remove('ollie'); p.ollie = 0; }, 700); }
-function adSnow(dt, t) {
-  const c = AD.ctx; if (!c) return; c.clearRect(0, 0, innerWidth, innerHeight);
-  const wind = Math.sin(t / 4000) * 14;
-  c.fillStyle = '#fff';
-  AD.snow.forEach(f => {
-    if (!AD.reduce) { f.y += f.v * dt; f.p += dt * (.6 + f.r * .2); f.x += (Math.sin(f.p) * 10 + wind) * dt; if (f.y > innerHeight + 4) { f.y = -4; f.x = Math.random() * innerWidth; } if (f.x > innerWidth + 4) f.x = -4; else if (f.x < -4) f.x = innerWidth + 4; }
-    c.globalAlpha = f.a; c.beginPath(); c.arc(f.x, f.y, f.r, 0, 6.2832); c.fill();
-  });
-  c.globalAlpha = 1;
-}
+/* แตะเพนกวิน → สะดุ้ง กระโดด แล้ววิ่งหนี (ตัวข้างๆ ตกใจวิ่งตามด้วย) · แตะพื้นหิมะ → หิมะฟุ้ง ตัวที่อยู่ใกล้วิ่งหนี */
 function adPoke(e) {
-  const el = e.target.closest && e.target.closest('.ad-p'); if (!el) return;
-  el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
-  const r = el.getBoundingClientRect(), fx = document.createElement('span'); fx.className = 'ad-heart'; fx.textContent = ['❤', '❄', '✨', '💜'][Math.floor(Math.random() * 4)];
-  fx.style.left = (r.left + r.width / 2) + 'px'; fx.style.top = (r.top) + 'px'; document.body.appendChild(fx); setTimeout(() => fx.remove(), 1200);
+  const r = AD.cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  const hit = AD.ps.slice().sort((a, b) => b.y - a.y).find(p => Math.abs(px - p.x) < p.s * .42 && py < p.y + 6 && py > p.y - p.s * 1.05 - p.jz);
+  const scare = (p, delay, big) => setTimeout(() => { if (!AD.ps.includes(p)) return; p.dir = p.x >= px ? 1 : -1; p.flee = 1.6 + Math.random() * 1.2 + (big ? .8 : 0); p.st = 'flee'; p.wave = 0; p.bang = big ? 1.1 : .7; if (p.jz === 0) p.jv = (big ? 520 : 330) * (p.s / 90); if (big) adPuff(p.x, p.y, 8, p.s / 80); }, delay);
+  if (hit) scare(hit, 0, true); else adPuff(px, Math.max(py, AD.gTop), 12, 1);
+  AD.ps.forEach(p => { if (p === hit) return; const d = Math.hypot(p.x - px, (p.y - py) * 1.6); if (d < (hit ? 190 : 150)) scare(p, 80 + d * 1.5, false); });
 }
 function leaveDenied() {
   const lk = AD.lk || {}; if (!lk.preview) idleSet('psi_locked', null); adStop();
@@ -803,6 +920,7 @@ function leaveDenied() {
 }
 /** ใช้ดูตัวอย่างหน้า Access Denied ในโหมดสาธิต (พิมพ์ใน Console) */
 const fmtMin = m => m >= 60 && m % 60 === 0 ? (m / 60) + ' ชั่วโมง' : m > 60 ? Math.floor(m / 60) + ' ชั่วโมง ' + (m % 60) + ' นาที' : m + ' นาที';
+if (window.API && API.demo) window.__psiAD = AD;
 if (window.API && API.demo) window.psiPreviewIdle = () => lockIdle(Date.now() - idleMsNow() - 60e3);
 /** ดูตัวอย่างหน้า Access Denied จากหน้าตั้งค่า (ไม่ออกจากระบบจริง) */
 function previewDenied() { const m = idleMin() || 30; showDenied({ at: Date.now() - m * 60e3 - 7000, email: ME.email, lockedAt: Date.now(), min: m, preview: true }); }
@@ -970,7 +1088,7 @@ const LOADER_ART = `<svg class="wv-art" viewBox="176 46 392 338" aria-hidden="tr
 function loaderShow(title) {
   let el = $('#loader'); if (!el) { el = document.createElement('div'); el.id = 'loader'; document.body.appendChild(el); }
   const name = CFG.LOADER_TITLE || 'CMUL PR Social Insight', sub = CFG.LOADER_SUB || 'หน่วยสื่อสารองค์กร';
-  const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const reduce = RM();
   let li = 0;
   const title3 = name.split(/\s+/).filter(Boolean).map(w => `<span class="ld-word">${graphemes(w).map(g => `<span class="ld-ch" style="--i:${li++}">${esc(g)}</span>`).join('')}</span>`).join('<span class="ld-sp"> </span>');
   el.className = 'ld-wrap'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
@@ -1037,7 +1155,7 @@ function renderSide() {
    <div class="me"><span class="me-peng" aria-hidden="true">${peng('sit wave', 46)}</span>
     <span class="mode-pill" title="${API.demo ? 'ยังไม่ได้ตั้งค่า API_URL ใน config.js' : 'บันทึกข้อมูลลงฐานข้อมูลของหน่วยงาน'}">${ic(API.demo ? 'spark' : 'sheet', 12)} ${API.demo ? 'โหมดสาธิต' : 'เชื่อมต่อฐานเก็บข้อมูลแล้ว'}</span>
     <div class="me-row"><span class="avatar">${initials(ME.name)}</span><div><b>${esc(ME.name)}</b><span>${esc(ME.email)} · ${esc(ME.role)}</span></div></div>
-    <div class="me-actions"><button class="btn sm ghost icon-only${snowOn() ? ' on' : ''}" data-act="snow" aria-pressed="${snowOn()}" title="${snowOn() ? 'ปิด' : 'เปิด'}หิมะตก" aria-label="หิมะตก">${ic('snow', 15)}</button><button class="btn sm ghost" data-act="theme" aria-label="สลับธีมสว่าง/มืด">${ic(isDark() ? 'sun' : 'moon', 15)} ${isDark() ? 'ธีมสว่าง' : 'ธีมมืด'}</button><button class="btn sm ghost" data-act="logout">${ic('out', 15)} ออกจากระบบ</button></div>
+    <div class="me-actions"><button class="btn sm ghost icon-only${RM() ? '' : ' on'}" data-act="motion" aria-pressed="${!RM()}" title="${RM() ? 'เปิด' : 'ลด'}ภาพเคลื่อนไหว" aria-label="ภาพเคลื่อนไหว">${ic('spark', 15)}</button><button class="btn sm ghost icon-only${snowOn() ? ' on' : ''}" data-act="snow" aria-pressed="${snowOn()}" title="${snowOn() ? 'ปิด' : 'เปิด'}หิมะตก" aria-label="หิมะตก">${ic('snow', 15)}</button><button class="btn sm ghost" data-act="theme" aria-label="สลับธีมสว่าง/มืด">${ic(isDark() ? 'sun' : 'moon', 15)} ${isDark() ? 'ธีมสว่าง' : 'ธีมมืด'}</button><button class="btn sm ghost" data-act="logout">${ic('out', 15)} ออกจากระบบ</button></div>
    </div>`);
 }
 function renderFab() { const f = $('#fab-slot'); if (f) paint(f, can('add') ? `<button class="fab${S.page === 'add' ? ' raised' : ''}" data-act="dupscan" title="ตรวจหาข้อมูลซ้ำในฐานข้อมูล">${ic('search', 17)}<span>ตรวจข้อมูลซ้ำ</span></button>` : ''); }
@@ -1308,7 +1426,7 @@ function renderView(mode = 'fade') {
   const my = ++viewSeq;
   if (mode === 'silent') { paint(v, VIEWS[S.page]()); stagger(v); if (AFTER[S.page]) AFTER[S.page](false); return; }
   // เปลี่ยนตัวกรองในหน้าเดิม: จางลงแวบหนึ่ง → แก้เฉพาะจุดที่ต่าง ตัวเลขวิ่งจากค่าเดิมไปค่าใหม่ กราฟค่อยๆ เปลี่ยนรูป → คืนความคมชัด
-  if (mode === 'soft' && v.childElementCount && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+  if (mode === 'soft' && v.childElementCount && !RM()) {
     clearTimeout(v._mx); v.classList.remove('leaving', 'anim', 'soft', 'dim'); v.classList.add('mx-out');
     setTimeout(() => {
       if (my !== viewSeq) return;
@@ -2843,6 +2961,7 @@ document.addEventListener('click', async e => {
       try { DB.settings = await busy(el, () => API.saveSettings({ idleMinutes: m })); localLog(m ? 'ตั้งค่าออกจากระบบอัตโนมัติ ' + m + ' นาที' : 'ปิดการออกจากระบบอัตโนมัติ'); S.idleDraft = null; idleMark(); renderView('soft'); toast(m ? 'บันทึกแล้ว · ไม่มีการใช้งาน ' + fmtMin(m) + ' จะออกจากระบบอัตโนมัติ' : 'ปิดการออกจากระบบอัตโนมัติแล้ว'); } catch (_) {}
       break; }
     case 'kick-report': kickOut('report', el); break;
+    case 'motion': { const on = RM(); try { localStorage.setItem('psi_rm', on ? '0' : '1'); } catch (_) {} document.documentElement.classList.toggle('rm', !on); renderSide(); toast(on ? 'เปิดภาพเคลื่อนไหวแล้ว ✨' : 'ลดภาพเคลื่อนไหวแล้ว', 'info'); break; }
     case 'snow': { const on = !snowOn(); try { localStorage.setItem('psi_snow', on ? '1' : '0'); } catch (_) {} document.body.classList.toggle('no-snow', !on); renderSide(); toast(on ? 'เปิดหิมะตกแล้ว ❄' : 'ปิดหิมะตกแล้ว', 'info'); break; }
     case 'kpop-close': kpopClose(); break;
     case 'kpop-fx': kpopFx(el); break;
